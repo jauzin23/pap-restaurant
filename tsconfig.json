@@ -29,7 +29,8 @@
     ".next/types/**/*.ts",
     "src/app/components/Header.jsx",
     "src/app/page.jsx",
-    "src/app/menu/page.jsx"
+    "src/app/menu/page.jsx",
+    "src/app/components/Mesas.jsx"
   ],
   "exclude": ["node_modules"]
 }

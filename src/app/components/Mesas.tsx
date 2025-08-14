@@ -168,7 +168,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
             `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.create`
           )
         ) {
-          const newTable = response.payload;
+          const newTable: any = response.payload;
           const tableData = {
             id: newTable.$id,
             x: newTable.posX,
@@ -201,7 +201,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
             `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedTable = response.payload;
+          const updatedTable: any = response.payload;
           const tableData = {
             id: updatedTable.$id,
             x: updatedTable.posX,
@@ -236,7 +236,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
             `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.delete`
           )
         ) {
-          const deletedTable = response.payload;
+          const deletedTable: any = response.payload;
           setTables((prevTables) =>
             prevTables.filter((table) => table.id !== deletedTable.$id)
           );
@@ -266,7 +266,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
             `databases.${DATABASE_ID}.collections.${SETTINGS_COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedSettings = response.payload;
+          const updatedSettings: any = response.payload;
           if (updatedSettings.$id === SETTINGS_DOCUMENT_ID) {
             setRestaurantSize(updatedSettings.size);
           }
