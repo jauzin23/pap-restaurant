@@ -6,5 +6,7 @@ const client = new Client()
 
 const databases = new Databases(client);
 const account = new Account(client);
+const DBRESTAURANTE = "689c9a200025de0e8af2";
+const COL_MENU = "689d00e2001afa755161";
 
-export { client, databases, account };
+export { client, databases, account, DBRESTAURANTE, COL_MENU };

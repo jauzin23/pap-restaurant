@@ -4,11 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./components/Header";
 import Mesas from "./components/Mesas";
+import BtnsCards from "./components/btnsCards";
 import { account } from "@/lib/appwrite";
+import { useMediaQuery } from "react-responsive";
+import { Separator } from "@/components/ui/separator";
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
+  const isMobile = useMediaQuery({ maxWidth: 767 });
   const router = useRouter();
+
+  useEffect(() => {
+    if (isMobile) router.push("/unsupported");
+  }, [router]);
 
   useEffect(() => {
     account
@@ -28,6 +36,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header user={user} logo="/logo.png" />
+      <BtnsCards />
+      <Separator />
       <Mesas />
     </div>
   );

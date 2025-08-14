@@ -1,11 +1,12 @@
 // app/login/page.jsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiUser, FiLock } from "react-icons/fi";
 import { account } from "@/lib/appwrite";
 import { useRouter } from "next/navigation";
+import { useMediaQuery } from "react-responsive";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +14,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const isMobile = useMediaQuery({ maxWidth: 767 });
+
+  useEffect(() => {
+    if (isMobile) router.push("/unsupported");
+  }, [router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

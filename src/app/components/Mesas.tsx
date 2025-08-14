@@ -581,9 +581,9 @@ const RestaurantFloorPlan: React.FC = () => {
   const maxDimensions = getMaxDimensions();
 
   return (
-    <div className="w-full flex items-center justify-center px-4">
+    <div className=" flex items-center justify-center px-4 mt-8">
       <div
-        className="w-full bg-white rounded-2xl shadow-2xl flex flex-col p-8"
+        className=" min-w-[920px] bg-white rounded-2xl shadow-2xl flex flex-col p-8"
         style={{
           maxHeight: "90vh",
           overflow: "hidden",
@@ -905,7 +905,7 @@ const RestaurantFloorPlan: React.FC = () => {
                     className="bg-slate-50 p-4"
                     style={{ borderRadius: "6px" }}
                   >
-                    <label className="block text-sm font-semibold text-slate-800 mb-3">
+                    <label className="block text-sm font-semibold text-slate-800 mb-3 ">
                       Forma da Mesa
                     </label>
                     <select
@@ -913,7 +913,7 @@ const RestaurantFloorPlan: React.FC = () => {
                       onChange={(e) =>
                         updateTableShape(selectedTable!, e.target.value)
                       }
-                      className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-blue-500 bg-white font-medium"
+                      className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-blue-500 bg-white font-medium text-slate-800"
                       style={{ borderRadius: "4px" }}
                     >
                       <option value="square">Quadrada</option>
@@ -953,7 +953,7 @@ const RestaurantFloorPlan: React.FC = () => {
                               })
                             );
                           }}
-                          className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium"
+                          className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-800"
                           style={{ borderRadius: "4px" }}
                         />
                       </div>
@@ -979,7 +979,7 @@ const RestaurantFloorPlan: React.FC = () => {
                               })
                             );
                           }}
-                          className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium"
+                          className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-800"
                           style={{ borderRadius: "4px" }}
                         />
                       </div>
@@ -1013,7 +1013,7 @@ const RestaurantFloorPlan: React.FC = () => {
                               parseFloat(e.target.value) || 1
                             )
                           }
-                          className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium"
+                          className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-800"
                           style={{ borderRadius: "4px" }}
                           min="1"
                           max="15"
@@ -1037,7 +1037,7 @@ const RestaurantFloorPlan: React.FC = () => {
                                 parseFloat(e.target.value) || 1
                               )
                             }
-                            className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium"
+                            className="w-full px-3 py-2 border border-slate-300 text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-800"
                             style={{ borderRadius: "4px" }}
                             min="1"
                             max="15"
@@ -1075,7 +1075,7 @@ const RestaurantFloorPlan: React.FC = () => {
                                 );
                               }
                             }}
-                            className="px-2 py-2 text-xs bg-white hover:bg-blue-50 border border-slate-200 transition-colors font-semibold hover:border-blue-300"
+                            className="px-2 py-2 text-xs bg-white hover:bg-blue-50 border border-slate-200 transition-colors font-semibold hover:border-blue-300 text-slate-800"
                             style={{ borderRadius: "4px" }}
                           >
                             {preset.label}
@@ -1204,7 +1204,7 @@ const RestaurantFloorPlan: React.FC = () => {
                           })
                         );
                       }}
-                      className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-blue-500 font-medium"
+                      className="w-full px-3 py-2 border border-slate-300 focus:outline-none focus:border-blue-500 font-medium text-slate-800"
                       style={{ borderRadius: "4px" }}
                       min="1"
                     />
