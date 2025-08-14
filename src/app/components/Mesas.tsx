@@ -284,8 +284,8 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
   const getMaxDimensions = () => {
     const baseSize = Math.sqrt(restaurantSize) * 60;
     return {
-      width: Math.min(1200, Math.max(400, baseSize * 1.2)),
-      height: Math.min(900, Math.max(300, baseSize)),
+      width: Math.min(800, Math.max(400, baseSize * 1.2)), // Reduced from 1200
+      height: Math.min(600, Math.max(300, baseSize)), // Reduced from 900
     };
   };
 
@@ -893,38 +893,38 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center px-4 py-8">
+    <div className="bg-black flex flex-col p-6 overflow-auto h-full flex-1">
       {/* Confirmation Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl border border-white/50 p-8 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-neutral-900 rounded-xl shadow-2xl border border-neutral-700 p-8 max-w-md w-full mx-4">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
-                <AlertTriangle size={24} className="text-white" />
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
+                <AlertTriangle size={24} className="text-black" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900">
+                <h3 className="text-xl font-bold text-white">
                   Alterações não guardadas
                 </h3>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-neutral-400">
                   Tem a certeza que quer sair?
                 </p>
               </div>
             </div>
-            <p className="text-slate-700 mb-8">
+            <p className="text-neutral-300 mb-8 leading-relaxed">
               Tem alterações não guardadas que serão perdidas se sair do modo de
               edição. Quer guardar as alterações primeiro ou descartar?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={confirmDiscardChanges}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 rounded-xl shadow-lg"
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-200 rounded-lg"
               >
                 Descartar alterações
               </button>
               <button
                 onClick={cancelDiscardChanges}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-slate-200 to-slate-300 text-slate-800 font-medium hover:from-slate-300 hover:to-slate-400 transition-all duration-200 rounded-xl shadow-lg"
+                className="flex-1 px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-white font-medium transition-all duration-200 rounded-lg"
               >
                 Continuar a editar
               </button>
@@ -936,12 +936,12 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
       {/* Notification Toast */}
       {notification && (
         <div
-          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-xl shadow-2xl border backdrop-blur-sm transform transition-all duration-300 ${
+          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-lg border backdrop-blur-sm transform transition-all duration-300 ${
             notification.type === "success"
-              ? "bg-emerald-50/90 border-emerald-200 text-emerald-700"
+              ? "bg-neutral-900/95 border-green-500/50 text-green-400"
               : notification.type === "error"
-              ? "bg-red-50/90 border-red-200 text-red-700"
-              : "bg-blue-50/90 border-blue-200 text-blue-700"
+              ? "bg-neutral-900/95 border-red-500/50 text-red-400"
+              : "bg-neutral-900/95 border-yellow-500/50 text-yellow-400"
           }`}
           style={{
             animation: "slideInRight 0.3s ease-out",
@@ -949,7 +949,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
         >
           <div className="flex items-center gap-3">
             {notification.type === "success" && (
-              <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                 <svg
                   width="12"
                   height="12"
@@ -977,13 +977,13 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
               </div>
             )}
             {notification.type === "info" && (
-              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+              <div className="w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
                 <svg
                   width="12"
                   height="12"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="white"
+                  stroke="black"
                   strokeWidth="2"
                 >
                   <path d="m12 16 4-4-4-4" />
@@ -996,32 +996,24 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
         </div>
       )}
 
-      <div
-        className="min-w-[1000px] bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 flex flex-col p-8"
-        style={{
-          maxHeight: "90vh",
-          overflow: "hidden",
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.95) 50%, rgba(241,245,249,0.9) 100%)",
-        }}
-      >
+      <div className="bg-neutral-950 rounded-xl border border-neutral-800 flex flex-col p-8 shadow-2xl flex-1 h-full overflow-hidden">
         <div className="flex items-center justify-between px-0 py-1">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-neutral-900 rounded-lg flex items-center justify-center border border-neutral-700">
               <Grid size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+              <h1 className="text-2xl font-bold text-white tracking-tight">
                 Layout do Restaurante
               </h1>
               <div className="flex items-center gap-2 mt-1">
                 {isManager ? (
-                  <div className="flex items-center gap-2 text-emerald-600">
+                  <div className="flex items-center gap-2 text-green-400">
                     <Shield size={14} />
                     <span className="text-sm font-medium">Gestor</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-amber-600">
+                  <div className="flex items-center gap-2 text-neutral-400">
                     <ShieldX size={14} />
                     <span className="text-sm font-medium">
                       Modo Visualização
@@ -1029,8 +1021,8 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                   </div>
                 )}
                 {hasUnsavedChanges && (
-                  <div className="flex items-center gap-2 text-orange-600 ml-4">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <div className="flex items-center gap-2 text-yellow-400 ml-4">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                     <span className="text-xs font-medium">
                       Alterações não guardadas
                     </span>
@@ -1045,7 +1037,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
               <div className="relative">
                 <button
                   onClick={() => setShowSizeMenu(!showSizeMenu)}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium border-0 hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-2 text-sm rounded-xl shadow-lg"
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
                 >
                   <Ruler size={16} />
                   {restaurantSize}m²
@@ -1057,9 +1049,9 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                   />
                 </button>
                 {showSizeMenu && (
-                  <div className="absolute top-full mt-3 bg-white/95 backdrop-blur border border-white/50 shadow-xl z-20 min-w-[220px] rounded-xl overflow-hidden">
+                  <div className="absolute top-full mt-3 bg-neutral-900 border border-neutral-700 shadow-xl z-20 min-w-[220px] rounded-lg overflow-hidden">
                     <div className="p-5">
-                      <h4 className="text-sm font-semibold text-slate-800 mb-4">
+                      <h4 className="text-sm font-semibold text-white mb-4">
                         Tamanho do Restaurante
                       </h4>
                       <div className="space-y-1">
@@ -1072,8 +1064,8 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                             }}
                             className={`w-full text-left px-4 py-3 text-sm transition-all duration-200 font-medium rounded-lg ${
                               restaurantSize === size
-                                ? "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 shadow-sm"
-                                : "text-slate-700 hover:bg-slate-50"
+                                ? "bg-neutral-800 text-white"
+                                : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
                             }`}
                           >
                             {size}m²{" "}
@@ -1088,11 +1080,11 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                             </span>
                           </button>
                         ))}
-                        <div className="border-t border-slate-200 pt-4 mt-4">
+                        <div className="border-t border-neutral-700 pt-4 mt-4">
                           <input
                             type="number"
                             placeholder="Tamanho personalizado"
-                            className="w-full px-4 py-3 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
+                            className="w-full px-4 py-3 border border-neutral-700 bg-neutral-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200 placeholder-neutral-400"
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 const target = e.target as HTMLInputElement;
@@ -1116,10 +1108,10 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
             {isManager && (
               <button
                 onClick={handleEditModeToggle}
-                className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 flex items-center gap-2 shadow-lg ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 border ${
                   editMode
-                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700"
-                    : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700"
+                    ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                    : "bg-green-600 hover:bg-green-700 text-white border-green-600"
                 }`}
               >
                 <Edit size={16} />
@@ -1131,7 +1123,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
               <div className="relative">
                 <button
                   onClick={() => setShowAddMenu(!showAddMenu)}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-2 text-sm rounded-xl shadow-lg"
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
                 >
                   <Plus size={16} />
                   Adicionar Mesa
@@ -1143,9 +1135,9 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                   />
                 </button>
                 {showAddMenu && (
-                  <div className="absolute top-full mt-3 bg-white/95 backdrop-blur border border-white/50 shadow-xl z-10 min-w-[240px] rounded-xl overflow-hidden">
+                  <div className="absolute top-full mt-3 bg-neutral-900 border border-neutral-700 shadow-xl z-10 min-w-[240px] rounded-lg overflow-hidden">
                     <div className="p-5">
-                      <h4 className="text-sm font-semibold text-slate-800 mb-4">
+                      <h4 className="text-sm font-semibold text-white mb-4">
                         Formas de Mesa
                       </h4>
                       {[
@@ -1154,32 +1146,32 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                           label: "Quadrada",
                           desc: "4 cadeiras • 2×2m",
                           icon: Square,
-                          gradient: "from-emerald-50 to-emerald-100",
-                          iconColor: "text-emerald-600",
+                          gradient: "from-neutral-800 to-neutral-700",
+                          iconColor: "text-white",
                         },
                         {
                           shape: "rectangular",
                           label: "Retangular",
                           desc: "6 cadeiras • 3×1.5m",
                           icon: RectangleHorizontal,
-                          gradient: "from-blue-50 to-blue-100",
-                          iconColor: "text-blue-600",
+                          gradient: "from-neutral-800 to-neutral-700",
+                          iconColor: "text-white",
                         },
                         {
                           shape: "circular",
                           label: "Redonda",
                           desc: "6 cadeiras • 2.3×2.3m",
                           icon: Circle,
-                          gradient: "from-purple-50 to-purple-100",
-                          iconColor: "text-purple-600",
+                          gradient: "from-neutral-800 to-neutral-700",
+                          iconColor: "text-white",
                         },
                         {
                           shape: "bar",
                           label: "Mesa de Bar",
                           desc: "8 cadeiras • 5×1m",
                           icon: Minus,
-                          gradient: "from-orange-50 to-orange-100",
-                          iconColor: "text-orange-600",
+                          gradient: "from-neutral-800 to-neutral-700",
+                          iconColor: "text-white",
                         },
                       ].map((option) => {
                         const IconComponent = option.icon;
@@ -1190,10 +1182,10 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               addTable(option.shape);
                               setShowAddMenu(false);
                             }}
-                            className="w-full text-left px-4 py-4 hover:bg-slate-50 transition-all duration-200 flex items-center gap-4 rounded-lg group"
+                            className="w-full text-left px-4 py-4 hover:bg-neutral-800 transition-all duration-200 flex items-center gap-4 rounded-lg group"
                           >
                             <div
-                              className={`w-10 h-10 bg-gradient-to-br ${option.gradient} flex items-center justify-center rounded-lg shadow-sm group-hover:shadow-md transition-all duration-200`}
+                              className={`w-10 h-10 bg-gradient-to-br ${option.gradient} flex items-center justify-center rounded-lg border border-neutral-600 group-hover:border-neutral-500 transition-all duration-200`}
                             >
                               <IconComponent
                                 size={18}
@@ -1201,10 +1193,10 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               />
                             </div>
                             <div>
-                              <span className="text-sm font-semibold text-slate-800 block">
+                              <span className="text-sm font-semibold text-white block">
                                 {option.label}
                               </span>
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-neutral-400">
                                 {option.desc}
                               </span>
                             </div>
@@ -1220,17 +1212,17 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
               <button
                 onClick={saveLayout}
                 disabled={savingLayout}
-                className={`px-4 py-2 font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-xl shadow-lg ${
+                className={`px-4 py-2 font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-lg border ${
                   savingLayout
-                    ? "bg-gradient-to-r from-gray-400 to-gray-500 text-white cursor-not-allowed"
+                    ? "bg-neutral-700 text-neutral-400 cursor-not-allowed border-neutral-600"
                     : hasUnsavedChanges
-                    ? "bg-gradient-to-r from-orange-600 to-orange-700 text-white hover:from-orange-700 hover:to-orange-800 animate-pulse"
-                    : "bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800"
+                    ? "bg-yellow-600 hover:bg-yellow-700 text-black border-yellow-600 animate-pulse"
+                    : "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
                 }`}
               >
                 {savingLayout ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-neutral-400 border-t-transparent"></div>
                     A Guardar...
                   </>
                 ) : (
@@ -1246,22 +1238,20 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 flex items-center justify-center overflow-auto p-4">
+        <div className="flex flex-1 overflow-hidden mt-6 min-h-0">
+          <div className="flex-1 flex items-center justify-center overflow-auto p-4 min-h-0">
             <div
               ref={containerRef}
-              className="relative border-2 border-white/60 bg-white/50 shadow-xl backdrop-blur-sm"
+              className="relative border-2 border-neutral-700 bg-neutral-900 shadow-xl"
               style={{
                 backgroundImage: `
-                  linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px),
-                  radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 70%)
+                  linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
                 `,
-                backgroundSize: "20px 20px, 20px 20px, 100% 100%",
+                backgroundSize: "20px 20px, 20px 20px",
                 width: `${maxDimensions.width}px`,
                 height: `${maxDimensions.height}px`,
-                borderRadius: "16px",
-                boxShadow: "inset 0 0 40px rgba(59, 130, 246, 0.1)",
+                borderRadius: "12px",
               }}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -1278,7 +1268,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                     editMode && isManager ? "cursor-move" : "cursor-default"
                   } ${
                     selectedTable === table.id
-                      ? "ring-4 ring-blue-400/50 z-10"
+                      ? "ring-2 ring-yellow-400 z-10"
                       : ""
                   } ${
                     draggedTable === table.id
@@ -1286,7 +1276,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                       : "transition-all duration-200"
                   } group ${
                     table.id.startsWith("temp_")
-                      ? "ring-2 ring-orange-400/50"
+                      ? "ring-2 ring-yellow-400/50"
                       : ""
                   }`}
                   style={{
@@ -1306,23 +1296,22 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                   <div
                     className={`w-full h-full border-2 flex items-center justify-center transition-all duration-200 ${
                       selectedTable === table.id
-                        ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-400 shadow-xl"
+                        ? "bg-neutral-800 border-yellow-400 shadow-xl"
                         : table.id.startsWith("temp_")
-                        ? "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-400 shadow-lg hover:shadow-xl group-hover:from-orange-100 group-hover:to-orange-200"
-                        : "bg-gradient-to-br from-white to-slate-50 border-slate-300 hover:border-slate-400 shadow-lg hover:shadow-xl group-hover:from-slate-50 group-hover:to-slate-100"
+                        ? "bg-neutral-800 border-yellow-400/50 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
+                        : "bg-neutral-800 border-neutral-600 hover:border-neutral-500 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
                     }`}
                     style={{
                       ...getTableStyle(table),
-                      backdropFilter: "blur(8px)",
                     }}
                   >
                     <span
                       className={`text-lg font-bold transition-colors duration-200 ${
                         selectedTable === table.id
-                          ? "text-blue-700"
+                          ? "text-yellow-400"
                           : table.id.startsWith("temp_")
-                          ? "text-orange-700"
-                          : "text-slate-700 group-hover:text-slate-800"
+                          ? "text-yellow-400"
+                          : "text-white group-hover:text-neutral-200"
                       } ${!editMode ? "select-none" : ""}`}
                     >
                       {table.tableNumber}
@@ -1334,10 +1323,10 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                       key={i}
                       className={`absolute w-5 h-5 transition-all duration-200 shadow-sm ${
                         selectedTable === table.id
-                          ? "bg-gradient-to-br from-blue-500 to-blue-600 border border-blue-700 shadow-md"
+                          ? "bg-yellow-400 border border-yellow-500 shadow-md"
                           : table.id.startsWith("temp_")
-                          ? "bg-gradient-to-br from-orange-500 to-orange-600 border border-orange-700 shadow-md"
-                          : "bg-gradient-to-br from-slate-600 to-slate-700 border border-slate-800 group-hover:from-slate-500 group-hover:to-slate-600"
+                          ? "bg-yellow-400/70 border border-yellow-500/70 shadow-md"
+                          : "bg-neutral-600 border border-neutral-700 group-hover:bg-neutral-500"
                       }`}
                       style={{
                         left: "50%",
@@ -1356,14 +1345,14 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
 
               {tables.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center text-slate-400">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center shadow-lg">
+                  <div className="text-center text-neutral-400">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-neutral-800 rounded-xl flex items-center justify-center border border-neutral-700">
                       <Grid size={32} className="opacity-60" />
                     </div>
-                    <p className="text-xl font-semibold mb-3 text-slate-600">
+                    <p className="text-xl font-semibold mb-3 text-neutral-300">
                       Nenhuma mesa no layout
                     </p>
-                    <p className="text-sm max-w-md text-slate-500 leading-relaxed">
+                    <p className="text-sm max-w-md text-neutral-500 leading-relaxed">
                       {editMode && isManager
                         ? 'Clique em "Adicionar Mesa" para começar a desenhar a planta'
                         : isManager
@@ -1377,25 +1366,31 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
           </div>
 
           {editMode && isManager && selectedTableData && (
-            <div className="w-80 bg-white/70 backdrop-blur border-l border-white/50 overflow-y-auto">
+            <div className="w-80 bg-neutral-900 border-l border-neutral-700 overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-6">
                   <div
-                    className={`w-12 h-12 bg-gradient-to-br ${
+                    className={`w-12 h-12 ${
                       selectedTableData.id.startsWith("temp_")
-                        ? "from-orange-500 to-orange-600"
-                        : "from-blue-500 to-blue-600"
-                    } flex items-center justify-center rounded-xl shadow-lg`}
+                        ? "bg-yellow-500"
+                        : "bg-neutral-700"
+                    } flex items-center justify-center rounded-lg border border-neutral-600`}
                   >
-                    <span className="text-white font-bold text-lg">
+                    <span
+                      className={`font-bold text-lg ${
+                        selectedTableData.id.startsWith("temp_")
+                          ? "text-black"
+                          : "text-white"
+                      }`}
+                    >
                       {selectedTableData.tableNumber}
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">
+                    <h3 className="text-xl font-bold text-white">
                       Mesa {selectedTableData.tableNumber}
                     </h3>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-neutral-400">
                       {selectedTableData.id.startsWith("temp_")
                         ? "Nova mesa (não guardada)"
                         : "Configurar propriedades"}
@@ -1404,8 +1399,8 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                    <label className="block text-sm font-semibold text-slate-800 mb-4">
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
                       Forma da Mesa
                     </label>
                     <select
@@ -1413,7 +1408,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                       onChange={(e) =>
                         updateTableShape(selectedTable!, e.target.value)
                       }
-                      className="w-full px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur font-medium text-slate-800 rounded-lg transition-all duration-200"
+                      className="w-full px-4 py-3 border border-neutral-600 bg-neutral-900 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                     >
                       <option value="square">Quadrada</option>
                       <option value="rectangular">Retangular</option>
@@ -1422,13 +1417,13 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                     </select>
                   </div>
 
-                  <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                    <label className="block text-sm font-semibold text-slate-800 mb-4">
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
                       Posição
                     </label>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs text-slate-600 mb-2 font-medium">
+                        <label className="block text-xs text-neutral-400 mb-2 font-medium">
                           X (píxeis)
                         </label>
                         <input
@@ -1448,11 +1443,11 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               })
                             );
                           }}
-                          className="w-full px-3 py-2 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200"
+                          className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-600 mb-2 font-medium">
+                        <label className="block text-xs text-neutral-400 mb-2 font-medium">
                           Y (píxeis)
                         </label>
                         <input
@@ -1472,19 +1467,19 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               })
                             );
                           }}
-                          className="w-full px-3 py-2 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200"
+                          className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                    <label className="block text-sm font-semibold text-slate-800 mb-4">
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
                       Tamanho
                     </label>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs text-slate-600 mb-2 font-medium">
+                        <label className="block text-xs text-neutral-400 mb-2 font-medium">
                           {selectedTableData.shape === "circular"
                             ? "Diâmetro (m)"
                             : "Largura (m)"}
@@ -1502,14 +1497,14 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               parseFloat(e.target.value) || 1
                             )
                           }
-                          className="w-full px-3 py-2 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200"
+                          className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                           min="1"
                           max="15"
                         />
                       </div>
                       {selectedTableData.shape !== "circular" && (
                         <div>
-                          <label className="block text-xs text-slate-600 mb-2 font-medium">
+                          <label className="block text-xs text-neutral-400 mb-2 font-medium">
                             Altura (m)
                           </label>
                           <input
@@ -1525,7 +1520,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                                 parseFloat(e.target.value) || 1
                               )
                             }
-                            className="w-full px-3 py-2 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200"
+                            className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                             min="1"
                             max="15"
                           />
@@ -1534,7 +1529,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                     </div>
 
                     <div className="mt-5">
-                      <label className="block text-xs text-slate-600 mb-3 font-medium">
+                      <label className="block text-xs text-neutral-400 mb-3 font-medium">
                         Predefinições Rápidas
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1562,7 +1557,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                                 );
                               }
                             }}
-                            className="px-3 py-2 text-xs bg-white/80 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition-all duration-200 font-semibold text-slate-800 rounded-lg shadow-sm hover:shadow-md backdrop-blur"
+                            className="px-3 py-2 text-xs bg-neutral-700 hover:bg-neutral-600 border border-neutral-600 hover:border-neutral-500 transition-all duration-200 font-semibold text-white rounded-lg"
                           >
                             {preset.label}
                           </button>
@@ -1572,8 +1567,8 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                   </div>
 
                   {selectedTableData.shape !== "circular" && (
-                    <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                      <label className="block text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                      <label className="block text-sm font-semibold text-white mb-4 flex items-center gap-2">
                         <Settings size={16} />
                         Posição das Cadeiras
                       </label>
@@ -1602,22 +1597,22 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                                   e.target.checked
                                 )
                               }
-                              className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded transition-all duration-200"
+                              className="w-4 h-4 text-yellow-500 focus:ring-yellow-500 bg-neutral-700 border-neutral-600 rounded transition-all duration-200"
                             />
-                            <span className="text-sm font-medium text-slate-700">
+                            <span className="text-sm font-medium text-neutral-300">
                               {side.label}
                             </span>
                           </label>
                         ))}
                       </div>
-                      <p className="text-xs text-slate-500 mt-3 leading-relaxed">
+                      <p className="text-xs text-neutral-500 mt-3 leading-relaxed">
                         Desmarque os lados onde não quer cadeiras
                       </p>
                     </div>
                   )}
 
-                  <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                    <label className="block text-sm font-semibold text-slate-800 mb-4">
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
                       Cadeiras ({selectedTableData.chairs} /{" "}
                       {getMaxChairs(
                         selectedTableData.width,
@@ -1641,9 +1636,9 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                           parseInt(e.target.value)
                         )
                       }
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+                      className="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer slider"
                       style={{
-                        background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${
+                        background: `linear-gradient(to right, rgb(234 179 8) 0%, rgb(234 179 8) ${
                           (selectedTableData.chairs /
                             getMaxChairs(
                               selectedTableData.width,
@@ -1651,7 +1646,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               selectedTableData.shape
                             )) *
                           100
-                        }%, rgb(226 232 240) ${
+                        }%, rgb(64 64 64) ${
                           (selectedTableData.chairs /
                             getMaxChairs(
                               selectedTableData.width,
@@ -1659,10 +1654,10 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                               selectedTableData.shape
                             )) *
                           100
-                        }%, rgb(226 232 240) 100%)`,
+                        }%, rgb(64 64 64) 100%)`,
                       }}
                     />
-                    <div className="flex justify-between text-xs text-slate-500 mt-3 font-medium">
+                    <div className="flex justify-between text-xs text-neutral-500 mt-3 font-medium">
                       <span>1</span>
                       <span>
                         {getMaxChairs(
@@ -1674,8 +1669,8 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                     </div>
                   </div>
 
-                  <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                    <label className="block text-sm font-semibold text-slate-800 mb-4">
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
                       Número da Mesa
                     </label>
                     <input
@@ -1688,30 +1683,30 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                         );
                         updateTableNumber(selectedTable!, newNumber);
                       }}
-                      className={`w-full px-4 py-3 border focus:outline-none focus:ring-2 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200 ${
+                      className={`w-full px-4 py-3 border focus:outline-none focus:ring-2 focus:border-transparent font-medium text-white bg-neutral-900 rounded-lg transition-all duration-200 ${
                         tableNumberError
-                          ? "border-red-300 focus:ring-red-500"
-                          : "border-slate-200 focus:ring-blue-500"
+                          ? "border-red-500 focus:ring-red-500"
+                          : "border-neutral-600 focus:ring-yellow-500"
                       }`}
                       min="1"
                     />
                     {tableNumberError && (
-                      <p className="text-red-600 text-xs mt-2 font-medium">
+                      <p className="text-red-400 text-xs mt-2 font-medium">
                         {tableNumberError}
                       </p>
                     )}
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                    <p className="text-xs text-neutral-500 mt-2 leading-relaxed">
                       Cada mesa deve ter um número único
                     </p>
                   </div>
 
-                  <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
-                    <label className="block text-sm font-semibold text-slate-800 mb-4">
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
                       Rotação ({selectedTableData.rotation}°)
                     </label>
                     <button
                       onClick={() => rotateTable(selectedTable!)}
-                      className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center gap-2 rounded-lg shadow-lg"
+                      className="w-full px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-lg border border-neutral-600"
                     >
                       <RotateCw size={16} />
                       Rodar 90°
@@ -1720,7 +1715,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
 
                   <button
                     onClick={() => deleteTable(selectedTable!)}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 flex items-center justify-center gap-2 rounded-lg shadow-lg"
+                    className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-lg border border-red-600"
                   >
                     <Trash2 size={16} />
                     Eliminar Mesa

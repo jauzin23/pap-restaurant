@@ -6,10 +6,10 @@ import {
   BookOpen,
   ShoppingCart,
   CalendarCheck,
-  ArrowRight,
+  ArrowRightCircle,
 } from "lucide-react";
 
-const DashboardCards = () => {
+const BtnsCards = () => {
   const router = useRouter();
 
   const cards = [
@@ -18,71 +18,73 @@ const DashboardCards = () => {
       description: "Ver e editar o menu",
       href: "/menu",
       icon: BookOpen,
-      color: "text-orange-500",
     },
     {
       title: "Pedidos",
       description: "Acompanhar os pedidos",
       href: "/pedidos",
       icon: ShoppingCart,
-      color: "text-blue-500",
     },
     {
       title: "Reservas",
       description: "Ver reservas atuais",
       href: "/reservas",
       icon: CalendarCheck,
-      color: "text-green-500",
     },
   ];
 
   return (
-    <div className="flex flex-wrap gap-6 justify-center mt-8 mb-8">
-      {cards.map((card, i) => {
-        const Icon = card.icon;
-        return (
-          <motion.div
-            key={card.title}
-            onClick={() => router.push(card.href)}
-            whileHover={{ scale: 1.05, y: -4 }}
-            whileTap={{ scale: 0.95 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1, type: "spring", stiffness: 200 }}
-            className="w-72 p-6 rounded-xl cursor-pointer shadow-lg relative overflow-hidden group bg-white"
-          >
-            {/* Gradient background circle */}
-            <div
-              className={`absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-30 bg-gradient-to-br ${card.color.replace(
-                "text-",
-                "from-"
-              )} to-rose-500`}
-            />
+    <section className="bg-black text-white p-6 md:p-8 w-80 h-full border-r border-neutral-800 flex flex-col flex-1">
+      {/* Section header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold">Acesso Rápido</h1>
+        <p className="text-sm text-neutral-400 mt-1">
+          Navegue rapidamente pelas funcionalidades
+        </p>
+      </div>
 
-            {/* Icon */}
-            <div className="mb-4 w-12 h-12 rounded-full flex items-center justify-center shadow-md bg-white">
-              <Icon className={`w-8 h-8 ${card.color}`} />
-            </div>
+      {/* Card stack */}
+      <div className="flex-1 flex flex-col gap-4">
+        {cards.map((card, i) => {
+          const Icon = card.icon;
 
-            {/* Card text */}
-            <h2 className="text-xl font-semibold text-gray-800">
-              {card.title}
-            </h2>
-            <p className="text-gray-500 mt-2 text-sm">{card.description}</p>
-
-            {/* Bottom hover arrow */}
+          return (
             <motion.div
-              className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
-              animate={{ x: 0 }}
-              whileHover={{ x: 2 }}
+              key={card.title}
+              onClick={() => router.push(card.href)}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1, type: "spring", stiffness: 200 }}
+              className="cursor-pointer group rounded-lg p-4 bg-neutral-950 border border-neutral-800 flex flex-col gap-2
+                         hover:bg-neutral-900 hover:scale-105 transition-all duration-150"
             >
-              <ArrowRight className="w-5 h-5 text-gray-400" />
+              {/* Top row: Icon + Title + Arrow */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md flex items-center justify-center bg-neutral-900 group-hover:bg-neutral-800 flex-shrink-0 transition-colors duration-150">
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-base font-semibold text-white">
+                    {card.title}
+                  </h2>
+                </div>
+                <ArrowRightCircle className="w-5 h-5 text-neutral-500 group-hover:text-white transition-colors duration-150" />
+              </div>
+
+              {/* Description */}
+              <p className="text-neutral-400 text-sm">{card.description}</p>
             </motion.div>
-          </motion.div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {/* Status indicator */}
+      <div className="mt-6 p-4 bg-green-950 rounded-lg border border-green-800 flex items-center gap-3">
+        <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+        <h4 className="text-sm font-semibold text-green-300">Sistema Online</h4>
+      </div>
+    </section>
   );
 };
 
-export default DashboardCards;
+export default BtnsCards;
