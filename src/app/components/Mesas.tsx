@@ -84,9 +84,52 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
   } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [tableNumberError, setTableNumberError] = useState<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const PIXELS_PER_METER = 40;
+
+  // Helper function to get next available table number
+  const getNextAvailableTableNumber = (): number => {
+    const existingNumbers = tables.map((table) => table.tableNumber);
+    let nextNumber = 1;
+    while (existingNumbers.includes(nextNumber)) {
+      nextNumber++;
+    }
+    return nextNumber;
+  };
+
+  // Helper function to check if table number is available (excluding current table)
+  const isTableNumberAvailable = (
+    number: number,
+    excludeTableId?: string
+  ): boolean => {
+    return !tables.some(
+      (table) => table.tableNumber === number && table.id !== excludeTableId
+    );
+  };
+
+  // Helper function to validate table numbers before saving
+  const validateTableNumbers = (): {
+    isValid: boolean;
+    duplicates: number[];
+  } => {
+    const numberCounts = new Map<number, number>();
+
+    tables.forEach((table) => {
+      const count = numberCounts.get(table.tableNumber) || 0;
+      numberCounts.set(table.tableNumber, count + 1);
+    });
+
+    const duplicates = Array.from(numberCounts.entries())
+      .filter(([number, count]) => count > 1)
+      .map(([number]) => number);
+
+    return {
+      isValid: duplicates.length === 0,
+      duplicates,
+    };
+  };
 
   // Check user permissions
   useEffect(() => {
@@ -353,6 +396,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
       setTables(JSON.parse(JSON.stringify(savedTables)));
       setSelectedTable(null);
       setHasUnsavedChanges(false);
+      setTableNumberError("");
     }
     setEditMode(!editMode);
   };
@@ -368,6 +412,16 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
 
   const saveLayout = async () => {
     if (!isManager) return;
+
+    // Validate table numbers before saving
+    const validation = validateTableNumbers();
+    if (!validation.isValid) {
+      showNotification(
+        `Erro: Números de mesa duplicados: ${validation.duplicates.join(", ")}`,
+        "error"
+      );
+      return;
+    }
 
     setSavingLayout(true);
     showNotification("A guardar layout...", "info");
@@ -468,7 +522,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
       height: shape === "circular" ? preset.width : preset.height,
       chairs: preset.chairs,
       rotation: 0,
-      tableNumber: tables.length + 1,
+      tableNumber: getNextAvailableTableNumber(),
       shape: shape,
       chairSides: {
         top: true,
@@ -704,6 +758,36 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
     );
   };
 
+  const updateTableNumber = (tableId: string, newNumber: number) => {
+    if (!isManager) return;
+
+    // Clear previous error
+    setTableNumberError("");
+
+    // Validate the new number
+    if (newNumber < 1) {
+      setTableNumberError("O número da mesa deve ser maior que 0");
+      return;
+    }
+
+    if (!isTableNumberAvailable(newNumber, tableId)) {
+      setTableNumberError(`Número ${newNumber} já está em uso`);
+      return;
+    }
+
+    setTables((prevTables) =>
+      prevTables.map((table) => {
+        if (table.id === tableId) {
+          return {
+            ...table,
+            tableNumber: newNumber,
+          };
+        }
+        return table;
+      })
+    );
+  };
+
   const getTableStyle = (table: Table) => {
     return {
       borderRadius: table.shape === "circular" ? "50%" : "2px",
@@ -913,7 +997,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
       )}
 
       <div
-        className="min-w-[920px] bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 flex flex-col p-8"
+        className="min-w-[1000px] bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 flex flex-col p-8"
         style={{
           maxHeight: "90vh",
           overflow: "hidden",
@@ -956,7 +1040,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 h-max">
             {editMode && isManager && (
               <div className="relative">
                 <button
@@ -1602,21 +1686,23 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
                           1,
                           parseInt(e.target.value) || 1
                         );
-                        setTables((prevTables) =>
-                          prevTables.map((table) => {
-                            if (table.id === selectedTable) {
-                              return {
-                                ...table,
-                                tableNumber: newNumber,
-                              };
-                            }
-                            return table;
-                          })
-                        );
+                        updateTableNumber(selectedTable!, newNumber);
                       }}
-                      className="w-full px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200"
+                      className={`w-full px-4 py-3 border focus:outline-none focus:ring-2 focus:border-transparent font-medium text-slate-800 bg-white/80 backdrop-blur rounded-lg transition-all duration-200 ${
+                        tableNumberError
+                          ? "border-red-300 focus:ring-red-500"
+                          : "border-slate-200 focus:ring-blue-500"
+                      }`}
                       min="1"
                     />
+                    {tableNumberError && (
+                      <p className="text-red-600 text-xs mt-2 font-medium">
+                        {tableNumberError}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                      Cada mesa deve ter um número único
+                    </p>
                   </div>
 
                   <div className="bg-white/60 backdrop-blur p-5 rounded-xl border border-white/50">
