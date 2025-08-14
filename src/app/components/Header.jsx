@@ -47,7 +47,7 @@ const Header = ({ user, logo }) => {
               {user.labels.map((label) => (
                 <span
                   key={label}
-                  className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full"
+                  className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full cursor-pointer hover:bg-blue-200 transition-colors"
                 >
                   {label}
                 </span>

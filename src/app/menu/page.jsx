@@ -180,7 +180,7 @@ export default function MenuPage() {
           <div className="mb-6">
             <Button
               variant="ghost"
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-200 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-200 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
               onClick={() => router.push("/")}
             >
               <ArrowLeft className="w-5 h-5" />
@@ -202,7 +202,7 @@ export default function MenuPage() {
               </h1>
               <Button
                 onClick={openAddModal}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md cursor-pointer"
               >
                 <Plus className="w-5 h-5" /> Adicionar Item
               </Button>
@@ -243,7 +243,7 @@ export default function MenuPage() {
                             {item.ingredientes?.map((ing) => (
                               <span
                                 key={ing}
-                                className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700"
+                                className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 cursor-pointer "
                               >
                                 {ing}
                               </span>
@@ -255,7 +255,7 @@ export default function MenuPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"
+                              className="hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 cursor-pointer"
                               onClick={() => openEditModal(item)}
                             >
                               <Edit className="w-4 h-4" />
@@ -263,7 +263,7 @@ export default function MenuPage() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              className="hover:bg-red-600"
+                              className="hover:bg-red-600 cursor-pointer"
                               onClick={() => handleDelete(item.$id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -317,7 +317,7 @@ export default function MenuPage() {
                   <Button
                     type="button"
                     onClick={addIngrediente}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 cursor-pointer"
                   >
                     +
                   </Button>
@@ -339,11 +339,15 @@ export default function MenuPage() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setModalOpen(false)}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setModalOpen(false)}
+                  className="cursor-pointer"
+                >
                   Cancelar
                 </Button>
                 <Button
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                   onClick={handleSave}
                 >
                   Guardar

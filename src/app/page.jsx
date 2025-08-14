@@ -38,7 +38,7 @@ export default function DashboardPage() {
       <Header user={user} logo="/logo.png" />
       <BtnsCards />
       <Separator />
-      <Mesas />
+      <Mesas user={user} />
     </div>
   );
 }
