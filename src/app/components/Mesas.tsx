@@ -20,6 +20,7 @@ import {
   ShieldX,
   AlertTriangle,
   X,
+  Copy,
 } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
 import { ID, Query } from "appwrite";
@@ -39,6 +40,7 @@ interface Table {
   rotation: number;
   tableNumber: number;
   shape: string;
+  status?: string; // Add status field
   chairSides: {
     top: boolean;
     right: boolean;
@@ -101,6 +103,29 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       nextNumber++;
     }
     return nextNumber;
+  };
+
+  // Helper function to duplicate a table
+  const duplicateTable = (tableId: string) => {
+    if (!isManager) return;
+
+    const originalTable = tables.find((table) => table.id === tableId);
+    if (!originalTable) return;
+
+    const newTable: Table = {
+      ...originalTable,
+      id: `temp_${Date.now()}`, // Temporary ID for new table
+      x: originalTable.x + 50, // Offset by 50px to the right
+      y: originalTable.y + 50, // Offset by 50px down
+      tableNumber: getNextAvailableTableNumber(), // Get next available number
+    };
+
+    setTables((prevTables) => [...prevTables, newTable]);
+    setSelectedTable(newTable.id); // Select the new duplicated table
+    showNotification(
+      `Mesa ${originalTable.tableNumber} duplicada como mesa ${newTable.tableNumber}`,
+      "success"
+    );
   };
 
   // Helper function to check if table number is available (excluding current table)
@@ -183,6 +208,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             rotation: newTable.rotation,
             tableNumber: newTable.tableNumber,
             shape: newTable.shape,
+            status: newTable.status || "free", // Include status field
             chairSides: {
               top: newTable.chairTop ?? true,
               right: newTable.chairRight ?? true,
@@ -216,6 +242,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             rotation: updatedTable.rotation,
             tableNumber: updatedTable.tableNumber,
             shape: updatedTable.shape,
+            status: updatedTable.status || "free", // Include status field
             chairSides: {
               top: updatedTable.chairTop ?? true,
               right: updatedTable.chairRight ?? true,
@@ -288,8 +315,8 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const getMaxDimensions = () => {
     const baseSize = Math.sqrt(restaurantSize) * 60;
     return {
-      width: Math.min(800, Math.max(400, baseSize * 1.2)), // Reduced from 1200
-      height: Math.min(600, Math.max(300, baseSize)), // Reduced from 900
+      width: Math.max(400, baseSize * 1.2), // Removed max limit - scales with restaurant size
+      height: Math.max(300, baseSize), // Removed max limit - scales with restaurant size
     };
   };
 
@@ -370,6 +397,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
           rotation: doc.rotation,
           tableNumber: doc.tableNumber,
           shape: doc.shape,
+          status: doc.status || "free", // Include status field
           chairSides: {
             top: doc.chairTop ?? true,
             right: doc.chairRight ?? true,
@@ -1714,6 +1742,19 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                     >
                       <RotateCw size={16} />
                       Rodar 90°
+                    </button>
+                  </div>
+
+                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
+                    <label className="block text-sm font-semibold text-white mb-4">
+                      Ações da Mesa
+                    </label>
+                    <button
+                      onClick={() => duplicateTable(selectedTable!)}
+                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-lg border border-blue-600 mb-3"
+                    >
+                      <Copy size={16} />
+                      Duplicar Mesa
                     </button>
                   </div>
 

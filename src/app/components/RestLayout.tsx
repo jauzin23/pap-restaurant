@@ -21,6 +21,7 @@ interface Table {
   rotation: number;
   tableNumber: number;
   shape: string;
+  status?: string; // Add status field
   chairSides: {
     top: boolean;
     right: boolean;
@@ -84,6 +85,7 @@ const RestLayout = React.memo(function RestLayout({
             rotation: newTable.rotation,
             tableNumber: newTable.tableNumber,
             shape: newTable.shape,
+            status: newTable.status || "free", // Include status field
             chairSides: {
               top: newTable.chairTop ?? true,
               right: newTable.chairRight ?? true,
@@ -113,6 +115,7 @@ const RestLayout = React.memo(function RestLayout({
             rotation: updatedTable.rotation,
             tableNumber: updatedTable.tableNumber,
             shape: updatedTable.shape,
+            status: updatedTable.status || "free", // Include status field
             chairSides: {
               top: updatedTable.chairTop ?? true,
               right: updatedTable.chairRight ?? true,
@@ -225,6 +228,7 @@ const RestLayout = React.memo(function RestLayout({
           rotation: doc.rotation,
           tableNumber: doc.tableNumber,
           shape: doc.shape,
+          status: doc.status || "free", // Include status field
           chairSides: {
             top: doc.chairTop ?? true,
             right: doc.chairRight ?? true,
@@ -246,8 +250,8 @@ const RestLayout = React.memo(function RestLayout({
   const getMaxDimensions = () => {
     const baseSize = Math.sqrt(restaurantSize) * 60;
     return {
-      width: Math.min(800, Math.max(400, baseSize * 1.2)), // Same as original
-      height: Math.min(600, Math.max(300, baseSize)), // Same as original
+      width: Math.max(400, baseSize * 1.2), // Removed max limit - scales with restaurant size
+      height: Math.max(300, baseSize), // Removed max limit - scales with restaurant size
     };
   };
 
@@ -416,14 +420,38 @@ const RestLayout = React.memo(function RestLayout({
                   transformOrigin: "center center",
                 }}
               >
-                {/* Table - Made brighter */}
+                {/* Table - Show status with colors */}
                 <div
-                  className="w-full h-full border-2 border-neutral-500 bg-neutral-200 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 group-hover:bg-neutral-100 group-hover:border-neutral-400"
+                  className={`w-full h-full border-2 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 relative ${
+                    table.status === "occupied"
+                      ? "border-red-500 bg-red-100 group-hover:bg-red-50"
+                      : "border-green-500 bg-green-100 group-hover:bg-green-50"
+                  }`}
                   style={{
                     ...getTableStyle(table),
                   }}
                 >
-                  <span className="text-lg font-bold text-neutral-800 select-none">
+                  {/* Status indicator */}
+                  <div
+                    className={`absolute top-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
+                      table.status === "occupied"
+                        ? "bg-red-500"
+                        : "bg-green-500"
+                    }`}
+                    title={
+                      table.status === "occupied"
+                        ? "Mesa Ocupada"
+                        : "Mesa Livre"
+                    }
+                  />
+
+                  <span
+                    className={`text-lg font-bold select-none ${
+                      table.status === "occupied"
+                        ? "text-red-800"
+                        : "text-green-800"
+                    }`}
+                  >
                     {table.tableNumber}
                   </span>
                 </div>
@@ -432,7 +460,11 @@ const RestLayout = React.memo(function RestLayout({
                 {getChairPositions(table).map((chairPos, i) => (
                   <div
                     key={i}
-                    className="absolute w-5 h-5 bg-neutral-600 border border-neutral-700 shadow-sm transition-all duration-200 group-hover:bg-neutral-500"
+                    className={`absolute w-5 h-5 border-2 border-white shadow-sm transition-all duration-200 ${
+                      table.status === "occupied"
+                        ? "bg-red-400 group-hover:bg-red-300"
+                        : "bg-green-400 group-hover:bg-green-300"
+                    }`}
                     style={{
                       left: "50%",
                       top: "50%",
@@ -473,7 +505,19 @@ const RestLayout = React.memo(function RestLayout({
       {/* Footer Info */}
       <div className="px-6 py-4 bg-neutral-900 border-t border-neutral-800 rounded-b-xl">
         <div className="flex items-center justify-between text-xs text-neutral-400">
-          <span>Tamanho: {restaurantSize}m²</span>
+          <div className="flex items-center gap-4">
+            <span>Tamanho: {restaurantSize}m²</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full border border-white"></div>
+                <span>Livre</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+                <span>Ocupada</span>
+              </div>
+            </div>
+          </div>
           <span>Visualização em tempo real</span>
         </div>
       </div>

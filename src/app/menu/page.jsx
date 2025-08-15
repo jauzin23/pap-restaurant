@@ -166,7 +166,7 @@ export default function MenuPage() {
 
   if (!user)
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
+      <div className="flex flex-col items-center justify-center h-screen bg-black">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-b-4 mb-4"></div>
         <p className="text-gray-700 text-lg">A Carregar...</p>
       </div>
