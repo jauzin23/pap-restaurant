@@ -140,9 +140,9 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   );
 
   return (
-    <section className="bg-black text-white w-80 h-full border-r border-neutral-800 flex flex-col relative overflow-hidden">
+    <section className="bg-black text-white w-72 h-full flex-shrink-0 border-r border-neutral-900 flex flex-col relative overflow-hidden shadow-xl">
       {/* Background pattern */}
-      <div className="absolute inset-0 opacity-[0.02]">
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern
@@ -169,9 +169,9 @@ const BtnsCards = memo(function BtnsCards({ user }) {
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full pt-0 pl-0">
         {/* Section header */}
-        <div className="mb-8 pt-6 pl-6 pb-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-xl flex items-center justify-center border border-neutral-600 shadow-lg">
+        <div className="mb-8 pt-8 pl-8 pb-4">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-xl flex items-center justify-center border border-neutral-600 shadow-lg">
               <svg
                 width="18"
                 height="18"
@@ -204,13 +204,13 @@ const BtnsCards = memo(function BtnsCards({ user }) {
             </div>
             <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           </div>
-          <p className="text-sm text-neutral-400 pl-13">
+          <p className="text-sm text-neutral-400 pl-1">
             Acesso rápido às funcionalidades
           </p>
         </div>
 
         {/* Card stack */}
-        <div className="flex-1 flex flex-col gap-3 px-6">
+        <div className="flex-1 flex flex-col gap-4 px-6">
           {cards.map((card, i) => {
             const Icon = card.icon;
 
@@ -220,17 +220,17 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                 onClick={() => handleCardClick(card.href)}
                 initial={{ opacity: 0, x: -30 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.15, type: "spring", stiffness: 100 }}
+                transition={{ delay: i * 0.12, type: "spring", stiffness: 100 }}
                 className="cursor-pointer group relative"
               >
                 {/* Card background */}
                 <div className="absolute inset-0 bg-neutral-900 rounded-2xl group-hover:bg-neutral-800 transition-all duration-300 shadow-lg" />
                 <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-2xl border border-neutral-700 group-hover:border-neutral-600 p-6 transition-all duration-300 shadow-lg group-hover:shadow-xl">
-                  <div className="flex items-center gap-4">
+                <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-6 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <div className="flex items-center gap-5">
                     {/* Icon with subtle background */}
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-600 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
                       <Icon className="w-6 h-6 text-white group-hover:text-blue-300 transition-colors duration-300" />
                     </div>
 
@@ -277,12 +277,12 @@ const BtnsCards = memo(function BtnsCards({ user }) {
         </div>
 
         {/* Clock In/Out Card - Minimalistic */}
-        <div className="mt-6 relative px-6 pb-6">
+        <div className="mt-8 relative px-6 pb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="relative bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-700/50 p-3 shadow-md"
+            className="relative bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-800 p-4 shadow-md"
           >
             {/* Compact status display */}
             <div className="flex items-center justify-between mb-3">

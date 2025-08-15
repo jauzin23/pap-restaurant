@@ -140,7 +140,7 @@ export default function ManagerStaffView({ user, isManager }) {
   if (!isManager) return null;
 
   return (
-    <div className="px-6 pb-6">
+    <div className="px-6 pb-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

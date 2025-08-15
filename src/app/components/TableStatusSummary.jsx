@@ -256,7 +256,7 @@ export default function TableStatusSummary() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="grid grid-cols-1 md:grid-cols-3 gap-4 mx-6 my-4"
+      className="grid grid-cols-1 md:grid-cols-2 gap-6 mx-6 my-4"
     >
       {/* Card 1: Tables Analytics */}
       <motion.div
@@ -343,16 +343,30 @@ export default function TableStatusSummary() {
           </div>
         </div>
 
-        <div className="mb-4">
-          <div className="flex items-baseline gap-1">
-            <span className="text-sm text-emerald-400 font-semibold">€</span>
-            <span className="text-2xl font-bold text-white tracking-tight">
-              {revenue !== null
-                ? revenue.toLocaleString("pt-PT", { minimumFractionDigits: 2 })
-                : "0.00"}
+        <div className="mb-6">
+          <div className="flex flex-col items-center justify-center gap-2">
+            <span className="text-xl text-emerald-500 font-semibold mb-1">
+              Faturação
             </span>
+            <div className="flex items-end gap-2">
+              <span className="text-2xl text-emerald-400 font-bold">€</span>
+              <span
+                className="text-6xl font-extrabold text-white tracking-tight leading-none"
+                style={{
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                }}
+              >
+                {revenue !== null
+                  ? revenue.toLocaleString("pt-PT", {
+                      minimumFractionDigits: 2,
+                    })
+                  : "0.00"}
+              </span>
+            </div>
+            <p className="text-sm text-white/60 mt-2 text-center font-medium tracking-wide">
+              Pedidos pagos hoje
+            </p>
           </div>
-          <p className="text-sm text-white/70 mt-1">Pedidos pagos hoje</p>
         </div>
 
         <div className="pt-4 border-t border-white/10">
@@ -382,49 +396,6 @@ export default function TableStatusSummary() {
               </div>
             ))}
           </div>
-        </div>
-      </motion.div>
-
-      {/* Card 3: Staff on Duty */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-        className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-purple-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-purple-500/20 shadow-lg shadow-purple-500/10">
-            <Clock size={18} className="text-purple-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">Staff</h3>
-            <p className="text-sm text-white/70">Em serviço</p>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-white tracking-tight">
-              {clockedInStaff.length}
-            </span>
-            <span className="text-sm text-white/70 font-medium">total</span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {Object.entries(staffTypes).map(([type, count]) => (
-            <div
-              key={type}
-              className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-all duration-300 group cursor-pointer"
-            >
-              <span className="text-sm text-white/80 capitalize font-medium group-hover:text-white transition-colors">
-                {type}
-              </span>
-              <span className="text-sm font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded border border-purple-500/20">
-                {count}
-              </span>
-            </div>
-          ))}
         </div>
       </motion.div>
     </motion.div>
