@@ -530,14 +530,14 @@ export default function OrdersPage() {
 
   if (!user)
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-black">
+      <div className="flex flex-col items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-white mb-4"></div>
         <p className="text-neutral-300 text-lg">A Carregar...</p>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <Header user={user} logo="/logo.png" />
 
       <div className="flex-1 flex flex-col">

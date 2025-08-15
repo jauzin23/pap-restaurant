@@ -166,14 +166,14 @@ export default function MenuPage() {
 
   if (!user)
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-black">
+      <div className="flex flex-col items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-b-4 mb-4"></div>
         <p className="text-gray-700 text-lg">A Carregar...</p>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <Header user={user} logo="/logo.png" />
 
       <main className="flex-1 px-4 py-8">

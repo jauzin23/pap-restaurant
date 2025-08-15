@@ -1,0 +1,54 @@
+<svg viewBox="0 0 340 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Simple brand gradient -->
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    
+    <!-- Simple shadow -->
+    <filter id="simpleShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Clean background -->
+  <rect x="0" y="0" width="340" height="120" rx="20" fill="#ffffff"/>
+  
+  <!-- Better circle background with subtle pattern -->
+  <circle cx="60" cy="60" r="48" fill="#0f172a" filter="url(#simpleShadow)"/>
+  <circle cx="60" cy="60" r="45" fill="url(#brandGradient)" opacity="0.15"/>
+  
+  <!-- Subtle dots pattern -->
+  <circle cx="45" cy="45" r="1.5" fill="#ffffff" opacity="0.1"/>
+  <circle cx="75" cy="45" r="1" fill="#ffffff" opacity="0.08"/>
+  <circle cx="45" cy="75" r="1" fill="#ffffff" opacity="0.08"/>
+  <circle cx="75" cy="75" r="1.5" fill="#ffffff" opacity="0.1"/>
+  
+  <!-- Glowing border -->
+  <circle cx="60" cy="60" r="45" fill="none" stroke="url(#brandGradient)" stroke-width="2" opacity="0.6"/>
+  <circle cx="60" cy="60" r="43" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.2"/>
+  
+  <!-- Chef Hat (bigger) -->
+  <g transform="translate(60,60) scale(1.1) translate(-50,-50)">
+    <path d="M30 45 Q30 35 40 35 Q45 30 50 30 Q55 30 60 35 Q70 35 70 45 Q70 50 65 50 L65 60 Q65 65 60 65 L40 65 Q35 65 35 60 L35 50 Q30 50 30 45 Z"
+          fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+    <!-- Subtle highlight on hat -->
+    <ellipse cx="45" cy="42" rx="3" ry="2" fill="#ffffff" opacity="0.7"/>
+    <!-- Code symbol -->
+    <text x="50" y="54" text-anchor="middle"
+          font-family="JetBrains Mono, Menlo, Consolas, monospace"
+          font-size="14" font-weight="700" fill="url(#brandGradient)">
+      &lt;/&gt;
+    </text>
+  </g>
+
+  <!-- Company branding -->
+  <text x="130" y="45" font-family="Inter, system-ui, sans-serif" font-size="34" font-weight="800" 
+        fill="url(#brandGradient)" letter-spacing="-0.5px">Mesa+</text>
+  <text x="130" y="70" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="500" 
+        fill="#64748b" letter-spacing="0.5px">SISTEMA DE GESTÃO INTELIGENTE</text>
+
+  <!-- Simple accent line -->
+  <line x1="130" y1="85" x2="310" y2="85" stroke="url(#brandGradient)" stroke-width="2" opacity="0.3"/>
+</svg>

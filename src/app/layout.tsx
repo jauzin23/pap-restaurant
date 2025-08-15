@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Footer from "./components/Footer";
-import Header from "./components/Header";
+import ConditionalBackground from "../components/ConditionalBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Mesa+",
   description: "O melhor software para restaurantes!",
+  icons: {
+    icon: "/logo-icon.svg",
+    shortcut: "/logo-icon.svg",
+    apple: "/logo-icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -25,14 +29,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black`}
+      >
+        <ConditionalBackground />
+        {/* Content */}
+        <div className="relative z-10 flex flex-col min-h-screen">
           {children}
-        </body>
-      </html>
-    </>
+        </div>
+      </body>
+    </html>
   );
 }

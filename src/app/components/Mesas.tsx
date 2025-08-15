@@ -829,7 +829,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const getChairPositions = (table: Table): ChairPosition[] => {
     const chairs: ChairPosition[] = [];
     const { width, height, chairs: chairCount, shape, chairSides } = table;
-    const chairDistance = 15;
+    const chairDistance = 18;
 
     if (shape === "circular") {
       const radius = width / 2 + chairDistance;
@@ -1353,7 +1353,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                   {getChairPositions(table).map((chairPos, i) => (
                     <div
                       key={i}
-                      className={`absolute w-5 h-5 transition-all duration-200 shadow-sm ${
+                      className={`absolute w-4 h-4 transition-all duration-200 shadow-sm ${
                         selectedTable === table.id
                           ? "bg-yellow-400 border border-yellow-500 shadow-md"
                           : table.id.startsWith("temp_")

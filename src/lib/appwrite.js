@@ -7,16 +7,20 @@ const client = new Client()
 const databases = new Databases(client);
 const account = new Account(client);
 const DBRESTAURANTE = "689c9a200025de0e8af2";
+const DB_ATTENDANCE = "689d00b8001c10d4d6a2";
 const COL_MENU = "689d00e2001afa755161";
 const COL_ORDERS = "689deb6800375112de90";
 const COL_TABLES = "689c9a26000b5abf71c8";
+const COL_ATTENDANCE = "689f484b000af0ce9173";
 
 export {
   client,
   databases,
   account,
   DBRESTAURANTE,
+  DB_ATTENDANCE,
   COL_MENU,
   COL_ORDERS,
   COL_TABLES,
+  COL_ATTENDANCE,
 };
