@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <Header user={user} logo="/logo.png" />
+      <Header user={user} logo="/logo-icon.svg" />
       <div className="flex flex-1 overflow-hidden">
         <BtnsCards user={user} />
         <div className="flex-1 flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">

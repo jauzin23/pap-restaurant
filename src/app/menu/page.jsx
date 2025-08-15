@@ -174,7 +174,7 @@ export default function MenuPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header user={user} logo="/logo.png" />
+      <Header user={user} logo="/logo-icon.svg" />
 
       <main className="flex-1 px-4 py-8">
         <div className="max-w-6xl mx-auto">

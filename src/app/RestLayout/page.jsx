@@ -28,7 +28,7 @@ export default function RestLayout() {
   return (
     <div className="flex flex-col min-h-screen bg-black">
       {/* Header */}
-      <Header user={user} logo="/logo.png" />
+      <Header user={user} logo="/logo-icon.svg" />
 
       {/* Content area that fills remaining height */}
       <div className="flex-1 flex flex-col">

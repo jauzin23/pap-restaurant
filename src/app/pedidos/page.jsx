@@ -538,7 +538,7 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header user={user} logo="/logo.png" />
+      <Header user={user} logo="/logo-icon.svg" />
 
       <div className="flex-1 flex flex-col">
         {/* Header */}

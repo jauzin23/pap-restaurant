@@ -187,9 +187,7 @@ const Header = memo(function Header({ user, logo }) {
             className="w-10 h-10 rounded-full border-2 border-white/20 shadow-lg"
           />
         </motion.div>
-        <h1 className="text-xl font-bold text-white tracking-wide">
-          Dashboard
-        </h1>
+        <h1 className="text-xl font-bold text-white tracking-wide">Mesa+</h1>
       </div>
 
       {/* Right: Clock + Check-in Status + User Info + Logout */}
