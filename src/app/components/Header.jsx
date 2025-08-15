@@ -1,26 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { LogOut, Star, Users, ChefHat } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useCallback, memo } from "react";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import clsx from "clsx";
+// Direct icon imports for smaller bundle
+import { LogOut, Star, Users, ChefHat } from "lucide-react";
 
-const Header = ({ user, logo }) => {
-  const [time, setTime] = useState(new Date());
+import { motion } from "framer-motion";
+const AnimatePresence = dynamic(
+  () => import("framer-motion").then((mod) => mod.AnimatePresence),
+  { ssr: false }
+);
+
+const Header = memo(function Header({ user, logo }) {
+  const [time, setTime] = useState(() => new Date());
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => console.log("Logging out...");
+  const handleLogout = useCallback(() => {
+    // Replace with real logout logic
+    console.log("Logging out...");
+  }, []);
 
-  const formatTimeParts = (date) => {
+  const formatTimeParts = useCallback((date) => {
     const h = String(date.getHours()).padStart(2, "0");
     const m = String(date.getMinutes()).padStart(2, "0");
     const s = String(date.getSeconds()).padStart(2, "0");
     return { h, m, s };
-  };
+  }, []);
 
   const timeParts = formatTimeParts(time);
 
@@ -42,13 +53,18 @@ const Header = ({ user, logo }) => {
     <header className="w-full flex justify-between items-center px-6 py-4 border-b border-neutral-800 bg-gradient-to-r from-black to-neutral-950 shadow-lg">
       {/* Left: Logo + Title */}
       <div className="flex items-center space-x-3">
-        <motion.img
-          src={logo}
-          alt="Logo"
-          className="w-10 h-10 rounded-full border border-neutral-700"
+        <motion.div
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 300 }}
-        />
+        >
+          <Image
+            src={logo}
+            alt="Logo"
+            width={40}
+            height={40}
+            className="w-10 h-10 rounded-full border border-neutral-700"
+          />
+        </motion.div>
         <h1 className="text-lg font-semibold text-white tracking-wide">
           Dashboard
         </h1>
@@ -118,6 +134,6 @@ const Header = ({ user, logo }) => {
       </div>
     </header>
   );
-};
+});
 
 export default Header;

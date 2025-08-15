@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
+// Direct icon imports for bundle size
 import { Grid, Edit, Shield, ShieldX, ExternalLink } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
 import { Query } from "appwrite";
@@ -45,10 +46,11 @@ interface RestaurantDashboardLayoutProps {
   onEditRedirect?: () => void;
 }
 
-const RestLayout: React.FC<RestaurantDashboardLayoutProps> = ({
+const RestLayout = React.memo(function RestLayout({
   user,
   onEditRedirect = () => console.log("Navigate to edit page"),
-}) => {
+}: RestaurantDashboardLayoutProps) {
+  // ...existing code...
   const [tables, setTables] = useState<Table[]>([]);
   const [restaurantSize, setRestaurantSize] = useState<number>(100);
   const [isManager, setIsManager] = useState<boolean>(false);
@@ -477,6 +479,6 @@ const RestLayout: React.FC<RestaurantDashboardLayoutProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default RestLayout;

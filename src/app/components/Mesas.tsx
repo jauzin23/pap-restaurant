@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
+// Direct icon imports for bundle size
 import {
   Plus,
   RotateCw,
@@ -62,7 +63,10 @@ interface RestaurantFloorPlanProps {
   user: User;
 }
 
-const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
+const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
+  user,
+}: RestaurantFloorPlanProps) {
+  // ...existing code...
   const [tables, setTables] = useState<Table[]>([]);
   const [savedTables, setSavedTables] = useState<Table[]>([]); // Store the last saved state
   const [editMode, setEditMode] = useState<boolean>(false);
@@ -1568,7 +1572,7 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
 
                   {selectedTableData.shape !== "circular" && (
                     <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                      <label className="block text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                      <label className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
                         <Settings size={16} />
                         Posição das Cadeiras
                       </label>
@@ -1728,6 +1732,6 @@ const RestaurantFloorPlan: React.FC<RestaurantFloorPlanProps> = ({ user }) => {
       </div>
     </div>
   );
-};
+});
 
 export default RestaurantFloorPlan;

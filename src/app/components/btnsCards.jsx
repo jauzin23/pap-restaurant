@@ -1,37 +1,45 @@
 "use client";
 
+import React, { memo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   BookOpen,
   ShoppingCart,
   CalendarCheck,
   ArrowRightCircle,
 } from "lucide-react";
+import { motion } from "framer-motion";
 
-const BtnsCards = () => {
+const cards = [
+  {
+    title: "Menu",
+    description: "Ver e editar o menu",
+    href: "/menu",
+    icon: BookOpen,
+  },
+  {
+    title: "Pedidos",
+    description: "Acompanhar os pedidos",
+    href: "/pedidos",
+    icon: ShoppingCart,
+  },
+  {
+    title: "Reservas",
+    description: "Ver reservas atuais",
+    href: "/reservas",
+    icon: CalendarCheck,
+  },
+];
+
+const BtnsCards = memo(function BtnsCards() {
   const router = useRouter();
 
-  const cards = [
-    {
-      title: "Menu",
-      description: "Ver e editar o menu",
-      href: "/menu",
-      icon: BookOpen,
+  const handleCardClick = useCallback(
+    (href) => {
+      router.push(href);
     },
-    {
-      title: "Pedidos",
-      description: "Acompanhar os pedidos",
-      href: "/pedidos",
-      icon: ShoppingCart,
-    },
-    {
-      title: "Reservas",
-      description: "Ver reservas atuais",
-      href: "/reservas",
-      icon: CalendarCheck,
-    },
-  ];
+    [router]
+  );
 
   return (
     <section className="bg-black text-white p-6 md:p-8 w-80 h-full border-r border-neutral-800 flex flex-col flex-1">
@@ -47,16 +55,14 @@ const BtnsCards = () => {
       <div className="flex-1 flex flex-col gap-4">
         {cards.map((card, i) => {
           const Icon = card.icon;
-
           return (
             <motion.div
               key={card.title}
-              onClick={() => router.push(card.href)}
+              onClick={() => handleCardClick(card.href)}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1, type: "spring", stiffness: 200 }}
-              className="cursor-pointer group rounded-lg p-4 bg-neutral-950 border border-neutral-800 flex flex-col gap-2
-                         hover:bg-neutral-900 hover:scale-105 transition-all duration-150"
+              className="cursor-pointer group rounded-lg p-4 bg-neutral-950 border border-neutral-800 flex flex-col gap-2 hover:bg-neutral-900 hover:scale-105 transition-all duration-150"
             >
               {/* Top row: Icon + Title + Arrow */}
               <div className="flex items-center justify-between">
@@ -85,6 +91,6 @@ const BtnsCards = () => {
       </div>
     </section>
   );
-};
+});
 
 export default BtnsCards;
