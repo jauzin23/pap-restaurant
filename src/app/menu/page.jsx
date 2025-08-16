@@ -1,21 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ArrowLeft, Edit, Trash2, X } from "lucide-react";
-import { useSubscription } from "@/contexts/SubscriptionContext";
-import {
-  SUBSCRIPTION_CHANNELS,
-  eventMatches,
-  EVENT_PATTERNS,
-} from "@/lib/subscriptionChannels";
-import {
-  client,
-  account,
-  databases,
-  DBRESTAURANTE,
-  COL_MENU,
-} from "@/lib/appwrite";
+import { useApp } from "@/contexts/AppContext";
+import { DBRESTAURANTE, COL_MENU } from "@/lib/appwrite";
+
 import {
   Dialog,
   DialogContent,
@@ -34,7 +24,8 @@ const COLLECTION_ID = COL_MENU;
 export default function MenuPage() {
   const [user, setUser] = useState(null);
   const router = useRouter();
-  const { subscribe } = useSubscription();
+  // const { subscribe } = useSubscription();
+  const { databases, account, client } = useApp();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -51,52 +42,7 @@ export default function MenuPage() {
   const [ingredienteInput, setIngredienteInput] = useState("");
   const [ingredientes, setIngredientes] = useState([]);
 
-  useEffect(() => {
-    fetchMenu();
-
-    // Setup optimized realtime subscription
-    const unsubscribe = subscribe(
-      SUBSCRIPTION_CHANNELS.ORDERS(DB_ID, COLLECTION_ID), // Reusing the pattern for menu items
-      (response) => {
-        const { events, payload } = response;
-
-        // Check for create events
-        if (eventMatches(events, EVENT_PATTERNS.CREATE)) {
-          setMenuItems((prev) => {
-            // Check if item already exists to prevent duplicates
-            if (prev.find((item) => item.$id === payload.$id)) {
-              return prev;
-            }
-            return [...prev, payload];
-          });
-        }
-        // Check for update events
-        else if (eventMatches(events, EVENT_PATTERNS.UPDATE)) {
-          setMenuItems((prev) =>
-            prev.map((item) => (item.$id === payload.$id ? payload : item))
-          );
-        }
-        // Check for delete events
-        else if (eventMatches(events, EVENT_PATTERNS.DELETE)) {
-          setMenuItems((prev) =>
-            prev.filter((item) => item.$id !== payload.$id)
-          );
-        }
-      },
-      { debounce: true, debounceDelay: 300 }
-    );
-
-    return unsubscribe;
-  }, [subscribe]);
-
-  useEffect(() => {
-    account
-      .get()
-      .then(setUser)
-      .catch(() => router.push("/login"));
-  }, [router]);
-
-  async function fetchMenu() {
+  const fetchMenu = useCallback(async () => {
     setLoading(true);
     try {
       const res = await databases.listDocuments(DB_ID, COLLECTION_ID);
@@ -105,7 +51,65 @@ export default function MenuPage() {
       console.error("Error fetching menu:", err);
     }
     setLoading(false);
-  }
+  }, [databases]);
+
+  const subscribeToMenu = useCallback(() => {
+    try {
+      console.log("Setting up menu subscription...");
+
+      const unsubscribe = client.subscribe(
+        `databases.${DB_ID}.collections.${COLLECTION_ID}.documents`,
+        (response) => {
+          console.log("Real-time menu event:", response);
+
+          if (
+            response.events.some(
+              (event) =>
+                event.includes(
+                  "databases.*.collections.*.documents.*.create"
+                ) ||
+                event.includes(
+                  "databases.*.collections.*.documents.*.update"
+                ) ||
+                event.includes("databases.*.collections.*.documents.*.delete")
+            )
+          ) {
+            // Quick update after small delay
+            setTimeout(() => {
+              fetchMenu();
+            }, 100);
+          }
+        }
+      );
+
+      return unsubscribe;
+    } catch (err) {
+      console.error("Error setting up menu subscription:", err);
+      return null;
+    }
+  }, [client, fetchMenu]);
+
+  useEffect(() => {
+    fetchMenu();
+
+    // Setup real-time subscription for menu updates
+    const unsubscribe = subscribeToMenu();
+
+    // Simple polling as backup every 30 seconds
+    const interval = setInterval(fetchMenu, 30000);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      clearInterval(interval);
+    };
+  }, [fetchMenu, subscribeToMenu]);
+
+  useEffect(() => {
+    account
+      .get()
+      .then(setUser)
+      .catch(() => router.push("/login"));
+  }, [router, account]);
 
   function openAddModal() {
     setEditingItem(null);
@@ -125,31 +129,74 @@ export default function MenuPage() {
 
   async function handleSave() {
     try {
+      const itemData = {
+        nome,
+        preco: parseFloat(preco),
+        ingredientes,
+      };
+
       if (editingItem) {
-        await databases.updateDocument(DB_ID, COLLECTION_ID, editingItem.$id, {
-          nome,
-          preco: parseFloat(preco),
-          ingredientes,
-        });
+        // Optimistic update for editing
+        setMenuItems((prev) =>
+          prev.map((item) =>
+            item.$id === editingItem.$id
+              ? {
+                  ...itemData,
+                  $id: editingItem.$id,
+                  $createdAt: editingItem.$createdAt,
+                }
+              : item
+          )
+        );
+
+        await databases.updateDocument(
+          DB_ID,
+          COLLECTION_ID,
+          editingItem.$id,
+          itemData
+        );
       } else {
-        await databases.createDocument(DB_ID, COLLECTION_ID, "unique()", {
-          nome,
-          preco: parseFloat(preco),
-          ingredientes,
-        });
+        // Create temporary item for immediate feedback
+        const tempItem = {
+          ...itemData,
+          $id: `temp-${Date.now()}`,
+          $createdAt: new Date().toISOString(),
+        };
+
+        setMenuItems((prev) => [tempItem, ...prev]);
+
+        const response = await databases.createDocument(
+          DB_ID,
+          COLLECTION_ID,
+          "unique()",
+          itemData
+        );
+
+        // Replace temp item with real one
+        setMenuItems((prev) =>
+          prev.map((item) => (item.$id === tempItem.$id ? response : item))
+        );
       }
+
       setModalOpen(false);
     } catch (err) {
       console.error("Error saving:", err);
+      // Revert on error
+      fetchMenu();
     }
   }
 
   async function handleDelete(id) {
     if (!confirm("Tens a certeza que queres apagar este item?")) return;
     try {
+      // Optimistic update - immediately remove from UI
+      setMenuItems((prev) => prev.filter((item) => item.$id !== id));
+
       await databases.deleteDocument(DB_ID, COLLECTION_ID, id);
     } catch (err) {
       console.error("Error deleting:", err);
+      // Revert on error
+      fetchMenu();
     }
   }
 
@@ -198,13 +245,13 @@ export default function MenuPage() {
     <div className="min-h-screen flex flex-col">
       <Header user={user} logo="/logo-icon.svg" />
 
-      <main className="flex-1 px-4 py-8">
+      <main className="flex-1 px-4 py-8 bg-black">
         <div className="max-w-6xl mx-auto">
           {/* Back button */}
           <div className="mb-6">
             <Button
               variant="ghost"
-              className="flex items-center gap-2 px-4 py-2 text-neutral-200 hover:text-blue-400 hover:bg-neutral-900 rounded-lg border border-neutral-800 hover:border-blue-500 transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 text-white hover:text-white bg-neutral-900/60 hover:bg-neutral-800 rounded-xl border border-neutral-700 hover:border-neutral-600"
               onClick={() => router.push("/")}
             >
               <ArrowLeft className="w-5 h-5" />
@@ -213,15 +260,15 @@ export default function MenuPage() {
           </div>
 
           {/* Main content card */}
-          <div className="bg-neutral-900 shadow-xl rounded-xl border border-neutral-800 overflow-hidden animate-fade-in-up animate-stagger-4">
+          <div className="bg-neutral-900/80 backdrop-blur-sm shadow-2xl rounded-xl border border-neutral-700 overflow-hidden">
             {/* Card header */}
-            <div className="flex justify-between items-center p-6 border-b border-neutral-800">
-              <h1 className="text-2xl font-semibold text-neutral-100">
+            <div className="flex justify-between items-center p-6 border-b border-neutral-700 bg-neutral-900/60">
+              <h1 className="text-2xl font-semibold text-white">
                 Gestão de Menu
               </h1>
               <Button
                 onClick={openAddModal}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm cursor-pointer"
+                className="bg-neutral-800 hover:bg-neutral-700 text-white flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-600 hover:border-neutral-500 shadow-lg"
               >
                 <Plus className="w-5 h-5" />
                 Adicionar Item
@@ -229,18 +276,16 @@ export default function MenuPage() {
             </div>
 
             {/* Card content */}
-            <div className="p-6">
+            <div className="p-6 bg-neutral-900/40">
               {loading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
-                  <span className="ml-3 text-neutral-400">A carregar...</span>
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-white/30 border-r-2 border-r-white/10"></div>
+                  <span className="ml-3 text-white/60">A carregar...</span>
                 </div>
               ) : menuItems.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-neutral-400 text-lg">
-                    Nenhum item no menu
-                  </p>
-                  <p className="text-neutral-500 text-sm mt-2">
+                  <p className="text-white/70 text-lg">Nenhum item no menu</p>
+                  <p className="text-white/50 text-sm mt-2">
                     Clique em &quot;Adicionar Item&quot; para começar
                   </p>
                 </div>
@@ -248,17 +293,17 @@ export default function MenuPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-neutral-800">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-neutral-400">
+                      <tr className="border-b border-neutral-700">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-white/60">
                           Nome
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-neutral-400">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-white/60">
                           Preço (€)
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-neutral-400">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-white/60">
                           Ingredientes
                         </th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-neutral-400">
+                        <th className="text-right py-3 px-4 text-sm font-medium text-white/60">
                           Ações
                         </th>
                       </tr>
@@ -267,12 +312,12 @@ export default function MenuPage() {
                       {menuItems.map((item) => (
                         <tr
                           key={item.$id}
-                          className="border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors"
+                          className="border-b border-neutral-700/50 hover:bg-neutral-800/30"
                         >
-                          <td className="py-4 px-4 text-neutral-100 font-medium">
+                          <td className="py-4 px-4 text-white font-medium">
                             {item.nome}
                           </td>
-                          <td className="py-4 px-4 text-neutral-100">
+                          <td className="py-4 px-4 text-white">
                             €{item.preco?.toFixed(2)}
                           </td>
                           <td className="py-4 px-4">
@@ -280,7 +325,7 @@ export default function MenuPage() {
                               {item.ingredientes?.map((ing) => (
                                 <span
                                   key={ing}
-                                  className="px-2 py-1 text-xs rounded-full bg-emerald-900/30 text-emerald-300 border border-emerald-700/50 cursor-default"
+                                  className="px-2 py-1 text-xs rounded-lg bg-neutral-800/60 text-white/80 border border-neutral-700"
                                 >
                                   {ing}
                                 </span>
@@ -292,7 +337,7 @@ export default function MenuPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="bg-slate-700 hover:bg-blue-600 hover:text-white border-slate-600 text-slate-200 transition-all duration-200 cursor-pointer"
+                                className="bg-neutral-800/60 hover:bg-neutral-700 hover:text-white border-neutral-600 text-white/80"
                                 onClick={() => openEditModal(item)}
                               >
                                 <Edit className="w-4 h-4" />
@@ -300,7 +345,7 @@ export default function MenuPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                className="hover:bg-red-600 transition-all duration-200 cursor-pointer"
+                                className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 hover:border-red-500/50"
                                 onClick={() => handleDelete(item.$id)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -322,9 +367,9 @@ export default function MenuPage() {
 
       {/* Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg bg-neutral-900/95 backdrop-blur-sm border border-neutral-700 text-white">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-white text-lg font-semibold">
               {editingItem ? "Editar Item" : "Adicionar Item"}
             </DialogTitle>
           </DialogHeader>
@@ -334,7 +379,7 @@ export default function MenuPage() {
               placeholder="Nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              className="focus:border-blue-500 focus:ring-blue-500"
+              className="bg-neutral-800/60 border-neutral-600 text-white placeholder-white/50 focus:border-neutral-500 focus:ring-neutral-500"
             />
             <Input
               placeholder="Preço"
@@ -342,7 +387,7 @@ export default function MenuPage() {
               step="0.01"
               value={preco}
               onChange={(e) => setPreco(e.target.value)}
-              className="focus:border-blue-500 focus:ring-blue-500"
+              className="bg-neutral-800/60 border-neutral-600 text-white placeholder-white/50 focus:border-neutral-500 focus:ring-neutral-500"
             />
 
             {/* Ingredientes */}
@@ -353,12 +398,12 @@ export default function MenuPage() {
                   value={ingredienteInput}
                   onChange={(e) => setIngredienteInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addIngrediente()}
-                  className="focus:border-blue-500 focus:ring-blue-500"
+                  className="bg-neutral-800/60 border-neutral-600 text-white placeholder-white/50 focus:border-neutral-500 focus:ring-neutral-500"
                 />
                 <Button
                   type="button"
                   onClick={addIngrediente}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 cursor-pointer"
+                  className="bg-neutral-700 hover:bg-neutral-600 text-white px-3 border border-neutral-600"
                 >
                   +
                 </Button>
@@ -367,11 +412,11 @@ export default function MenuPage() {
                 {ingredientes.map((ing) => (
                   <span
                     key={ing}
-                    className="px-2 py-1 text-xs rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1"
+                    className="px-2 py-1 text-xs rounded-lg bg-neutral-800/60 text-white/80 border border-neutral-700 flex items-center gap-1"
                   >
                     {ing}
                     <X
-                      className="w-3 h-3 cursor-pointer hover:text-emerald-900"
+                      className="w-3 h-3 cursor-pointer hover:text-red-400"
                       onClick={() => removeIngrediente(ing)}
                     />
                   </span>
@@ -379,16 +424,16 @@ export default function MenuPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-4">
               <Button
                 variant="ghost"
                 onClick={() => setModalOpen(false)}
-                className="cursor-pointer"
+                className="text-white/70 hover:text-white hover:bg-neutral-800"
               >
                 Cancelar
               </Button>
               <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                className="bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-600"
                 onClick={handleSave}
               >
                 Guardar

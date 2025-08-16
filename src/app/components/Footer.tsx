@@ -2,7 +2,7 @@ import React, { memo } from "react";
 
 const Footer = memo(function Footer() {
   return (
-    <footer className="w-full py-5 bg-neutral-950 border-t border-neutral-800 mt-auto backdrop-blur-sm">
+    <footer className="w-full py-5 border-white/10 bg-neutral-900/95 shadow-lg border-t border-neutral-800 mt-auto backdrop-blur-sm">
       <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0">
         {/* Branding / Credit */}
         <p className="text-center md:text-left text-sm text-neutral-400">

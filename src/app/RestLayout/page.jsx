@@ -3,7 +3,7 @@
 import Mesas from "../components/Mesas";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { account } from "@/lib/appwrite";
+import { useApp } from "@/contexts/AppContext";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { ArrowLeft } from "lucide-react";
@@ -11,6 +11,7 @@ import { ArrowLeft } from "lucide-react";
 export default function RestLayout() {
   const [user, setUser] = useState(null);
   const router = useRouter();
+  const { account } = useApp();
   useEffect(() => {
     account
       .get()

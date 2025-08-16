@@ -10,20 +10,9 @@ import {
   LogIn,
   LogOut,
 } from "lucide-react";
-import { useSubscription } from "@/contexts/SubscriptionContext";
-import { usePerformance } from "@/components/PerformanceContext";
-import {
-  SUBSCRIPTION_CHANNELS,
-  eventMatches,
-  EVENT_PATTERNS,
-} from "@/lib/subscriptionChannels";
-import {
-  databases,
-  client,
-  DB_ATTENDANCE,
-  COL_ATTENDANCE,
-} from "@/lib/appwrite";
+import { useApp } from "@/contexts/AppContext";
 import { Query } from "appwrite";
+import { DB_ATTENDANCE, COL_ATTENDANCE } from "@/lib/appwrite";
 
 const cards = [
   {
@@ -48,57 +37,119 @@ const cards = [
 
 const BtnsCards = memo(function BtnsCards({ user }) {
   const router = useRouter();
-  const { subscribe } = useSubscription();
-  const {
-    getBackdropClass,
-    getAnimationClass,
-    getTransitionClass,
-    getShadowClass,
-  } = usePerformance();
+  const { databases, client } = useApp();
   const [userClockStatus, setUserClockStatus] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
 
-  // Fetch user clock status with optimized real-time updates
-  useEffect(() => {
-    if (user?.$id) {
-      fetchUserClockStatus();
+  // Simplified helper functions
+  const getBackdropClass = (baseClass) => baseClass;
+  const getShadowClass = () => "shadow-lg";
 
-      // Subscribe to optimized real-time updates for attendance changes
-      const unsubscribe = subscribe(
-        SUBSCRIPTION_CHANNELS.ATTENDANCE(DB_ATTENDANCE, COL_ATTENDANCE),
-        (response) => {
-          if (eventMatches(response.events, EVENT_PATTERNS.ALL_CRUD)) {
-            // Check if the event is related to the current user
-            if (response.payload && response.payload.userId === user.$id) {
-              fetchUserClockStatus();
-            }
-          }
-        },
-        { debounce: true, debounceDelay: 300 }
+  // BULLETPROOF: Fetch user clock status
+  const fetchUserClockStatus = useCallback(async () => {
+    if (!user?.$id) return;
+
+    try {
+      console.log(
+        "⏰ btnsCards - Fetching clock status for:",
+        user.$id.slice(-6)
       );
 
-      return unsubscribe;
-    }
-  }, [user, subscribe]);
-
-  async function fetchUserClockStatus() {
-    try {
       const res = await databases.listDocuments(DB_ATTENDANCE, COL_ATTENDANCE, [
         Query.equal("userId", user.$id),
         Query.isNull("clockOut"),
         Query.limit(1),
       ]);
-      setUserClockStatus(res.documents.length > 0 ? res.documents[0] : null);
+
+      const clockStatus = res.documents.length > 0 ? res.documents[0] : null;
+      setUserClockStatus(clockStatus);
+
+      console.log("⏰ btnsCards - Clock status:", {
+        isActive: !!clockStatus,
+        timestamp: new Date().toLocaleTimeString(),
+      });
     } catch (err) {
-      console.error("Error fetching user clock status:", err);
+      console.error("❌ btnsCards - Error fetching clock status:", err);
       setUserClockStatus(null);
     }
-  }
+  }, [user?.$id, databases]);
+
+  // INITIAL: Load clock status on mount
+  useEffect(() => {
+    if (user?.$id) {
+      fetchUserClockStatus();
+    }
+  }, [fetchUserClockStatus, user?.$id]);
+
+  // 🚀 REAL-TIME CLOCK STATUS - Instant updates for current user
+  useEffect(() => {
+    if (!user?.$id) return;
+
+    console.log(
+      "🔥 btnsCards - Setting up REAL-TIME clock tracking for:",
+      user.$id.slice(-6)
+    );
+
+    // CLOCK STATUS SUBSCRIPTION - Instant updates
+    const unsubscribe = client.subscribe(
+      [`databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`],
+      (response) => {
+        const eventType = response.events[0];
+        const payload = response.payload;
+
+        // ONLY update if the change is for the current user
+        if (payload?.userId === user.$id) {
+          console.log("⏰ btnsCards - INSTANT clock status update:", {
+            type: eventType.includes(".create")
+              ? "CLOCK-IN"
+              : eventType.includes(".update")
+              ? "CLOCK-OUT"
+              : "OTHER",
+            timestamp: new Date().toLocaleTimeString(),
+          });
+
+          // IMMEDIATE optimistic update
+          if (eventType.includes(".create") && !payload.clockOut) {
+            setUserClockStatus(payload);
+            console.log("✅ INSTANT clock-in status applied");
+          } else if (eventType.includes(".update") && payload.clockOut) {
+            setUserClockStatus(null);
+            console.log("✅ INSTANT clock-out status applied");
+          }
+
+          // Background validation
+          setTimeout(fetchUserClockStatus, 300);
+        }
+      }
+    );
+
+    // PERIODIC SYNC - Backup refresh every 3 minutes
+    const syncInterval = setInterval(() => {
+      console.log("🔄 btnsCards - Periodic clock sync");
+      fetchUserClockStatus();
+    }, 180000); // Every 3 minutes
+
+    // Cleanup
+    return () => {
+      console.log("🧹 btnsCards - Cleaning up real-time subscriptions");
+      unsubscribe();
+      clearInterval(syncInterval);
+    };
+  }, [user?.$id, fetchUserClockStatus, client]);
 
   async function handleClockIn() {
     setClockLoading(true);
     try {
-      await databases.createDocument(
+      // Optimistic update
+      const newRecord = {
+        $id: `temp-${Date.now()}`,
+        userId: user.$id,
+        name: user.name,
+        clockIn: new Date().toISOString(),
+      };
+      setUserClockStatus(newRecord);
+
+      const response = await databases.createDocument(
         DB_ATTENDANCE,
         COL_ATTENDANCE,
         "unique()",
@@ -108,8 +159,13 @@ const BtnsCards = memo(function BtnsCards({ user }) {
           clockIn: new Date().toISOString(),
         }
       );
+
+      // Replace temp with real record
+      setUserClockStatus(response);
     } catch (err) {
       console.error("Error clocking in:", err);
+      // Revert optimistic update
+      setUserClockStatus(null);
     } finally {
       setClockLoading(false);
     }
@@ -118,7 +174,11 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   async function handleClockOut() {
     if (!userClockStatus) return;
     setClockLoading(true);
+
     try {
+      // Optimistic update
+      setUserClockStatus(null);
+
       await databases.updateDocument(
         DB_ATTENDANCE,
         COL_ATTENDANCE,
@@ -129,6 +189,8 @@ const BtnsCards = memo(function BtnsCards({ user }) {
       );
     } catch (err) {
       console.error("Error clocking out:", err);
+      // Revert optimistic update
+      fetchUserClockStatus();
     } finally {
       setClockLoading(false);
     }
@@ -142,11 +204,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   );
 
   return (
-    <section
-      className={`border-b border-white/10 ${getBackdropClass(
-        "bg-neutral-900/95"
-      )} ${getShadowClass()} text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-hidden`}
-    >
+    <section className="border-b border-white/10 bg-neutral-900/95 shadow-lg text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-hidden">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -260,48 +318,25 @@ const BtnsCards = memo(function BtnsCards({ user }) {
               <div
                 key={card.title}
                 onClick={() => handleCardClick(card.href)}
-                className={`cursor-pointer group relative ${getAnimationClass(
-                  "animate-fade-in-left"
-                )}`}
-                style={{ animationDelay: `${i * 120}ms` }}
+                className="cursor-pointer group relative"
                 title={card.title} // Tooltip for tablet icon-only view
               >
                 {/* Mobile & Desktop: Full card */}
                 <div className="md:hidden xl:block">
-                  <div
-                    className={`relative bg-neutral-900/95 ${getBackdropClass(
-                      "bg-neutral-900/95"
-                    )} rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-4 xl:p-6 ${getTransitionClass()} ${getShadowClass()} group-hover:shadow-xl`}
-                  >
+                  <div className="relative bg-neutral-900/95 rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-4 xl:p-6 shadow-lg">
                     <div className="flex items-center gap-4 xl:gap-5">
-                      <div
-                        className={`w-10 h-10 xl:w-12 xl:h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 ${getTransitionClass()} group-hover:scale-110 shadow-md`}
-                      >
-                        <Icon
-                          className={`w-5 h-5 xl:w-6 xl:h-6 text-white group-hover:text-blue-300 ${getTransitionClass(
-                            "transition-colors duration-300"
-                          )}`}
-                        />
+                      <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 shadow-md">
+                        <Icon className="w-5 h-5 xl:w-6 xl:h-6 text-white group-hover:text-blue-300" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h2
-                          className={`text-base xl:text-lg font-bold text-white mb-1 group-hover:text-blue-200 ${getTransitionClass(
-                            "transition-colors duration-300"
-                          )} truncate`}
-                        >
+                        <h2 className="text-base xl:text-lg font-bold text-white mb-1 group-hover:text-blue-200 truncate">
                           {card.title}
                         </h2>
-                        <p
-                          className={`text-sm xl:text-sm text-neutral-400 group-hover:text-neutral-300 ${getTransitionClass(
-                            "transition-colors duration-300"
-                          )} leading-tight`}
-                        >
+                        <p className="text-sm xl:text-sm text-neutral-400 group-hover:text-neutral-300 leading-tight">
                           {card.description}
                         </p>
                       </div>
-                      <div
-                        className={`w-5 h-5 xl:w-6 xl:h-6 text-neutral-500 group-hover:text-blue-300 ${getTransitionClass()} group-hover:translate-x-1 group-hover:scale-110 flex-shrink-0`}
-                      >
+                      <div className="w-5 h-5 xl:w-6 xl:h-6 text-neutral-500 group-hover:text-blue-300 flex-shrink-0">
                         <svg
                           width="24"
                           height="24"
@@ -331,20 +366,10 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
                 {/* Tablet: Icon only */}
                 <div className="hidden md:block xl:hidden">
-                  <div
-                    className={`relative bg-neutral-900/95 ${getBackdropClass(
-                      "bg-neutral-900/95"
-                    )} rounded-xl border border-neutral-800 group-hover:border-neutral-700 p-3 ${getTransitionClass()} ${getShadowClass()} group-hover:shadow-xl`}
-                  >
+                  <div className="relative bg-neutral-900/95 rounded-xl border border-neutral-800 p-3 shadow-lg">
                     <div className="flex justify-center">
-                      <div
-                        className={`w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 ${getTransitionClass()} group-hover:scale-110 shadow-md`}
-                      >
-                        <Icon
-                          className={`w-5 h-5 text-white group-hover:text-blue-300 ${getTransitionClass(
-                            "transition-colors duration-300"
-                          )}`}
-                        />
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center border border-neutral-700 shadow-md">
+                        <Icon className="w-5 h-5 text-white" />
                       </div>
                     </div>
                   </div>
@@ -356,13 +381,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
         {/* Clock In/Out Section */}
         <div className="mt-auto p-3 md:p-2 xl:p-6 border-t border-neutral-800">
-          <div
-            className={`relative bg-neutral-900/90 ${getBackdropClass(
-              "bg-neutral-900/95"
-            )} rounded-xl border border-neutral-800 p-3 xl:p-4 shadow-md ${getAnimationClass(
-              "animate-fade-in-up animate-stagger-6"
-            )}`}
-          >
+          <div className="relative bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-800 p-3 xl:p-4 shadow-md animate-fade-in-up">
             {/* Mobile & Desktop: Full content */}
             <div className="md:hidden xl:block">
               <div className="flex items-center justify-between mb-3">
@@ -373,30 +392,20 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                   </span>
                 </div>
                 {userClockStatus && (
-                  <div
-                    className={`w-2 h-2 bg-green-400 rounded-full ${getAnimationClass(
-                      "animate-pulse"
-                    )}`}
-                  />
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 )}
               </div>
               <button
                 onClick={!userClockStatus ? handleClockIn : handleClockOut}
                 disabled={clockLoading}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${getTransitionClass(
-                  "transition-all duration-200"
-                )} hover-scale ${
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
                   !userClockStatus
-                    ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
-                    : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
+                    ? "bg-green-500/20 text-green-300 border border-green-500/30"
+                    : "bg-red-500/20 text-red-300 border border-red-500/30"
                 } ${clockLoading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {clockLoading ? (
-                  <div
-                    className={`w-3 h-3 border border-white border-t-transparent rounded-full ${getAnimationClass(
-                      "animate-spin"
-                    )}`}
-                  />
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
                     {!userClockStatus ? (
@@ -421,21 +430,15 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                 <button
                   onClick={!userClockStatus ? handleClockIn : handleClockOut}
                   disabled={clockLoading}
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${getTransitionClass(
-                    "transition-all duration-200"
-                  )} hover-scale ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     !userClockStatus
-                      ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
-                      : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
+                      ? "bg-green-500/20 text-green-300 border border-green-500/30"
+                      : "bg-red-500/20 text-red-300 border border-red-500/30"
                   } ${clockLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   title={!userClockStatus ? "Marcar Entrada" : "Marcar Saída"}
                 >
                   {clockLoading ? (
-                    <div
-                      className={`w-3 h-3 border border-white border-t-transparent rounded-full ${getAnimationClass(
-                        "animate-spin"
-                      )}`}
-                    />
+                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
                       {!userClockStatus ? (

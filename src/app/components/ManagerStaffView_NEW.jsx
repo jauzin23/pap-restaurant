@@ -34,24 +34,23 @@ export default function ManagerStaffView({ user, isManager }) {
   const [clockedInStaff, setClockedInStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastStaffUpdate, setLastStaffUpdate] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
-  const { databases, client } = useApp();
+  const {
+    currentTime,
+    databases,
+    getClassName,
+    getAnimationClass,
+    setupSubscription,
+    getSubscriptionHealth,
+  } = useApp();
 
-  // Update current time every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Helper functions for styling (simplified)
-  const getBackdropClass = (baseClass) => baseClass;
-  const getShadowClass = () => "shadow-lg";
+  // Helper functions for styling
+  const getBackdropClass = (baseClass) =>
+    getClassName(baseClass + " backdrop-blur-sm", baseClass);
+  const getShadowClass = () => getClassName("shadow-lg", "");
   const getTransitionClass = (
     transitionClass = "transition-all duration-300"
-  ) => transitionClass;
+  ) => getAnimationClass(transitionClass);
 
   // BULLETPROOF: Fetch clocked-in staff with comprehensive error handling
   const fetchClockedInStaff = useCallback(async () => {
@@ -95,75 +94,111 @@ export default function ManagerStaffView({ user, isManager }) {
     fetchClockedInStaff();
   }, [fetchClockedInStaff, isManager]);
 
-  // Simplified periodic refresh (no real-time for now)
+  // 🚀 BULLETPROOF REAL-TIME STAFF TRACKING - Instant clock-in/out updates
   useEffect(() => {
     if (!isManager) return;
 
-    console.log("🔥 Setting up REAL-TIME staff attendance tracking");
+    console.log("🔥 Setting up BULLETPROOF staff attendance tracking");
 
-    // REAL-TIME SUBSCRIPTION - Instant staff updates
-    const unsubscribe = client.subscribe(
-      [`databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`],
-      (response) => {
-        const eventType = response.events[0];
-        const payload = response.payload;
+    // ATTENDANCE SUBSCRIPTION - Instant staff updates
+    const cleanupAttendance = setupSubscription(
+      `databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`,
+      async (response) => {
+        if (
+          response.events.some((event) =>
+            event.includes("databases.*.collections.*.documents.*")
+          )
+        ) {
+          const eventType = response.events[0];
+          const payload = response.payload;
 
-        console.log("👥 REAL-TIME staff attendance event:", {
-          type: eventType.includes(".create")
-            ? "CLOCK-IN"
-            : eventType.includes(".update")
-            ? "CLOCK-OUT"
-            : "OTHER",
-          userId: payload?.userId?.slice(-6) || "unknown",
-          name: payload?.name || "unnamed",
-          clockOut: payload?.clockOut || null,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-
-        // IMMEDIATE optimistic update
-        if (eventType.includes(".create") && !payload.clockOut) {
-          // New clock-in - add to list immediately
-          const newStaff = {
-            ...payload,
-            labels: getStaffLabels(payload.userId, user.$id, user.labels),
-          };
-
-          setClockedInStaff((prev) => {
-            // Avoid duplicates
-            const exists = prev.some((s) => s.userId === payload.userId);
-            if (exists) return prev;
-            return [newStaff, ...prev];
+          console.log("👥 Staff attendance event:", {
+            type: eventType.includes(".create")
+              ? "CLOCK-IN"
+              : eventType.includes(".update")
+              ? "CLOCK-OUT"
+              : "OTHER",
+            userId: payload?.userId?.slice(-6) || "unknown",
+            name: payload?.name || "unnamed",
+            clockOut: payload?.clockOut || null,
+            timestamp: new Date().toLocaleTimeString(),
           });
 
-          console.log("✅ INSTANT clock-in update applied for:", payload.name);
-        } else if (eventType.includes(".update") && payload.clockOut) {
-          // Clock-out - remove from list immediately
-          setClockedInStaff((prev) =>
-            prev.filter((staff) => staff.userId !== payload.userId)
-          );
+          // IMMEDIATE optimistic update
+          if (eventType.includes(".create") && !payload.clockOut) {
+            // New clock-in - add to list immediately
+            const newStaff = {
+              ...payload,
+              labels: getStaffLabels(payload.userId, user.$id, user.labels),
+            };
 
-          console.log("✅ INSTANT clock-out update applied for:", payload.name);
+            setClockedInStaff((prev) => {
+              // Avoid duplicates
+              const exists = prev.some((s) => s.userId === payload.userId);
+              if (exists) return prev;
+              return [newStaff, ...prev];
+            });
+
+            console.log(
+              "✅ INSTANT clock-in update applied for:",
+              payload.name
+            );
+          } else if (eventType.includes(".update") && payload.clockOut) {
+            // Clock-out - remove from list immediately
+            setClockedInStaff((prev) =>
+              prev.filter((staff) => staff.userId !== payload.userId)
+            );
+
+            console.log(
+              "✅ INSTANT clock-out update applied for:",
+              payload.name
+            );
+          }
+
+          // Background validation - fetch fresh data to ensure accuracy
+          setTimeout(fetchClockedInStaff, 300);
         }
-
-        setLastStaffUpdate(Date.now());
-
-        // Background validation - fetch fresh data to ensure accuracy
-        setTimeout(fetchClockedInStaff, 500);
-      }
+      },
+      "attendance" // Subscription type for health monitoring
     );
 
-    // PERIODIC SYNC - Backup refresh every 2 minutes
-    const syncInterval = setInterval(() => {
-      console.log("🔄 Periodic staff sync");
-      fetchClockedInStaff();
-    }, 120000); // Every 2 minutes
+    // HEALTH MONITORING - Auto-refresh if subscription becomes stale
+    const healthCheckInterval = setInterval(() => {
+      const health = getSubscriptionHealth();
+      const now = Date.now();
 
+      if (
+        health.attendance?.active &&
+        health.attendance?.lastEvent &&
+        now - health.attendance.lastEvent > 180000
+      ) {
+        // 3 minutes
+        console.warn("⚠️ Staff attendance subscription stale, refreshing...");
+        fetchClockedInStaff();
+      }
+    }, 60000); // Check every minute
+
+    // PERIODIC SYNC - Backup refresh every 5 minutes
+    const syncInterval = setInterval(() => {
+      console.log("🔄 Periodic staff sync - ensuring accuracy");
+      fetchClockedInStaff();
+    }, 300000); // Every 5 minutes
+
+    // Cleanup
     return () => {
-      console.log("🧹 Cleaning up ManagerStaffView real-time subscriptions");
-      unsubscribe();
+      console.log("🧹 Cleaning up ManagerStaffView subscriptions");
+      cleanupAttendance();
+      clearInterval(healthCheckInterval);
       clearInterval(syncInterval);
     };
-  }, [isManager, fetchClockedInStaff, client, user?.$id, user?.labels]);
+  }, [
+    isManager,
+    setupSubscription,
+    fetchClockedInStaff,
+    user?.$id,
+    user?.labels,
+    getSubscriptionHealth,
+  ]);
 
   // Role badge styles
   const getRoleBadgeStyle = (labels) => {
@@ -207,10 +242,18 @@ export default function ManagerStaffView({ user, isManager }) {
   }
 
   return (
-    <div className="p-4 md:p-6 rounded-lg bg-black/40 border border-white/10 shadow-lg">
-      <div className="flex items-center justify-between mb-4 md:mb-6">
+    <div
+      className={`p-4 md:p-6 rounded-lg ${getBackdropClass(
+        "bg-black/40 border border-white/10"
+      )} ${getShadowClass()}`}
+    >
+      <div
+        className={`flex items-center justify-between mb-4 md:mb-6 ${getTransitionClass()}`}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">
+          <div
+            className={`w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20 ${getTransitionClass()}`}
+          >
             <Users size={18} className="text-blue-400" />
           </div>
           <div>
@@ -233,7 +276,11 @@ export default function ManagerStaffView({ user, isManager }) {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <div
+            className={`w-8 h-8 border-2 border-white/30 border-t-white rounded-full ${getAnimationClass(
+              "animate-spin"
+            )}`}
+          />
         </div>
       ) : clockedInStaff.length === 0 ? (
         <div className="text-center py-12">
@@ -252,7 +299,7 @@ export default function ManagerStaffView({ user, isManager }) {
           {clockedInStaff.map((staff) => (
             <div
               key={staff.$id}
-              className="p-4 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.05]"
+              className={`p-4 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] ${getTransitionClass()} group`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -260,14 +307,14 @@ export default function ManagerStaffView({ user, isManager }) {
                   <div
                     className={`w-10 h-10 rounded-lg flex items-center justify-center ${getRoleBadgeStyle(
                       staff.labels
-                    )}`}
+                    )} ${getTransitionClass()}`}
                   >
                     {getRoleIcon(staff.labels)}
                   </div>
 
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-white">
+                      <h4 className="font-semibold text-white group-hover:text-white/90 transition-colors">
                         {staff.name || "Funcionário"}
                       </h4>
 
@@ -275,7 +322,7 @@ export default function ManagerStaffView({ user, isManager }) {
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeStyle(
                           staff.labels
-                        )}`}
+                        )} ${getTransitionClass()}`}
                       >
                         {staff.labels?.[0] || "staff"}
                       </span>
