@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { Users, Clock, Star, ChefHat } from "lucide-react";
 import {
   databases,
@@ -141,12 +140,7 @@ export default function ManagerStaffView({ user, isManager }) {
 
   return (
     <div className="px-6 pb-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-2xl hover:bg-white/[0.03] hover:border-white/20 transition-all duration-300 mx-6"
-      >
+      <div className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-2xl hover:bg-white/[0.03] hover:border-white/20 transition-all duration-300 mx-6 animate-fade-in-up animate-stagger-3">
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30 shadow-lg">
             <Users className="w-6 h-6 text-blue-300" />
@@ -164,11 +158,7 @@ export default function ManagerStaffView({ user, isManager }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full"
-            />
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           </div>
         ) : clockedInStaff.length === 0 ? (
           <div className="text-center py-12">
@@ -180,14 +170,12 @@ export default function ManagerStaffView({ user, isManager }) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 lg:gap-4">
             {clockedInStaff.map((staff, index) => (
-              <motion.div
+              <div
                 key={staff.$id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white/[0.03] backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 group"
+                className="bg-white/[0.03] backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 group animate-scale-in"
+                style={{animationDelay: `${index * 100}ms`}}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-white text-sm group-hover:text-blue-200 transition-colors duration-300">
@@ -223,11 +211,11 @@ export default function ManagerStaffView({ user, isManager }) {
                     {formatDuration(staff.clockIn, currentTime)}
                   </span>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

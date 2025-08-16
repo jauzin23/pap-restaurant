@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, memo } from "react";
+import React, { useState, useEffect, useRef, memo, useMemo } from "react";
 // Direct icon imports for bundle size
 import {
   Plus,
@@ -91,7 +91,18 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [tableNumberError, setTableNumberError] = useState<string>("");
+  const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Local state for size inputs to allow editing without immediate updates
+  const [sizeInputs, setSizeInputs] = useState<{
+    width: string;
+    height: string;
+  }>({ width: "", height: "" });
+
+  // Track current drag position without causing re-renders
+  const dragPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const PIXELS_PER_METER = 40;
 
@@ -160,11 +171,65 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     };
   };
 
+  // Handle window resize for responsive layout
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    if (typeof window !== "undefined") {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }
+  }, []);
+
   // Check user permissions
   useEffect(() => {
     setIsManager(user.labels.includes("manager"));
     setLoading(false);
   }, [user]);
+
+  // Responsive sizing logic - based on RestLayout.tsx with square proportions
+  const getMaxDimensions = () => {
+    const baseSize = Math.sqrt(restaurantSize) * 60;
+    // Use RestLayout.tsx scaling as base
+    let scale = 1;
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 640) {
+        scale = 0.6; // Mobile
+      } else if (window.innerWidth < 1024) {
+        scale = 0.7; // Tablet
+      } else {
+        scale = 0.8; // Desktop - same as RestLayout
+      }
+    }
+
+    // Calculate square canvas based on RestLayout logic but with square proportions
+    const baseWidth = Math.max(320, baseSize * 1.2 * scale);
+    const baseHeight = Math.max(240, baseSize * scale);
+
+    // Use the larger dimension to make it square
+    const canvasSize = Math.max(baseWidth, baseHeight);
+
+    return {
+      width: canvasSize,
+      height: canvasSize, // Always square
+      scale, // Return scale for table scaling
+    };
+  };
+
+  // Recalculate dimensions when dependencies change
+  const maxDimensions = useMemo(
+    () => getMaxDimensions(),
+    [restaurantSize, windowSize.width, windowSize.height]
+  );
 
   // Check for unsaved changes
   useEffect(() => {
@@ -175,6 +240,42 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       setHasUnsavedChanges(false);
     }
   }, [tables, savedTables, editMode]);
+
+  // Center the canvas on load and when dimensions change
+  useEffect(() => {
+    const centerCanvas = () => {
+      if (scrollContainerRef.current) {
+        const scrollContainer = scrollContainerRef.current;
+
+        // Calculate the scrollable area dimensions
+        const scrollWidth = Math.max(
+          maxDimensions.width + 800,
+          windowSize.width
+        );
+        const scrollHeight = Math.max(
+          maxDimensions.height + 600,
+          windowSize.height
+        );
+        const containerWidth = scrollContainer.clientWidth;
+        const containerHeight = scrollContainer.clientHeight;
+
+        // Center the scroll position
+        const centerX = Math.max(0, (scrollWidth - containerWidth) / 2);
+        const centerY = Math.max(0, (scrollHeight - containerHeight) / 2);
+
+        // Scroll to center position
+        scrollContainer.scrollTo({
+          left: centerX,
+          top: centerY,
+          behavior: "smooth",
+        });
+      }
+    };
+
+    // Small delay to ensure component is fully rendered
+    const timeoutId = setTimeout(centerCanvas, 100);
+    return () => clearTimeout(timeoutId);
+  }, [maxDimensions, windowSize.width, windowSize.height]);
 
   // Show notification function
   const showNotification = (
@@ -312,13 +413,10 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     };
   }, []);
 
-  const getMaxDimensions = () => {
-    const baseSize = Math.sqrt(restaurantSize) * 60;
-    return {
-      width: Math.max(400, baseSize * 1.2), // Removed max limit - scales with restaurant size
-      height: Math.max(300, baseSize), // Removed max limit - scales with restaurant size
-    };
-  };
+  // Calculate scaling factor for tables based on canvas size
+  const tableScale = useMemo(() => {
+    return maxDimensions.scale || 0.8;
+  }, [maxDimensions]);
 
   const handleSetRestaurantSize = async (size: number) => {
     if (!isManager) return;
@@ -578,9 +676,28 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
 
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
+      const scale = tableScale;
       setDragOffset({
-        x: e.clientX - rect.left - table.x,
-        y: e.clientY - rect.top - table.y,
+        x: e.clientX - rect.left - table.x * scale,
+        y: e.clientY - rect.top - table.y * scale,
+      });
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, table: Table) => {
+    if (!editMode || !isManager) return;
+
+    e.stopPropagation();
+    setDraggedTable(table.id);
+    setSelectedTable(table.id);
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    const touch = e.touches[0];
+    if (rect && touch) {
+      const scale = tableScale;
+      setDragOffset({
+        x: touch.clientX - rect.left - table.x * scale,
+        y: touch.clientY - rect.top - table.y * scale,
       });
     }
   };
@@ -589,46 +706,143 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     if (!draggedTable || !editMode || !isManager || !containerRef.current)
       return;
 
+    e.stopPropagation();
+
     const rect = containerRef.current.getBoundingClientRect();
-    const maxDim = getMaxDimensions();
+    const scale = tableScale; // Use the same scale as rendering
 
     const table = tables.find((t) => t.id === draggedTable);
     if (!table) return;
 
     const rad = (table.rotation * Math.PI) / 180;
-    const rotatedWidth =
-      Math.abs(Math.cos(rad)) * table.width +
-      Math.abs(Math.sin(rad)) * table.height;
-    const rotatedHeight =
-      Math.abs(Math.sin(rad)) * table.width +
-      Math.abs(Math.cos(rad)) * table.height;
+    const scaledWidth = table.width * scale;
+    const scaledHeight = table.height * scale;
 
-    const centerOffsetX = table.width / 2;
-    const centerOffsetY = table.height / 2;
+    const rotatedWidth =
+      Math.abs(Math.cos(rad)) * scaledWidth +
+      Math.abs(Math.sin(rad)) * scaledHeight;
+    const rotatedHeight =
+      Math.abs(Math.sin(rad)) * scaledWidth +
+      Math.abs(Math.cos(rad)) * scaledHeight;
+
+    const centerOffsetX = scaledWidth / 2;
+    const centerOffsetY = scaledHeight / 2;
 
     let centerX = e.clientX - rect.left - dragOffset.x + centerOffsetX;
     let centerY = e.clientY - rect.top - dragOffset.y + centerOffsetY;
 
     centerX = Math.max(
       rotatedWidth / 2,
-      Math.min(maxDim.width - rotatedWidth / 2, centerX)
+      Math.min(maxDimensions.width - rotatedWidth / 2, centerX)
     );
     centerY = Math.max(
       rotatedHeight / 2,
-      Math.min(maxDim.height - rotatedHeight / 2, centerY)
+      Math.min(maxDimensions.height - rotatedHeight / 2, centerY)
     );
 
-    const newX = centerX - centerOffsetX;
-    const newY = centerY - centerOffsetY;
+    const newX = (centerX - centerOffsetX) / scale; // Convert back to unscaled coordinates
+    const newY = (centerY - centerOffsetY) / scale; // Convert back to unscaled coordinates
 
-    setTables((prevTables) =>
-      prevTables.map((table) =>
-        table.id === draggedTable ? { ...table, x: newX, y: newY } : table
-      )
-    );
+    // Store position in ref instead of updating state immediately
+    dragPositionRef.current = { x: newX, y: newY };
+
+    // Update visual position without triggering re-render
+    const tableElement = containerRef.current?.querySelector(
+      `[data-table-id="${draggedTable}"]`
+    ) as HTMLElement;
+    if (tableElement) {
+      tableElement.style.left = `${newX * scale}px`;
+      tableElement.style.top = `${newY * scale}px`;
+    }
   };
 
   const handleMouseUp = () => {
+    // Update state only when dragging ends
+    if (draggedTable && dragPositionRef.current) {
+      const finalPosition = dragPositionRef.current;
+      setTables((prevTables) =>
+        prevTables.map((table) =>
+          table.id === draggedTable
+            ? { ...table, x: finalPosition.x, y: finalPosition.y }
+            : table
+        )
+      );
+    }
+
+    dragPositionRef.current = null;
+    setDraggedTable(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!draggedTable || !editMode || !isManager || !containerRef.current)
+      return;
+
+    e.stopPropagation();
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const scale = tableScale; // Use the same scale as rendering
+
+    const table = tables.find((t) => t.id === draggedTable);
+    if (!table) return;
+
+    const rad = (table.rotation * Math.PI) / 180;
+    const scaledWidth = table.width * scale;
+    const scaledHeight = table.height * scale;
+
+    const rotatedWidth =
+      Math.abs(Math.cos(rad)) * scaledWidth +
+      Math.abs(Math.sin(rad)) * scaledHeight;
+    const rotatedHeight =
+      Math.abs(Math.sin(rad)) * scaledWidth +
+      Math.abs(Math.cos(rad)) * scaledHeight;
+
+    const centerOffsetX = scaledWidth / 2;
+    const centerOffsetY = scaledHeight / 2;
+
+    let centerX = touch.clientX - rect.left - dragOffset.x + centerOffsetX;
+    let centerY = touch.clientY - rect.top - dragOffset.y + centerOffsetY;
+
+    centerX = Math.max(
+      rotatedWidth / 2,
+      Math.min(maxDimensions.width - rotatedWidth / 2, centerX)
+    );
+    centerY = Math.max(
+      rotatedHeight / 2,
+      Math.min(maxDimensions.height - rotatedHeight / 2, centerY)
+    );
+
+    const newX = (centerX - centerOffsetX) / scale; // Convert back to unscaled coordinates
+    const newY = (centerY - centerOffsetY) / scale; // Convert back to unscaled coordinates
+
+    // Store position in ref instead of updating state immediately
+    dragPositionRef.current = { x: newX, y: newY };
+
+    // Update visual position without triggering re-render
+    const tableElement = containerRef.current?.querySelector(
+      `[data-table-id="${draggedTable}"]`
+    ) as HTMLElement;
+    if (tableElement) {
+      tableElement.style.left = `${newX * scale}px`;
+      tableElement.style.top = `${newY * scale}px`;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    // Update state only when dragging ends
+    if (draggedTable && dragPositionRef.current) {
+      const finalPosition = dragPositionRef.current;
+      setTables((prevTables) =>
+        prevTables.map((table) =>
+          table.id === draggedTable
+            ? { ...table, x: finalPosition.x, y: finalPosition.y }
+            : table
+        )
+      );
+    }
+
+    dragPositionRef.current = null;
     setDraggedTable(null);
   };
 
@@ -826,13 +1040,16 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     };
   };
 
-  const getChairPositions = (table: Table): ChairPosition[] => {
+  const getChairPositions = (
+    table: Table,
+    scale: number = 1
+  ): ChairPosition[] => {
     const chairs: ChairPosition[] = [];
     const { width, height, chairs: chairCount, shape, chairSides } = table;
-    const chairDistance = 18;
+    const chairDistance = 18 * scale; // Scale chair distance
 
     if (shape === "circular") {
-      const radius = width / 2 + chairDistance;
+      const radius = (width * scale) / 2 + chairDistance;
       for (let i = 0; i < chairCount; i++) {
         const angle = (2 * Math.PI * i) / chairCount - Math.PI / 2;
         chairs.push({
@@ -866,23 +1083,31 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
 
           switch (side.key) {
             case "top":
-              x = (width / (chairsOnThisSide + 1)) * (i + 1) - width / 2;
-              y = -height / 2 - chairDistance;
+              x =
+                ((width * scale) / (chairsOnThisSide + 1)) * (i + 1) -
+                (width * scale) / 2;
+              y = -(height * scale) / 2 - chairDistance;
               rotation = 0;
               break;
             case "right":
-              x = width / 2 + chairDistance;
-              y = (height / (chairsOnThisSide + 1)) * (i + 1) - height / 2;
+              x = (width * scale) / 2 + chairDistance;
+              y =
+                ((height * scale) / (chairsOnThisSide + 1)) * (i + 1) -
+                (height * scale) / 2;
               rotation = 90;
               break;
             case "bottom":
-              x = width / 2 - (width / (chairsOnThisSide + 1)) * (i + 1);
-              y = height / 2 + chairDistance;
+              x =
+                (width * scale) / 2 -
+                ((width * scale) / (chairsOnThisSide + 1)) * (i + 1);
+              y = (height * scale) / 2 + chairDistance;
               rotation = 180;
               break;
             case "left":
-              x = -width / 2 - chairDistance;
-              y = height / 2 - (height / (chairsOnThisSide + 1)) * (i + 1);
+              x = -(width * scale) / 2 - chairDistance;
+              y =
+                (height * scale) / 2 -
+                ((height * scale) / (chairsOnThisSide + 1)) * (i + 1);
               rotation = -90;
               break;
             default:
@@ -911,7 +1136,46 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   };
 
   const selectedTableData = tables.find((table) => table.id === selectedTable);
-  const maxDimensions = getMaxDimensions();
+
+  // Update size inputs when selected table changes
+  useEffect(() => {
+    if (selectedTableData) {
+      setSizeInputs({
+        width: (selectedTableData.width / PIXELS_PER_METER).toFixed(1),
+        height: (selectedTableData.height / PIXELS_PER_METER).toFixed(1),
+      });
+    }
+  }, [
+    selectedTableData?.id,
+    selectedTableData?.width,
+    selectedTableData?.height,
+  ]);
+
+  // Handle size input changes and validation
+  const handleSizeInputChange = (
+    dimension: "width" | "height",
+    value: string
+  ) => {
+    setSizeInputs((prev) => ({ ...prev, [dimension]: value }));
+  };
+
+  const handleSizeInputCommit = (
+    dimension: "width" | "height",
+    value: string
+  ) => {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue > 0) {
+      updateTableSize(selectedTable!, dimension, numValue);
+    } else if (selectedTableData) {
+      // Reset to current value if invalid
+      setSizeInputs((prev) => ({
+        ...prev,
+        [dimension]: (selectedTableData[dimension] / PIXELS_PER_METER).toFixed(
+          1
+        ),
+      }));
+    }
+  };
 
   if (loading) {
     return (
@@ -1270,164 +1534,231 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden mt-6 min-h-0">
-          <div className="flex-1 flex items-center justify-center overflow-auto p-4 min-h-0">
+        <div className="flex flex-1 overflow-hidden mt-6 min-h-0 relative">
+          <div
+            ref={scrollContainerRef}
+            className={`flex-1 p-4 min-h-0 transition-all duration-300 canvas-scroll ${
+              draggedTable ? "overflow-hidden" : "overflow-auto"
+            }`}
+            style={{
+              touchAction: draggedTable ? "none" : "auto",
+              WebkitOverflowScrolling: "touch",
+              overscrollBehavior: draggedTable ? "none" : "auto",
+            }}
+          >
+            {/* Large scrollable area with canvas centered */}
             <div
-              ref={containerRef}
-              className="relative border-2 border-neutral-700 bg-neutral-900 shadow-xl"
               style={{
-                backgroundImage: `
-                  linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
-                `,
-                backgroundSize: "20px 20px, 20px 20px",
-                width: `${maxDimensions.width}px`,
-                height: `${maxDimensions.height}px`,
-                borderRadius: "12px",
-              }}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onClick={() => {
-                setShowAddMenu(false);
-                setShowSizeMenu(false);
+                width: `${Math.max(
+                  maxDimensions.width + 800,
+                  windowSize.width
+                )}px`,
+                height: `${Math.max(
+                  maxDimensions.height + 600,
+                  windowSize.height
+                )}px`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                position: "relative",
+                touchAction: draggedTable ? "none" : "auto",
               }}
             >
-              {tables.map((table) => (
-                <div
-                  key={table.id}
-                  className={`absolute ${
-                    editMode && isManager ? "cursor-move" : "cursor-default"
-                  } ${
-                    selectedTable === table.id
-                      ? "ring-2 ring-yellow-400 z-10"
-                      : ""
-                  } ${
-                    draggedTable === table.id
-                      ? "scale-105"
-                      : "transition-all duration-200"
-                  } group ${
-                    table.id.startsWith("temp_")
-                      ? "ring-2 ring-yellow-400/50"
-                      : ""
-                  }`}
-                  style={{
-                    left: `${table.x}px`,
-                    top: `${table.y}px`,
-                    width: `${table.width}px`,
-                    height: `${table.height}px`,
-                    transform: `rotate(${table.rotation}deg)`,
-                    transformOrigin: "center center",
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, table)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (editMode && isManager) setSelectedTable(table.id);
-                  }}
-                >
+              <div
+                ref={containerRef}
+                className={`relative border-2 border-neutral-700 bg-neutral-900 shadow-xl ${
+                  draggedTable ? "select-none touch-none" : ""
+                }`}
+                style={{
+                  backgroundImage: `
+                    linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
+                  `,
+                  backgroundSize: `${20 * tableScale}px ${20 * tableScale}px`,
+                  width: `${maxDimensions.width}px`,
+                  height: `${maxDimensions.height}px`,
+                  borderRadius: "12px",
+                  touchAction: draggedTable ? "none" : "auto",
+                }}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+                onClick={() => {
+                  setShowAddMenu(false);
+                  setShowSizeMenu(false);
+                }}
+              >
+                {tables.map((table) => (
                   <div
-                    className={`w-full h-full border-2 flex items-center justify-center transition-all duration-200 ${
+                    key={table.id}
+                    data-table-id={table.id}
+                    className={`absolute ${
+                      editMode && isManager ? "cursor-move" : "cursor-default"
+                    } ${
                       selectedTable === table.id
-                        ? "bg-neutral-800 border-yellow-400 shadow-xl"
-                        : table.id.startsWith("temp_")
-                        ? "bg-neutral-800 border-yellow-400/50 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
-                        : "bg-neutral-800 border-neutral-600 hover:border-neutral-500 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
+                        ? "ring-2 ring-yellow-400 z-10"
+                        : ""
+                    } ${
+                      draggedTable === table.id
+                        ? "scale-105"
+                        : "transition-all duration-200"
+                    } group ${
+                      table.id.startsWith("temp_")
+                        ? "ring-2 ring-yellow-400/50"
+                        : ""
                     }`}
                     style={{
-                      ...getTableStyle(table),
+                      left: `${table.x * tableScale}px`,
+                      top: `${table.y * tableScale}px`,
+                      width: `${table.width * tableScale}px`,
+                      height: `${table.height * tableScale}px`,
+                      transform: `rotate(${table.rotation}deg)`,
+                      transformOrigin: "center center",
+                      touchAction: "none",
+                      userSelect: "none",
+                      WebkitUserSelect: "none",
+                      WebkitTouchCallout: "none",
+                    }}
+                    onMouseDown={(e) => handleMouseDown(e, table)}
+                    onTouchStart={(e) => handleTouchStart(e, table)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (editMode && isManager) setSelectedTable(table.id);
                     }}
                   >
-                    <span
-                      className={`text-lg font-bold transition-colors duration-200 ${
-                        selectedTable === table.id
-                          ? "text-yellow-400"
-                          : table.id.startsWith("temp_")
-                          ? "text-yellow-400"
-                          : "text-white group-hover:text-neutral-200"
-                      } ${!editMode ? "select-none" : ""}`}
-                    >
-                      {table.tableNumber}
-                    </span>
-                  </div>
-
-                  {getChairPositions(table).map((chairPos, i) => (
                     <div
-                      key={i}
-                      className={`absolute w-4 h-4 transition-all duration-200 shadow-sm ${
+                      className={`w-full h-full border-2 flex items-center justify-center transition-all duration-200 ${
                         selectedTable === table.id
-                          ? "bg-yellow-400 border border-yellow-500 shadow-md"
+                          ? "bg-neutral-800 border-yellow-400 shadow-xl"
                           : table.id.startsWith("temp_")
-                          ? "bg-yellow-400/70 border border-yellow-500/70 shadow-md"
-                          : "bg-neutral-600 border border-neutral-700 group-hover:bg-neutral-500"
+                          ? "bg-neutral-800 border-yellow-400/50 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
+                          : "bg-neutral-800 border-neutral-600 hover:border-neutral-500 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
                       }`}
                       style={{
-                        left: "50%",
-                        top: "50%",
-                        transform: `translate(-50%, -50%) translate(${
-                          chairPos.x
-                        }px, ${chairPos.y}px) rotate(${
-                          -table.rotation + (chairPos.rotation || 0)
-                        }deg)`,
-                        borderRadius: "3px",
+                        ...getTableStyle(table),
                       }}
-                    />
-                  ))}
-                </div>
-              ))}
-
-              {tables.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center text-neutral-400">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-neutral-800 rounded-xl flex items-center justify-center border border-neutral-700">
-                      <Grid size={32} className="opacity-60" />
+                    >
+                      <span
+                        className={`font-bold transition-colors duration-200 ${
+                          selectedTable === table.id
+                            ? "text-yellow-400"
+                            : table.id.startsWith("temp_")
+                            ? "text-yellow-400"
+                            : "text-white group-hover:text-neutral-200"
+                        } ${!editMode ? "select-none" : ""}`}
+                        style={{
+                          fontSize: `${16 * tableScale}px`,
+                        }}
+                      >
+                        {table.tableNumber}
+                      </span>
                     </div>
-                    <p className="text-xl font-semibold mb-3 text-neutral-300">
-                      Nenhuma mesa no layout
-                    </p>
-                    <p className="text-sm max-w-md text-neutral-500 leading-relaxed">
-                      {editMode && isManager
-                        ? 'Clique em "Adicionar Mesa" para começar a desenhar a planta'
-                        : isManager
-                        ? "Entre no modo de edição para adicionar mesas ao layout"
-                        : "Este layout está vazio. Contacte um gestor para adicionar mesas."}
-                    </p>
+
+                    {getChairPositions(table, tableScale).map((chairPos, i) => (
+                      <div
+                        key={i}
+                        className={`absolute transition-all duration-200 shadow-sm ${
+                          selectedTable === table.id
+                            ? "bg-yellow-400 border border-yellow-500 shadow-md"
+                            : table.id.startsWith("temp_")
+                            ? "bg-yellow-400/70 border border-yellow-500/70 shadow-md"
+                            : "bg-neutral-600 border border-neutral-700 group-hover:bg-neutral-500"
+                        }`}
+                        style={{
+                          width: `${12 * tableScale}px`,
+                          height: `${12 * tableScale}px`,
+                          left: "50%",
+                          top: "50%",
+                          transform: `translate(-50%, -50%) translate(${
+                            chairPos.x
+                          }px, ${chairPos.y}px) rotate(${
+                            -table.rotation + (chairPos.rotation || 0)
+                          }deg)`,
+                          borderRadius: "3px",
+                        }}
+                      />
+                    ))}
                   </div>
-                </div>
-              )}
+                ))}
+
+                {tables.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-neutral-400">
+                      <div className="w-20 h-20 mx-auto mb-6 bg-neutral-800 rounded-xl flex items-center justify-center border border-neutral-700">
+                        <Grid size={32} className="opacity-60" />
+                      </div>
+                      <p className="text-xl font-semibold mb-3 text-neutral-300">
+                        Nenhuma mesa no layout
+                      </p>
+                      <p className="text-sm max-w-md text-neutral-500 leading-relaxed">
+                        {editMode && isManager
+                          ? 'Clique em "Adicionar Mesa" para começar a desenhar a planta'
+                          : isManager
+                          ? "Entre no modo de edição para adicionar mesas ao layout"
+                          : "Este layout está vazio. Contacte um gestor para adicionar mesas."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {editMode && isManager && selectedTableData && (
-            <div className="w-80 bg-neutral-900 border-l border-neutral-700 overflow-y-auto">
+            <div className="absolute top-0 right-0 w-80 h-full bg-neutral-900 border-l border-t-2 border-b-2 border-neutral-700 overflow-y-auto shadow-2xl z-10 scrollbar-subtle">
+              {/* Left edge gradient to indicate content behind */}
+              <div className="absolute left-0 top-0 w-4 h-full bg-gradient-to-r from-black/20 to-transparent pointer-events-none z-20"></div>
               <div className="p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div
-                    className={`w-12 h-12 ${
-                      selectedTableData.id.startsWith("temp_")
-                        ? "bg-yellow-500"
-                        : "bg-neutral-700"
-                    } flex items-center justify-center rounded-lg border border-neutral-600`}
-                  >
-                    <span
-                      className={`font-bold text-lg ${
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-12 h-12 ${
                         selectedTableData.id.startsWith("temp_")
-                          ? "text-black"
-                          : "text-white"
-                      }`}
+                          ? "bg-yellow-500"
+                          : "bg-neutral-700"
+                      } flex items-center justify-center rounded-lg border border-neutral-600`}
                     >
-                      {selectedTableData.tableNumber}
-                    </span>
+                      <span
+                        className={`font-bold text-lg ${
+                          selectedTableData.id.startsWith("temp_")
+                            ? "text-black"
+                            : "text-white"
+                        }`}
+                      >
+                        {selectedTableData.tableNumber}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Mesa {selectedTableData.tableNumber}
+                      </h3>
+                      <p className="text-sm text-neutral-400">
+                        {selectedTableData.id.startsWith("temp_")
+                          ? "Nova mesa (não guardada)"
+                          : "Configurar propriedades"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">
-                      Mesa {selectedTableData.tableNumber}
-                    </h3>
-                    <p className="text-sm text-neutral-400">
-                      {selectedTableData.id.startsWith("temp_")
-                        ? "Nova mesa (não guardada)"
-                        : "Configurar propriedades"}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setSelectedTable(null)}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-red-600 border border-neutral-600 hover:border-red-500 transition-all duration-200 group"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="text-neutral-400 group-hover:text-white transition-colors duration-200"
+                    >
+                      <path d="m18 6-12 12" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
                 </div>
 
                 <div className="space-y-6">
@@ -1519,16 +1850,19 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                         <input
                           type="number"
                           step="0.1"
-                          value={(
-                            selectedTableData.width / PIXELS_PER_METER
-                          ).toFixed(1)}
+                          value={sizeInputs.width}
                           onChange={(e) =>
-                            updateTableSize(
-                              selectedTable!,
-                              "width",
-                              parseFloat(e.target.value) || 1
-                            )
+                            handleSizeInputChange("width", e.target.value)
                           }
+                          onBlur={(e) =>
+                            handleSizeInputCommit("width", e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleSizeInputCommit("width", sizeInputs.width);
+                              e.currentTarget.blur();
+                            }
+                          }}
                           className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                           min="1"
                           max="15"
@@ -1542,16 +1876,22 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                           <input
                             type="number"
                             step="0.1"
-                            value={(
-                              selectedTableData.height / PIXELS_PER_METER
-                            ).toFixed(1)}
+                            value={sizeInputs.height}
                             onChange={(e) =>
-                              updateTableSize(
-                                selectedTable!,
-                                "height",
-                                parseFloat(e.target.value) || 1
-                              )
+                              handleSizeInputChange("height", e.target.value)
                             }
+                            onBlur={(e) =>
+                              handleSizeInputCommit("height", e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleSizeInputCommit(
+                                  "height",
+                                  sizeInputs.height
+                                );
+                                e.currentTarget.blur();
+                              }
+                            }}
                             className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                             min="1"
                             max="15"
@@ -1588,6 +1928,14 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                                   preset.h
                                 );
                               }
+                              // Update local size inputs to reflect the preset values
+                              setSizeInputs({
+                                width: preset.w.toFixed(1),
+                                height: (selectedTableData.shape === "circular"
+                                  ? preset.w
+                                  : preset.h
+                                ).toFixed(1),
+                              });
                             }}
                             className="px-3 py-2 text-xs bg-neutral-700 hover:bg-neutral-600 border border-neutral-600 hover:border-neutral-500 transition-all duration-200 font-semibold text-white rounded-lg"
                           >

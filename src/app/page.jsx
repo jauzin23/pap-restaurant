@@ -13,7 +13,7 @@ import { useMediaQuery } from "react-responsive";
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null);
-  const isMobile = useMediaQuery({ maxWidth: 767 });
+  const isMobile = useMediaQuery({ maxWidth: 640 }); // Changed from 767 to 640 to allow tablets
   const router = useRouter();
 
   useEffect(() => {
@@ -60,14 +60,14 @@ export default function DashboardPage() {
       <div className="flex flex-1 overflow-hidden">
         <BtnsCards user={user} />
         <div className="flex-1 flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
-          <div className="pt-6 px-6">
+          <div className="pt-3 lg:pt-6 px-2 lg:px-6">
             <TableStatusSummary />
           </div>
           <ManagerStaffView
             user={user}
             isManager={user.labels && user.labels.includes("manager")}
           />
-          <div className="px-6 pb-6">
+          <div className="px-2 lg:px-6 pb-3 lg:pb-6">
             <RestLayout
               user={user}
               onEditRedirect={() => router.push("/RestLayout")}

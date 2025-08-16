@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 // Direct icon imports for bundle size
 import { Grid, Edit, Shield, ShieldX, ExternalLink } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
@@ -58,6 +58,7 @@ const RestLayout = React.memo(function RestLayout({
   const [loading, setLoading] = useState<boolean>(true);
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   // Handle window resize for responsive layout
   useEffect(() => {
     const handleResize = () => {
@@ -81,6 +82,34 @@ const RestLayout = React.memo(function RestLayout({
   useEffect(() => {
     setIsManager(user.labels.includes("manager"));
   }, [user]);
+
+  // Center the canvas on load and when dimensions change
+  useEffect(() => {
+    const centerCanvas = () => {
+      if (scrollContainerRef.current) {
+        const scrollContainer = scrollContainerRef.current;
+        const dimensions = getMaxDimensions();
+
+        const containerWidth = scrollContainer.clientWidth;
+        const containerHeight = scrollContainer.clientHeight;
+
+        // Only center if canvas is larger than container
+        if (dimensions.width > containerWidth - 32) { // 32px for padding
+          const centerX = Math.max(0, (dimensions.width - containerWidth + 32) / 2);
+          scrollContainer.scrollLeft = centerX;
+        }
+
+        if (dimensions.height > containerHeight - 32) { // 32px for padding
+          const centerY = Math.max(0, (dimensions.height - containerHeight + 32) / 2);
+          scrollContainer.scrollTop = centerY;
+        }
+      }
+    };
+
+    // Small delay to ensure component is fully rendered
+    const timeoutId = setTimeout(centerCanvas, 100);
+    return () => clearTimeout(timeoutId);
+  }, [restaurantSize, windowSize.width, windowSize.height]);
 
   // Realtime subscription for tables
   useEffect(() => {
@@ -256,6 +285,8 @@ const RestLayout = React.memo(function RestLayout({
             left: doc.chairLeft ?? true,
           },
         }));
+        console.log("Fetched tables:", tablesData);
+        console.log("Restaurant size:", restaurantSize);
         setTables(tablesData);
       } catch (err) {
         console.error("Error fetching tables:", err);
@@ -266,22 +297,39 @@ const RestLayout = React.memo(function RestLayout({
     fetchTables();
   }, []);
 
-  // Responsive sizing logic
+  // Responsive sizing logic - based on Mesas.tsx with square proportions
   const getMaxDimensions = () => {
     const baseSize = Math.sqrt(restaurantSize) * 60;
+    // Use same scaling as Mesas.tsx
+    let scale = 1;
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 640) {
+        scale = 0.6; // Mobile
+      } else if (window.innerWidth < 1024) {
+        scale = 0.7; // Tablet
+      } else {
+        scale = 0.8; // Desktop - same as Mesas.tsx
+      }
+    }
 
-    // Calculate max available space (accounting for sidebar, padding, etc.)
-    const maxAvailableWidth = Math.min(windowSize.width - 400, 1000); // 400px for sidebar + padding
-    const maxAvailableHeight = Math.min(windowSize.height - 400, 600); // 400px for header/footer
+    // Calculate square canvas based on Mesas.tsx logic but with square proportions
+    const baseWidth = Math.max(320, baseSize * 1.2 * scale);
+    const baseHeight = Math.max(240, baseSize * scale);
 
-    // Scale based on restaurant size but limit by viewport
-    const desiredWidth = Math.max(300, baseSize * 1.2);
-    const desiredHeight = Math.max(250, baseSize);
+    // Use the larger dimension to make it square (same as Mesas.tsx)
+    const canvasSize = Math.max(baseWidth, baseHeight);
 
     return {
-      width: Math.min(desiredWidth, maxAvailableWidth),
-      height: Math.min(desiredHeight, maxAvailableHeight),
+      width: canvasSize,
+      height: canvasSize, // Always square
+      scale, // Return scale for table scaling
     };
+  };
+
+  // Calculate scaling factor for tables based on canvas size
+  const getTableScale = () => {
+    const dimensions = getMaxDimensions();
+    return dimensions.scale || 0.8;
   };
 
   const getTableStyle = (table: Table) => {
@@ -290,13 +338,16 @@ const RestLayout = React.memo(function RestLayout({
     };
   };
 
-  const getChairPositions = (table: Table): ChairPosition[] => {
+  const getChairPositions = (
+    table: Table,
+    scale: number = 1
+  ): ChairPosition[] => {
     const chairs: ChairPosition[] = [];
     const { width, height, chairs: chairCount, shape, chairSides } = table;
-    const chairDistance = 18;
+    const chairDistance = 18 * scale; // Scale chair distance
 
     if (shape === "circular") {
-      const radius = width / 2 + chairDistance;
+      const radius = (width * scale) / 2 + chairDistance;
       for (let i = 0; i < chairCount; i++) {
         const angle = (2 * Math.PI * i) / chairCount - Math.PI / 2;
         chairs.push({
@@ -328,23 +379,31 @@ const RestLayout = React.memo(function RestLayout({
 
           switch (side.key) {
             case "top":
-              x = (width / (chairsOnThisSide + 1)) * (i + 1) - width / 2;
-              y = -height / 2 - chairDistance;
+              x =
+                ((width * scale) / (chairsOnThisSide + 1)) * (i + 1) -
+                (width * scale) / 2;
+              y = -(height * scale) / 2 - chairDistance;
               rotation = 0;
               break;
             case "right":
-              x = width / 2 + chairDistance;
-              y = (height / (chairsOnThisSide + 1)) * (i + 1) - height / 2;
+              x = (width * scale) / 2 + chairDistance;
+              y =
+                ((height * scale) / (chairsOnThisSide + 1)) * (i + 1) -
+                (height * scale) / 2;
               rotation = 90;
               break;
             case "bottom":
-              x = width / 2 - (width / (chairsOnThisSide + 1)) * (i + 1);
-              y = height / 2 + chairDistance;
+              x =
+                (width * scale) / 2 -
+                ((width * scale) / (chairsOnThisSide + 1)) * (i + 1);
+              y = (height * scale) / 2 + chairDistance;
               rotation = 180;
               break;
             case "left":
-              x = -width / 2 - chairDistance;
-              y = height / 2 - (height / (chairsOnThisSide + 1)) * (i + 1);
+              x = -(width * scale) / 2 - chairDistance;
+              y =
+                (height * scale) / 2 -
+                ((height * scale) / (chairsOnThisSide + 1)) * (i + 1);
               rotation = -90;
               break;
             default:
@@ -362,6 +421,7 @@ const RestLayout = React.memo(function RestLayout({
   };
 
   const maxDimensions = getMaxDimensions();
+  const tableScale = getTableScale();
 
   if (loading) {
     return (
@@ -377,37 +437,37 @@ const RestLayout = React.memo(function RestLayout({
   }
 
   return (
-    <div className="bg-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl mx-2 md:mx-4 lg:mx-6 hover:bg-white/[0.03] hover:border-white/20 transition-all duration-300 overflow-hidden">
+    <div className="bg-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl mx-1 lg:mx-6 hover:bg-white/[0.03] hover:border-white/20 transition-all duration-300 overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:p-6 lg:p-8 border-b border-white/10 gap-4">
-        <div className="flex items-center gap-3 md:gap-5 min-w-0">
-          <div className="w-12 h-12 md:w-14 md:h-14 bg-white/[0.05] backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10 shadow-lg flex-shrink-0">
-            <Grid size={18} className="md:hidden text-white" />
-            <Grid size={22} className="hidden md:block text-white" />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between p-3 lg:p-8 border-b border-white/10 gap-3">
+        <div className="flex items-center gap-2 lg:gap-5 min-w-0">
+          <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/[0.05] backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10 shadow-lg flex-shrink-0">
+            <Grid size={16} className="lg:hidden text-white" />
+            <Grid size={22} className="hidden lg:block text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg md:text-2xl font-bold text-white tracking-tight truncate">
+            <h2 className="text-base lg:text-2xl font-bold text-white tracking-tight truncate">
               Layout do Restaurante
             </h2>
-            <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-2">
+            <div className="flex flex-wrap items-center gap-1 lg:gap-3 mt-1 lg:mt-2">
               {isManager ? (
-                <div className="flex items-center gap-2 text-green-400 bg-green-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-green-500/20">
-                  <Shield size={14} className="md:hidden" />
-                  <Shield size={16} className="hidden md:block" />
-                  <span className="text-xs md:text-sm font-semibold">
+                <div className="flex items-center gap-1 lg:gap-2 text-green-400 bg-green-500/10 px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg border border-green-500/20">
+                  <Shield size={12} className="lg:hidden" />
+                  <Shield size={16} className="hidden lg:block" />
+                  <span className="text-xs lg:text-sm font-semibold">
                     Gestor
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-white/70 bg-white/[0.05] px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10">
-                  <ShieldX size={14} className="md:hidden" />
-                  <ShieldX size={16} className="hidden md:block" />
-                  <span className="text-xs md:text-sm font-medium">
+                <div className="flex items-center gap-1 lg:gap-2 text-white/70 bg-white/[0.05] px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg border border-white/10">
+                  <ShieldX size={12} className="lg:hidden" />
+                  <ShieldX size={16} className="hidden lg:block" />
+                  <span className="text-xs lg:text-sm font-medium">
                     Modo Visualização
                   </span>
                 </div>
               )}
-              <span className="text-xs md:text-sm text-white/60 bg-white/[0.03] px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10">
+              <span className="text-xs lg:text-sm text-white/60 bg-white/[0.03] px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg border border-white/10">
                 {tables.length} {tables.length === 1 ? "mesa" : "mesas"}
               </span>
             </div>
@@ -418,43 +478,46 @@ const RestLayout = React.memo(function RestLayout({
         {isManager && (
           <button
             onClick={onEditRedirect}
-            className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs md:text-sm font-semibold rounded-xl transition-all duration-300 flex items-center gap-2 md:gap-3 border border-green-500/20 shadow-lg hover:shadow-xl hover:scale-105 backdrop-blur-sm flex-shrink-0"
+            className="px-4 lg:px-6 py-2 lg:py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs lg:text-sm font-semibold rounded-xl transition-all duration-300 flex items-center gap-2 lg:gap-3 border border-green-500/20 shadow-lg hover:shadow-xl hover:scale-105 backdrop-blur-sm flex-shrink-0"
           >
-            <Edit size={16} className="md:hidden" />
-            <Edit size={18} className="hidden md:block" />
-            <span className="hidden sm:inline">Editar Layout</span>
-            <span className="sm:hidden">Editar</span>
-            <ExternalLink size={12} className="md:hidden" />
-            <ExternalLink size={14} className="hidden md:block" />
+            <Edit size={14} className="lg:hidden" />
+            <Edit size={18} className="hidden lg:block" />
+            <span className="hidden lg:inline">Editar Layout</span>
+            <span className="lg:hidden">Editar</span>
+            <ExternalLink size={12} className="lg:hidden" />
+            <ExternalLink size={14} className="hidden lg:block" />
           </button>
         )}
       </div>
 
       {/* Restaurant Layout */}
-      <div className="p-4 md:p-6 lg:p-10 overflow-auto">
-        <div className="flex justify-center min-w-0">
-          <div
-            className="relative border-2 border-white/20 bg-white/[0.02] backdrop-blur-sm shadow-2xl hover:border-white/30 transition-all duration-300 max-w-full"
-            style={{
-              backgroundImage: `
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
-              `,
-              backgroundSize: "20px 20px",
-              width: `${maxDimensions.width}px`,
-              height: `${maxDimensions.height}px`,
-              borderRadius: "16px",
-            }}
-          >
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto p-4 min-h-0 transition-all duration-300 flex items-center justify-center"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div
+          className="relative border-2 border-white/20 bg-white/[0.02] backdrop-blur-sm shadow-2xl hover:border-white/30 transition-all duration-300"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: `${20 * tableScale}px ${20 * tableScale}px`,
+            width: `${maxDimensions.width}px`,
+            height: `${maxDimensions.height}px`,
+            borderRadius: "16px",
+          }}
+        >
             {tables.map((table) => (
               <div
                 key={table.id}
                 className="absolute transition-all duration-200 group cursor-default"
                 style={{
-                  left: `${table.x}px`,
-                  top: `${table.y}px`,
-                  width: `${table.width}px`,
-                  height: `${table.height}px`,
+                  left: `${table.x * tableScale}px`,
+                  top: `${table.y * tableScale}px`,
+                  width: `${table.width * tableScale}px`,
+                  height: `${table.height * tableScale}px`,
                   transform: `rotate(${table.rotation}deg)`,
                   transformOrigin: "center center",
                 }}
@@ -472,11 +535,17 @@ const RestLayout = React.memo(function RestLayout({
                 >
                   {/* Status indicator */}
                   <div
-                    className={`absolute top-2 right-2 w-4 h-4 rounded-full border-2 border-white shadow-lg ${
+                    className={`absolute rounded-full border-2 border-white shadow-lg ${
                       table.status === "occupied"
                         ? "bg-red-400 shadow-red-400/50"
                         : "bg-green-400 shadow-green-400/50"
                     }`}
+                    style={{
+                      width: `${12 * tableScale}px`,
+                      height: `${12 * tableScale}px`,
+                      top: `${6 * tableScale}px`,
+                      right: `${6 * tableScale}px`,
+                    }}
                     title={
                       table.status === "occupied"
                         ? "Mesa Ocupada"
@@ -485,26 +554,31 @@ const RestLayout = React.memo(function RestLayout({
                   />
 
                   <span
-                    className={`text-xl font-bold select-none ${
+                    className={`font-bold select-none ${
                       table.status === "occupied"
                         ? "text-red-300"
                         : "text-green-300"
                     }`}
+                    style={{
+                      fontSize: `${16 * tableScale}px`,
+                    }}
                   >
                     {table.tableNumber}
                   </span>
                 </div>
 
                 {/* Chairs */}
-                {getChairPositions(table).map((chairPos, i) => (
+                {getChairPositions(table, tableScale).map((chairPos, i) => (
                   <div
                     key={i}
-                    className={`absolute w-4 h-4 border-2 border-white/60 shadow-lg transition-all duration-300 backdrop-blur-sm ${
+                    className={`absolute border-2 border-white/60 shadow-lg transition-all duration-300 backdrop-blur-sm ${
                       table.status === "occupied"
                         ? "bg-red-400/80 group-hover:bg-red-400/90 shadow-red-400/30"
                         : "bg-green-400/80 group-hover:bg-green-400/90 shadow-green-400/30"
                     }`}
                     style={{
+                      width: `${12 * tableScale}px`,
+                      height: `${12 * tableScale}px`,
                       left: "50%",
                       top: "50%",
                       transform: `translate(-50%, -50%) translate(${
@@ -537,7 +611,6 @@ const RestLayout = React.memo(function RestLayout({
                 </div>
               </div>
             )}
-          </div>
         </div>
       </div>
 

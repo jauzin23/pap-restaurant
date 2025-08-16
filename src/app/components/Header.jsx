@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from "react";
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
 // Direct icon imports for smaller bundle
 import { LogOut, Star, Users, ChefHat, Clock } from "lucide-react";
 
-import { motion } from "framer-motion";
 import {
   account,
   databases,
@@ -17,10 +15,6 @@ import {
   COL_ATTENDANCE,
 } from "@/lib/appwrite";
 import { Query } from "appwrite";
-const AnimatePresence = dynamic(
-  () => import("framer-motion").then((mod) => mod.AnimatePresence),
-  { ssr: false }
-);
 
 const Header = memo(function Header({ user, logo }) {
   const router = useRouter();
@@ -28,11 +22,17 @@ const Header = memo(function Header({ user, logo }) {
   const [userClockStatus, setUserClockStatus] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showClockStatus, setShowClockStatus] = useState(false);
+  const [prevTime, setPrevTime] = useState(null);
 
   useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
+    const interval = setInterval(() => {
+      const newTime = new Date();
+      setPrevTime(time);
+      setTime(newTime);
+    }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [time]);
 
   // Update current time every 30 seconds for real-time duration calculation
   useEffect(() => {
@@ -74,6 +74,17 @@ const Header = memo(function Header({ user, logo }) {
       };
     }
   }, [user]);
+
+  // Manage clock status animation
+  useEffect(() => {
+    if (userClockStatus && !showClockStatus) {
+      setShowClockStatus(true);
+    } else if (!userClockStatus && showClockStatus) {
+      // Delay hiding to allow exit animation
+      const timeout = setTimeout(() => setShowClockStatus(false), 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [userClockStatus, showClockStatus]);
 
   async function fetchUserClockStatus() {
     try {
@@ -131,13 +142,6 @@ const Header = memo(function Header({ user, logo }) {
 
   const timeParts = formatTimeParts(time);
 
-  const digitAnimation = {
-    initial: { opacity: 0, y: -5 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: 5 },
-    transition: { duration: 0.2 },
-  };
-
   function formatDuration(clockInTime, currentTime = new Date()) {
     if (!clockInTime) return "0h 0m";
 
@@ -175,10 +179,7 @@ const Header = memo(function Header({ user, logo }) {
     <header className="w-full flex justify-between items-center px-6 py-4 border-b border-white/10 bg-white/[0.02] shadow-lg backdrop-blur-sm">
       {/* Left: Logo + Title */}
       <div className="flex items-center space-x-3">
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
+        <div className="hover-scale">
           <Image
             src={logo}
             alt="Logo"
@@ -186,7 +187,7 @@ const Header = memo(function Header({ user, logo }) {
             height={40}
             className="w-10 h-10 rounded-full border-2 border-white/20 shadow-lg"
           />
-        </motion.div>
+        </div>
         <h1 className="text-xl font-bold text-white tracking-wide">Mesa+</h1>
       </div>
 
@@ -198,40 +199,39 @@ const Header = memo(function Header({ user, logo }) {
             <span key={idx} className="flex">
               {Object.values(timeParts)
                 [idx].split("")
-                .map((digit, i) => (
-                  <AnimatePresence key={i} mode="wait">
-                    <motion.span key={digit + i} {...digitAnimation}>
+                .map((digit, i) => {
+                  const prevDigit =
+                    prevTime &&
+                    Object.values(formatTimeParts(prevTime))[idx]?.split("")[i];
+                  const hasChanged = prevDigit !== digit;
+                  return (
+                    <span
+                      key={digit + i}
+                      className={hasChanged ? "animate-clock-digit" : ""}
+                    >
                       {digit}
-                    </motion.span>
-                  </AnimatePresence>
-                ))}
+                    </span>
+                  );
+                })}
               {idx < 2 && <span className="mx-1">:</span>}
             </span>
           ))}
         </div>
 
         {/* Check-in Status Badge */}
-        <AnimatePresence>
-          {userClockStatus && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, x: 20 }}
-              animate={{ opacity: 1, scale: 1, x: 0 }}
-              exit={{ opacity: 0, scale: 0.9, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 backdrop-blur-sm"
-            >
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="w-2 h-2 bg-green-400 rounded-full"
-              />
-              <Clock className="w-3 h-3 text-green-400" />
-              <span className="text-xs font-semibold text-green-300">
-                {formatDuration(userClockStatus.clockIn, currentTime)}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {userClockStatus && (
+          <div
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 backdrop-blur-sm ${
+              showClockStatus ? "animate-slide-in-right" : "fade-exit-active"
+            }`}
+          >
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow" />
+            <Clock className="w-3 h-3 text-green-400" />
+            <span className="text-xs font-semibold text-green-300">
+              {formatDuration(userClockStatus.clockIn, currentTime)}
+            </span>
+          </div>
+        )}
 
         {/* User Info + Roles */}
         <div className="flex flex-col md:flex-row md:items-center md:space-x-3">
@@ -284,17 +284,15 @@ const Header = memo(function Header({ user, logo }) {
         </div>
 
         {/* Logout */}
-        <motion.button
+        <button
           onClick={handleLogout}
           disabled={isLoggingOut}
           className={clsx(
             "flex items-center space-x-2 transition-all duration-300 px-4 py-2 rounded-xl border",
             isLoggingOut
               ? "text-white/50 bg-white/[0.02] border-white/5 cursor-not-allowed"
-              : "text-white/70 hover:text-red-400 hover:bg-white/[0.05] border-white/10 hover:border-red-400/30"
+              : "text-white/70 hover:text-red-400 hover:bg-white/[0.05] border-white/10 hover:border-red-400/30 hover-slide-right"
           )}
-          whileHover={!isLoggingOut ? { x: 2, scale: 1.02 } : {}}
-          whileTap={!isLoggingOut ? { scale: 0.98 } : {}}
         >
           {isLoggingOut ? (
             <>
@@ -307,7 +305,7 @@ const Header = memo(function Header({ user, logo }) {
               <span className="text-sm font-semibold">Logout</span>
             </>
           )}
-        </motion.button>
+        </button>
       </div>
     </header>
   );

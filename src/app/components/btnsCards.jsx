@@ -6,12 +6,10 @@ import {
   BookOpen,
   ShoppingCart,
   CalendarCheck,
-  ArrowRightCircle,
   Clock,
   LogIn,
   LogOut,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import {
   databases,
   client,
@@ -140,7 +138,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   );
 
   return (
-    <section className="bg-black text-white w-72 h-full flex-shrink-0 border-r border-neutral-900 flex flex-col relative overflow-hidden shadow-xl">
+    <section className="border-b border-white/10 bg-white/[0.02] shadow-lg backdrop-blur-sm text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-hidden">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -167,171 +165,228 @@ const BtnsCards = memo(function BtnsCards({ user }) {
       <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/40 via-transparent to-neutral-950/60 pointer-events-none" />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col h-full pt-0 pl-0">
-        {/* Section header */}
-        <div className="mb-8 pt-8 pl-8 pb-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-xl flex items-center justify-center border border-neutral-600 shadow-lg">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M12 2L2 7L12 12L22 7L12 2Z"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M2 17L12 22L22 17"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M2 12L12 17L22 12"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+      <div className="relative z-10 flex flex-col h-full">
+        {/* Header - Mobile: horizontal, Tablet: vertical center, Desktop: horizontal */}
+        <div className="flex md:hidden xl:flex items-center gap-4 p-4 xl:p-8 border-b border-neutral-800 xl:border-none">
+          <div className="w-10 h-10 xl:w-12 xl:h-12 bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-xl flex items-center justify-center border border-neutral-600 shadow-lg">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="xl:w-[20px] xl:h-[20px]"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
-          <p className="text-sm text-neutral-400 pl-1">
-            Acesso rápido às funcionalidades
-          </p>
+          <div className="hidden xl:block">
+            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+            <p className="text-sm text-neutral-400">
+              Acesso rápido às funcionalidades
+            </p>
+          </div>
         </div>
 
-        {/* Card stack */}
-        <div className="flex-1 flex flex-col gap-4 px-6">
+        {/* Tablet icon header - only visible on tablets */}
+        <div className="hidden md:flex xl:hidden justify-center pt-6 pb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-xl flex items-center justify-center border border-neutral-600 shadow-lg">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Navigation Cards */}
+        <div className="flex-1 flex flex-col md:flex-col xl:flex-col gap-2 md:gap-3 xl:gap-4 p-3 md:p-2 xl:p-6">
           {cards.map((card, i) => {
             const Icon = card.icon;
 
             return (
-              <motion.div
+              <div
                 key={card.title}
                 onClick={() => handleCardClick(card.href)}
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.12, type: "spring", stiffness: 100 }}
-                className="cursor-pointer group relative"
+                className="cursor-pointer group relative animate-fade-in-left"
+                style={{ animationDelay: `${i * 120}ms` }}
+                title={card.title} // Tooltip for tablet icon-only view
               >
-                {/* Card background */}
-                <div className="absolute inset-0 bg-neutral-900 rounded-2xl group-hover:bg-neutral-800 transition-all duration-300 shadow-lg" />
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-6 transition-all duration-300 shadow-lg group-hover:shadow-xl">
-                  <div className="flex items-center gap-5">
-                    {/* Icon with subtle background */}
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
-                      <Icon className="w-6 h-6 text-white group-hover:text-blue-300 transition-colors duration-300" />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1">
-                      <h2 className="text-lg font-bold text-white mb-1 group-hover:text-blue-200 transition-colors duration-300">
-                        {card.title}
-                      </h2>
-                      <p className="text-sm text-neutral-400 group-hover:text-neutral-300 transition-colors duration-300">
-                        {card.description}
-                      </p>
-                    </div>
-
-                    {/* Arrow */}
-                    <div className="w-6 h-6 text-neutral-500 group-hover:text-blue-300 transition-all duration-300 group-hover:translate-x-1 group-hover:scale-110">
-                      <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M5 12H19"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M12 5L19 12L12 19"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                {/* Mobile & Desktop: Full card */}
+                <div className="md:hidden xl:block">
+                  <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-4 xl:p-6 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                    <div className="flex items-center gap-4 xl:gap-5">
+                      <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
+                        <Icon className="w-5 h-5 xl:w-6 xl:h-6 text-white group-hover:text-blue-300 transition-colors duration-300" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-base xl:text-lg font-bold text-white mb-1 group-hover:text-blue-200 transition-colors duration-300 truncate">
+                          {card.title}
+                        </h2>
+                        <p className="text-sm xl:text-sm text-neutral-400 group-hover:text-neutral-300 transition-colors duration-300 leading-tight">
+                          {card.description}
+                        </p>
+                      </div>
+                      <div className="w-5 h-5 xl:w-6 xl:h-6 text-neutral-500 group-hover:text-blue-300 transition-all duration-300 group-hover:translate-x-1 group-hover:scale-110 flex-shrink-0">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M5 12H19"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M12 5L19 12L12 19"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </motion.div>
+
+                {/* Tablet: Icon only */}
+                <div className="hidden md:block xl:hidden">
+                  <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-xl border border-neutral-800 group-hover:border-neutral-700 p-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                    <div className="flex justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
+                        <Icon className="w-5 h-5 text-white group-hover:text-blue-300 transition-colors duration-300" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
 
-        {/* Clock In/Out Card - Minimalistic */}
-        <div className="mt-8 relative px-6 pb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="relative bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-800 p-4 shadow-md"
-          >
-            {/* Compact status display */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-neutral-300" />
-                <span className="text-xs font-medium text-neutral-300">
-                  Ponto
-                </span>
+        {/* Clock In/Out Section */}
+        <div className="mt-auto p-3 md:p-2 xl:p-6 border-t border-neutral-800">
+          <div className="relative bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-800 p-3 xl:p-4 shadow-md animate-fade-in-up animate-stagger-6">
+            {/* Mobile & Desktop: Full content */}
+            <div className="md:hidden xl:block">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-neutral-300" />
+                  <span className="text-xs font-medium text-neutral-300">
+                    Ponto
+                  </span>
+                </div>
+                {userClockStatus && (
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                )}
               </div>
-              {userClockStatus && (
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              )}
+              <button
+                onClick={!userClockStatus ? handleClockIn : handleClockOut}
+                disabled={clockLoading}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover-scale ${
+                  !userClockStatus
+                    ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
+                    : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
+                } ${clockLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                {clockLoading ? (
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    {!userClockStatus ? (
+                      <>
+                        <LogIn className="w-3 h-3" />
+                        Entrar
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-3 h-3" />
+                        Sair
+                      </>
+                    )}
+                  </>
+                )}
+              </button>
             </div>
 
-            {/* Minimalistic button */}
-            <motion.button
-              onClick={!userClockStatus ? handleClockIn : handleClockOut}
-              disabled={clockLoading}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                !userClockStatus
-                  ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
-                  : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
-              } ${clockLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              {clockLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-3 h-3 border border-white border-t-transparent rounded-full"
-                />
-              ) : (
-                <>
-                  {!userClockStatus ? (
-                    <>
-                      <LogIn className="w-3 h-3" />
-                      Entrar
-                    </>
+            {/* Tablet: Icon only */}
+            <div className="hidden md:block xl:hidden">
+              <div className="flex justify-center">
+                <button
+                  onClick={!userClockStatus ? handleClockIn : handleClockOut}
+                  disabled={clockLoading}
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 hover-scale ${
+                    !userClockStatus
+                      ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
+                      : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
+                  } ${clockLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  title={!userClockStatus ? "Marcar Entrada" : "Marcar Saída"}
+                >
+                  {clockLoading ? (
+                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
-                      <LogOut className="w-3 h-3" />
-                      Sair
+                      {!userClockStatus ? (
+                        <LogIn className="w-4 h-4" />
+                      ) : (
+                        <LogOut className="w-4 h-4" />
+                      )}
                     </>
                   )}
-                </>
-              )}
-            </motion.button>
-          </motion.div>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

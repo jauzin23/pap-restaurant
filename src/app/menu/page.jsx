@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { Plus, ArrowLeft, Edit, Trash2, X } from "lucide-react";
 import {
   client,
@@ -166,9 +165,28 @@ export default function MenuPage() {
 
   if (!user)
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-b-4 mb-4"></div>
-        <p className="text-gray-700 text-lg">A Carregar...</p>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Background grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f0f0f_1px,transparent_1px),linear-gradient(to_bottom,#0f0f0f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Loading spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-white/10 rounded-full"></div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-t-purple-500 border-r-pink-500 border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+          </div>
+
+          {/* Logo and text */}
+          <div className="mt-8 text-center">
+            <div className="mb-4 flex justify-center"></div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent mb-2">
+              Mesa+
+            </h2>
+            <p className="text-white/50 text-sm">
+              A carregar o seu dashboard...
+            </p>
+          </div>
+        </div>
       </div>
     );
 
@@ -191,12 +209,7 @@ export default function MenuPage() {
           </div>
 
           {/* Main content card */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="bg-neutral-900 shadow-xl rounded-xl border border-neutral-800 overflow-hidden"
-          >
+          <div className="bg-neutral-900 shadow-xl rounded-xl border border-neutral-800 overflow-hidden animate-fade-in-up animate-stagger-4">
             {/* Card header */}
             <div className="flex justify-between items-center p-6 border-b border-neutral-800">
               <h1 className="text-2xl font-semibold text-neutral-100">
@@ -297,7 +310,7 @@ export default function MenuPage() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
       </main>
 

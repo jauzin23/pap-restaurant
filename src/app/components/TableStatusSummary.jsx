@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { Users, CheckCircle, Clock, DollarSign, Timer } from "lucide-react";
 import {
   databases,
@@ -220,8 +219,8 @@ export default function TableStatusSummary() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mx-6 my-4">
-        {[...Array(3)].map((_, i) => (
+      <div className="grid grid-cols-1 gap-3 mx-2 lg:mx-6 my-4">
+        {[...Array(2)].map((_, i) => (
           <div
             key={i}
             className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-5 animate-pulse shadow-lg"
@@ -252,32 +251,25 @@ export default function TableStatusSummary() {
   }, {});
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="grid grid-cols-1 md:grid-cols-2 gap-6 mx-6 my-4"
-    >
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mx-2 lg:mx-6 my-4 animate-fade-in-up">
       {/* Card 1: Tables Analytics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-blue-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/10">
-            <Users size={18} className="text-blue-400" />
+      <div className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-4 md:p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl animate-fade-in-up animate-stagger-1">
+        <div className="flex items-center gap-3 mb-3 md:mb-4">
+          <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/10">
+            <Users
+              size={16}
+              className="text-blue-400 md:w-[18px] md:h-[18px]"
+            />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Mesas</h3>
-            <p className="text-sm text-white/70">Estado atual</p>
+            <h3 className="text-base md:text-lg font-bold text-white">Mesas</h3>
+            <p className="text-xs md:text-sm text-white/70">Estado atual</p>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2 md:space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/70">Total</span>
+            <span className="text-xs md:text-sm text-white/70">Total</span>
             <span className="text-xl font-bold text-white">{totalTables}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -310,48 +302,48 @@ export default function TableStatusSummary() {
             </span>
           </div>
           <div className="w-full bg-white/10 rounded-full h-1.5">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${occupancyRate}%` }}
-              transition={{ duration: 1, delay: 0.5 }}
-              className={`h-1.5 rounded-full ${
+            <div
+              className={`h-1.5 rounded-full animate-progress-bar ${
                 occupancyRate > 80
                   ? "bg-red-400"
                   : occupancyRate > 50
                   ? "bg-yellow-400"
                   : "bg-emerald-400"
               }`}
+              style={{ "--target-width": `${occupancyRate}%` }}
             />
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Card 2: Today's Revenue */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
-        className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-emerald-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
-            <DollarSign size={18} className="text-emerald-400" />
+      <div className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-4 md:p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl animate-fade-in-up animate-stagger-2">
+        <div className="flex items-center gap-3 mb-3 md:mb-4">
+          <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+            <DollarSign
+              size={16}
+              className="text-emerald-400 md:w-[18px] md:h-[18px]"
+            />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Faturação</h3>
-            <p className="text-sm text-white/70">Ganhos de hoje</p>
+            <h3 className="text-base md:text-lg font-bold text-white">
+              Faturação
+            </h3>
+            <p className="text-xs md:text-sm text-white/70">Ganhos de hoje</p>
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="flex flex-col items-center justify-center gap-2">
-            <span className="text-xl text-emerald-500 font-semibold mb-1">
+        <div className="mb-4 md:mb-6">
+          <div className="flex flex-col items-center justify-center gap-1 md:gap-2">
+            <span className="text-lg md:text-xl text-emerald-500 font-semibold mb-1">
               Faturação
             </span>
-            <div className="flex items-end gap-2">
-              <span className="text-2xl text-emerald-400 font-bold">€</span>
+            <div className="flex items-end gap-1 md:gap-2">
+              <span className="text-xl md:text-2xl text-emerald-400 font-bold">
+                €
+              </span>
               <span
-                className="text-6xl font-extrabold text-white tracking-tight leading-none"
+                className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none"
                 style={{
                   fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
                 }}
@@ -397,7 +389,7 @@ export default function TableStatusSummary() {
             ))}
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
