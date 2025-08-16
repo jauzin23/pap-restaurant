@@ -111,13 +111,21 @@ const RestLayout = React.memo(function RestLayout({
         const containerHeight = scrollContainer.clientHeight;
 
         // Only center if canvas is larger than container
-        if (dimensions.width > containerWidth - 32) { // 32px for padding
-          const centerX = Math.max(0, (dimensions.width - containerWidth + 32) / 2);
+        if (dimensions.width > containerWidth - 32) {
+          // 32px for padding
+          const centerX = Math.max(
+            0,
+            (dimensions.width - containerWidth + 32) / 2
+          );
           scrollContainer.scrollLeft = centerX;
         }
 
-        if (dimensions.height > containerHeight - 32) { // 32px for padding
-          const centerY = Math.max(0, (dimensions.height - containerHeight + 32) / 2);
+        if (dimensions.height > containerHeight - 32) {
+          // 32px for padding
+          const centerY = Math.max(
+            0,
+            (dimensions.height - containerHeight + 32) / 2
+          );
           scrollContainer.scrollTop = centerY;
         }
       }
@@ -228,7 +236,10 @@ const RestLayout = React.memo(function RestLayout({
             `databases.${DATABASE_ID}.collections.${SETTINGS_COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedSettings = response.payload as { $id: string; size: number };
+          const updatedSettings = response.payload as {
+            $id: string;
+            size: number;
+          };
           if (updatedSettings.$id === SETTINGS_DOCUMENT_ID) {
             setRestaurantSize(updatedSettings.size);
           }
@@ -287,23 +298,24 @@ const RestLayout = React.memo(function RestLayout({
         const tablesData = res.documents.map((doc) => {
           const appwriteDoc = doc as unknown as AppwriteDocument;
           return {
-          id: appwriteDoc.$id,
-          x: appwriteDoc.posX,
-          y: appwriteDoc.posY,
-          width: appwriteDoc.width,
-          height: appwriteDoc.height,
-          chairs: appwriteDoc.chairs,
-          rotation: appwriteDoc.rotation,
-          tableNumber: appwriteDoc.tableNumber,
-          shape: appwriteDoc.shape,
-          status: appwriteDoc.status || "free", // Include status field
-          chairSides: {
-            top: appwriteDoc.chairTop ?? true,
-            right: appwriteDoc.chairRight ?? true,
-            bottom: appwriteDoc.chairBottom ?? true,
-            left: appwriteDoc.chairLeft ?? true,
-          },
-        }});
+            id: appwriteDoc.$id,
+            x: appwriteDoc.posX,
+            y: appwriteDoc.posY,
+            width: appwriteDoc.width,
+            height: appwriteDoc.height,
+            chairs: appwriteDoc.chairs,
+            rotation: appwriteDoc.rotation,
+            tableNumber: appwriteDoc.tableNumber,
+            shape: appwriteDoc.shape,
+            status: appwriteDoc.status || "free", // Include status field
+            chairSides: {
+              top: appwriteDoc.chairTop ?? true,
+              right: appwriteDoc.chairRight ?? true,
+              bottom: appwriteDoc.chairBottom ?? true,
+              left: appwriteDoc.chairLeft ?? true,
+            },
+          };
+        });
         console.log("Fetched tables:", tablesData);
         console.log("Restaurant size:", restaurantSize);
         setTables(tablesData);
@@ -528,108 +540,106 @@ const RestLayout = React.memo(function RestLayout({
             borderRadius: "16px",
           }}
         >
-            {tables.map((table) => (
+          {tables.map((table) => (
+            <div
+              key={table.id}
+              className="absolute transition-all duration-200 group cursor-default"
+              style={{
+                left: `${table.x * tableScale}px`,
+                top: `${table.y * tableScale}px`,
+                width: `${table.width * tableScale}px`,
+                height: `${table.height * tableScale}px`,
+                transform: `rotate(${table.rotation}deg)`,
+                transformOrigin: "center center",
+              }}
+            >
+              {/* Table - Show status with colors */}
               <div
-                key={table.id}
-                className="absolute transition-all duration-200 group cursor-default"
+                className={`w-full h-full border-2 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 relative backdrop-blur-sm ${
+                  table.status === "occupied"
+                    ? "border-red-400/60 bg-red-500/10 hover:bg-red-500/15 hover:border-red-400/80"
+                    : "border-green-400/60 bg-green-500/10 hover:bg-green-500/15 hover:border-green-400/80"
+                }`}
                 style={{
-                  left: `${table.x * tableScale}px`,
-                  top: `${table.y * tableScale}px`,
-                  width: `${table.width * tableScale}px`,
-                  height: `${table.height * tableScale}px`,
-                  transform: `rotate(${table.rotation}deg)`,
-                  transformOrigin: "center center",
+                  ...getTableStyle(table),
                 }}
               >
-                {/* Table - Show status with colors */}
+                {/* Status indicator */}
                 <div
-                  className={`w-full h-full border-2 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 relative backdrop-blur-sm ${
+                  className={`absolute rounded-full border-2 border-white shadow-lg ${
                     table.status === "occupied"
-                      ? "border-red-400/60 bg-red-500/10 hover:bg-red-500/15 hover:border-red-400/80"
-                      : "border-green-400/60 bg-green-500/10 hover:bg-green-500/15 hover:border-green-400/80"
+                      ? "bg-red-400 shadow-red-400/50"
+                      : "bg-green-400 shadow-green-400/50"
                   }`}
                   style={{
-                    ...getTableStyle(table),
+                    width: `${12 * tableScale}px`,
+                    height: `${12 * tableScale}px`,
+                    top: `${6 * tableScale}px`,
+                    right: `${6 * tableScale}px`,
+                  }}
+                  title={
+                    table.status === "occupied" ? "Mesa Ocupada" : "Mesa Livre"
+                  }
+                />
+
+                <span
+                  className={`font-bold select-none ${
+                    table.status === "occupied"
+                      ? "text-red-300"
+                      : "text-green-300"
+                  }`}
+                  style={{
+                    fontSize: `${16 * tableScale}px`,
                   }}
                 >
-                  {/* Status indicator */}
-                  <div
-                    className={`absolute rounded-full border-2 border-white shadow-lg ${
-                      table.status === "occupied"
-                        ? "bg-red-400 shadow-red-400/50"
-                        : "bg-green-400 shadow-green-400/50"
-                    }`}
-                    style={{
-                      width: `${12 * tableScale}px`,
-                      height: `${12 * tableScale}px`,
-                      top: `${6 * tableScale}px`,
-                      right: `${6 * tableScale}px`,
-                    }}
-                    title={
-                      table.status === "occupied"
-                        ? "Mesa Ocupada"
-                        : "Mesa Livre"
-                    }
-                  />
-
-                  <span
-                    className={`font-bold select-none ${
-                      table.status === "occupied"
-                        ? "text-red-300"
-                        : "text-green-300"
-                    }`}
-                    style={{
-                      fontSize: `${16 * tableScale}px`,
-                    }}
-                  >
-                    {table.tableNumber}
-                  </span>
-                </div>
-
-                {/* Chairs */}
-                {getChairPositions(table, tableScale).map((chairPos, i) => (
-                  <div
-                    key={i}
-                    className={`absolute border-2 border-white/60 shadow-lg transition-all duration-300 backdrop-blur-sm ${
-                      table.status === "occupied"
-                        ? "bg-red-400/80 group-hover:bg-red-400/90 shadow-red-400/30"
-                        : "bg-green-400/80 group-hover:bg-green-400/90 shadow-green-400/30"
-                    }`}
-                    style={{
-                      width: `${12 * tableScale}px`,
-                      height: `${12 * tableScale}px`,
-                      left: "50%",
-                      top: "50%",
-                      transform: `translate(-50%, -50%) translate(${
-                        chairPos.x
-                      }px, ${chairPos.y}px) rotate(${
-                        -table.rotation + (chairPos.rotation || 0)
-                      }deg)`,
-                      borderRadius: "3px",
-                    }}
-                  />
-                ))}
+                  {table.tableNumber}
+                </span>
               </div>
-            ))}
 
-            {/* Empty State */}
-            {tables.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-white/70">
-                  <div className="w-24 h-24 mx-auto mb-8 bg-white/[0.05] rounded-2xl flex items-center justify-center border border-white/10 shadow-lg backdrop-blur-sm">
-                    <Grid size={40} className="text-white/40" />
-                  </div>
-                  <p className="text-2xl font-bold mb-4 text-white">
-                    Nenhuma mesa no layout
-                  </p>
-                  <p className="text-sm max-w-md text-white/60 leading-relaxed">
-                    {isManager
-                      ? "Clique em 'Editar Layout' para adicionar mesas ao layout"
-                      : "Este layout está vazio. Contacte um gestor para adicionar mesas."}
-                  </p>
+              {/* Chairs */}
+              {getChairPositions(table, tableScale).map((chairPos, i) => (
+                <div
+                  key={i}
+                  className={`absolute border-2 border-white/60 shadow-lg transition-all duration-300 backdrop-blur-sm ${
+                    table.status === "occupied"
+                      ? "bg-red-400/80 group-hover:bg-red-400/90 shadow-red-400/30"
+                      : "bg-green-400/80 group-hover:bg-green-400/90 shadow-green-400/30"
+                  }`}
+                  style={{
+                    width: `${12 * tableScale}px`,
+                    height: `${12 * tableScale}px`,
+                    left: "50%",
+                    top: "50%",
+                    transform: `translate(-50%, -50%) translate(${
+                      chairPos.x
+                    }px, ${chairPos.y}px) rotate(${
+                      -table.rotation + (chairPos.rotation || 0)
+                    }deg)`,
+                    borderRadius: "3px",
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+
+          {/* Empty State */}
+          {tables.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-white/70">
+                <div className="w-24 h-24 mx-auto mb-8 bg-white/[0.05] rounded-2xl flex items-center justify-center border border-white/10 shadow-lg backdrop-blur-sm">
+                  <Grid size={40} className="text-white/40" />
                 </div>
+                <p className="text-2xl font-bold mb-4 text-white">
+                  Nenhuma mesa no layout
+                </p>
+                <p className="text-sm max-w-md text-white/60 leading-relaxed">
+                  {isManager
+                    ? "Clique em 'Editar Layout' para adicionar mesas ao layout"
+                    : "Este layout está vazio. Contacte um gestor para adicionar mesas."}
+                </p>
               </div>
-            )}
+            </div>
+          )}
         </div>
       </div>
 

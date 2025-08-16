@@ -419,7 +419,10 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             `databases.${DATABASE_ID}.collections.${SETTINGS_COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedSettings = response.payload as { $id: string; size: number };
+          const updatedSettings = response.payload as {
+            $id: string;
+            size: number;
+          };
           if (updatedSettings.$id === SETTINGS_DOCUMENT_ID) {
             setRestaurantSize(updatedSettings.size);
           }
@@ -509,23 +512,24 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
         const tablesData = res.documents.map((doc) => {
           const appwriteDoc = doc as unknown as AppwriteDocument;
           return {
-          id: appwriteDoc.$id,
-          x: appwriteDoc.posX,
-          y: appwriteDoc.posY,
-          width: appwriteDoc.width,
-          height: appwriteDoc.height,
-          chairs: appwriteDoc.chairs,
-          rotation: appwriteDoc.rotation,
-          tableNumber: appwriteDoc.tableNumber,
-          shape: appwriteDoc.shape,
-          status: appwriteDoc.status || "free", // Include status field
-          chairSides: {
-            top: appwriteDoc.chairTop ?? true,
-            right: appwriteDoc.chairRight ?? true,
-            bottom: appwriteDoc.chairBottom ?? true,
-            left: appwriteDoc.chairLeft ?? true,
-          },
-        }});
+            id: appwriteDoc.$id,
+            x: appwriteDoc.posX,
+            y: appwriteDoc.posY,
+            width: appwriteDoc.width,
+            height: appwriteDoc.height,
+            chairs: appwriteDoc.chairs,
+            rotation: appwriteDoc.rotation,
+            tableNumber: appwriteDoc.tableNumber,
+            shape: appwriteDoc.shape,
+            status: appwriteDoc.status || "free", // Include status field
+            chairSides: {
+              top: appwriteDoc.chairTop ?? true,
+              right: appwriteDoc.chairRight ?? true,
+              bottom: appwriteDoc.chairBottom ?? true,
+              left: appwriteDoc.chairLeft ?? true,
+            },
+          };
+        });
         setTables(tablesData);
         setSavedTables(JSON.parse(JSON.stringify(tablesData))); // Deep copy for saved state
       } catch (err) {
