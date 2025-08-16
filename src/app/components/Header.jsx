@@ -160,7 +160,7 @@ const Header = memo(function Header({ user, logo }) {
           {/* Left Section - Logo, Brand, and Clock Status */}
           <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
             {logo && (
-              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-br from-neutral-800 to-neutral-900 p-1.5 border border-neutral-700 flex-shrink-0">
+              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-lg  p-1.5 flex-shrink-0">
                 <Image
                   src={logo}
                   alt="Logo"
