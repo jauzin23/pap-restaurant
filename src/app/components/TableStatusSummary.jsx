@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Users, DollarSign } from "lucide-react";
+import { useTime } from "@/contexts/TimeContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePerformance } from "@/components/PerformanceContext";
+import {
+  SUBSCRIPTION_CHANNELS,
+  eventMatches,
+  EVENT_PATTERNS,
+} from "@/lib/subscriptionChannels";
 import {
   databases,
   client,
@@ -26,29 +34,35 @@ export default function TableStatusSummary() {
   const [revenue, setRevenue] = useState(null);
   const [clockedInStaff, setClockedInStaff] = useState([]);
   const [lastOrders, setLastOrders] = useState([]);
+  const { currentTime } = useTime();
+  const { subscribe } = useSubscription();
+  const {
+    getBackdropClass,
+    getAnimationClass,
+    getTransitionClass,
+    getShadowClass,
+  } = usePerformance();
+
+  // Update staff durations when currentTime changes (every 30 seconds)
+  useEffect(() => {
+    setClockedInStaff((prevStaff) =>
+      prevStaff.map((staff) => ({
+        ...staff,
+        duration: getDuration(staff.clockIn),
+      }))
+    );
+  }, [currentTime]);
 
   useEffect(() => {
     fetchTables();
     fetchRevenueAndOrders();
     fetchClockedInStaff();
 
-    const durationInterval = setInterval(() => {
-      setClockedInStaff((prevStaff) =>
-        prevStaff.map((staff) => ({
-          ...staff,
-          duration: getDuration(staff.clockIn),
-        }))
-      );
-    }, 30000); // Update every 30 seconds
-
-    const unsubscribe = client.subscribe(
-      `databases.${DATABASE_ID}.collections.${TABLES_COLLECTION_ID}.documents`,
+    // Consolidated subscription for tables updates
+    const unsubscribeTables = subscribe(
+      SUBSCRIPTION_CHANNELS.TABLES(DATABASE_ID, TABLES_COLLECTION_ID),
       (response) => {
-        if (
-          response.events.includes(
-            `databases.${DATABASE_ID}.collections.${TABLES_COLLECTION_ID}.documents.*.update`
-          )
-        ) {
+        if (eventMatches(response.events, EVENT_PATTERNS.UPDATE)) {
           const updatedTable = response.payload;
           setTables((prevTables) =>
             prevTables.map((table) =>
@@ -56,56 +70,42 @@ export default function TableStatusSummary() {
             )
           );
         }
-      }
+      },
+      { debounce: true, debounceDelay: 300 }
     );
 
-    // Setup realtime subscription for paid orders
-    const unsubscribeOrders = client.subscribe(
-      `databases.${DATABASE_ID}.collections.${COL_ORDERS}.documents`,
+    // Consolidated subscription for paid orders
+    const unsubscribeOrders = subscribe(
+      SUBSCRIPTION_CHANNELS.ORDERS(DATABASE_ID, COL_ORDERS),
       (response) => {
-        // Only update if a paid order is created or updated
         if (
-          response.events.some(
-            (e) => e.endsWith(".create") || e.endsWith(".update")
-          ) &&
+          eventMatches(response.events, [
+            EVENT_PATTERNS.CREATE,
+            EVENT_PATTERNS.UPDATE,
+          ]) &&
           response.payload.status === "pago"
         ) {
           fetchRevenueAndOrders();
         }
-      }
+      },
+      { debounce: true, debounceDelay: 500 }
     );
 
-    // Setup realtime subscription for attendance changes
-    const unsubscribeAttendance = client.subscribe(
-      `databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`,
+    // Consolidated subscription for attendance changes
+    const unsubscribeAttendance = subscribe(
+      SUBSCRIPTION_CHANNELS.ATTENDANCE(DB_ATTENDANCE, COL_ATTENDANCE),
       (response) => {
-        if (
-          response.events.some(
-            (e) =>
-              e.endsWith(".create") ||
-              e.endsWith(".update") ||
-              e.endsWith(".delete")
-          )
-        ) {
+        if (eventMatches(response.events, EVENT_PATTERNS.ALL_CRUD)) {
           fetchClockedInStaff();
         }
-      }
+      },
+      { debounce: true, debounceDelay: 500 }
     );
 
     return () => {
-      clearInterval(durationInterval);
-      if (unsubscribe && typeof unsubscribe === "function") {
-        unsubscribe();
-      }
-      if (unsubscribeOrders && typeof unsubscribeOrders === "function") {
-        unsubscribeOrders();
-      }
-      if (
-        unsubscribeAttendance &&
-        typeof unsubscribeAttendance === "function"
-      ) {
-        unsubscribeAttendance();
-      }
+      unsubscribeTables();
+      unsubscribeOrders();
+      unsubscribeAttendance();
     };
     // eslint-disable-next-line
   }, []);
@@ -223,7 +223,11 @@ export default function TableStatusSummary() {
         {[...Array(2)].map((_, i) => (
           <div
             key={i}
-            className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-5 animate-pulse shadow-lg"
+            className={`${getBackdropClass(
+              "bg-neutral-900/95"
+            )} rounded-xl border border-white/10 p-5 ${getAnimationClass(
+              "animate-pulse"
+            )} ${getShadowClass()}`}
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 bg-white/10 rounded-lg" />
@@ -251,11 +255,25 @@ export default function TableStatusSummary() {
   }, {});
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mx-2 lg:mx-6 my-4 animate-fade-in-up">
+    <div
+      className={`grid grid-cols-1 xl:grid-cols-2 gap-4 mx-2 lg:mx-6 my-4 ${getAnimationClass(
+        "animate-fade-in-up"
+      )}`}
+    >
       {/* Card 1: Tables Analytics */}
-      <div className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-4 md:p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl animate-fade-in-up animate-stagger-1">
+      <div
+        className={`${getBackdropClass(
+          "bg-neutral-900/95"
+        )} rounded-xl border border-white/10 p-4 md:p-5 hover:bg-white/[0.04] hover:border-white/20 ${getTransitionClass()} group ${getShadowClass()} hover:shadow-xl ${getAnimationClass(
+          "animate-fade-in-up animate-stagger-1"
+        )}`}
+      >
         <div className="flex items-center gap-3 mb-3 md:mb-4">
-          <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/10">
+          <div
+            className={`w-9 h-9 md:w-10 md:h-10 bg-blue-500/10 ${getBackdropClass(
+              "bg-blue-600/20"
+            )} rounded-lg flex items-center justify-center border border-blue-500/20 ${getShadowClass()} shadow-blue-500/10`}
+          >
             <Users
               size={16}
               className="text-blue-400 md:w-[18px] md:h-[18px]"
@@ -303,7 +321,9 @@ export default function TableStatusSummary() {
           </div>
           <div className="w-full bg-white/10 rounded-full h-1.5">
             <div
-              className={`h-1.5 rounded-full animate-progress-bar ${
+              className={`h-1.5 rounded-full ${getAnimationClass(
+                "animate-progress-bar"
+              )} ${
                 occupancyRate > 80
                   ? "bg-red-400"
                   : occupancyRate > 50
@@ -317,9 +337,19 @@ export default function TableStatusSummary() {
       </div>
 
       {/* Card 2: Today's Revenue */}
-      <div className="bg-white/[0.02] backdrop-blur-sm rounded-xl border border-white/10 p-4 md:p-5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-300 group shadow-lg hover:shadow-xl animate-fade-in-up animate-stagger-2">
+      <div
+        className={`${getBackdropClass(
+          "bg-neutral-900/95"
+        )} rounded-xl border border-white/10 p-4 md:p-5 hover:bg-white/[0.04] hover:border-white/20 ${getTransitionClass()} group ${getShadowClass()} hover:shadow-xl ${getAnimationClass(
+          "animate-fade-in-up animate-stagger-2"
+        )}`}
+      >
         <div className="flex items-center gap-3 mb-3 md:mb-4">
-          <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-500/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+          <div
+            className={`w-9 h-9 md:w-10 md:h-10 bg-emerald-500/10 ${getBackdropClass(
+              "bg-emerald-600/20"
+            )} rounded-lg flex items-center justify-center border border-emerald-500/20 ${getShadowClass()} shadow-emerald-500/10`}
+          >
             <DollarSign
               size={16}
               className="text-emerald-400 md:w-[18px] md:h-[18px]"
@@ -374,9 +404,13 @@ export default function TableStatusSummary() {
             {lastOrders.map((order) => (
               <div
                 key={order.$id}
-                className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-all duration-300 cursor-pointer group"
+                className={`flex items-center justify-between p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] ${getTransitionClass()} cursor-pointer group`}
               >
-                <span className="font-mono text-white/80 text-sm group-hover:text-white transition-colors">
+                <span
+                  className={`font-mono text-white/80 text-sm group-hover:text-white ${getTransitionClass(
+                    "transition-colors"
+                  )}`}
+                >
                   #{order.$id.slice(-6)}
                 </span>
                 <span className="font-bold text-emerald-400 text-sm">

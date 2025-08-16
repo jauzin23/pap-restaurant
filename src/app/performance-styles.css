@@ -1,0 +1,187 @@
+/* Performance-optimized styles for low-end devices */
+
+/* Reduced blur alternatives */
+.backdrop-fallback {
+  backdrop-filter: none !important;
+  background: rgba(23, 23, 23, 0.95) !important;
+}
+
+.backdrop-fallback-light {
+  backdrop-filter: none !important;
+  background: rgba(38, 38, 38, 0.9) !important;
+}
+
+.backdrop-fallback-card {
+  backdrop-filter: none !important;
+  background: rgba(31, 41, 55, 0.95) !important;
+}
+
+/* Simplified shadows for weak GPUs */
+.shadow-fallback {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.shadow-fallback-lg {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+.shadow-fallback-xl {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Disable animations for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Low performance mode styles */
+.low-performance {
+  /* Disable all backdrop filters */
+  backdrop-filter: none !important;
+
+  /* Reduce shadow complexity */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+
+  /* Disable gradient backgrounds */
+  background-image: none !important;
+
+  /* Simplify transitions */
+  transition: none !important;
+
+  /* Disable transforms that trigger GPU layers */
+  transform: none !important;
+}
+
+/* Alternative gradient backgrounds using solid colors */
+.gradient-fallback-purple {
+  background: #7c3aed !important;
+}
+
+.gradient-fallback-blue {
+  background: #2563eb !important;
+}
+
+.gradient-fallback-green {
+  background: #059669 !important;
+}
+
+.gradient-fallback-red {
+  background: #dc2626 !important;
+}
+
+/* Simplified animation alternatives */
+.fade-in-simple {
+  opacity: 0;
+  animation: simpleFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes simpleFadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.scale-simple {
+  transform: scale(0.95);
+  animation: simpleScale 0.2s ease-out forwards;
+}
+
+@keyframes simpleScale {
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Performance monitoring indicator */
+.performance-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 9999;
+  pointer-events: none;
+  font-family: monospace;
+}
+
+.performance-indicator.good {
+  border-left: 3px solid #10b981;
+}
+
+.performance-indicator.poor {
+  border-left: 3px solid #ef4444;
+}
+
+/* Disable expensive visual effects on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .hover\:scale-105:hover {
+    transform: none !important;
+  }
+
+  .group:hover .group-hover\:scale-110 {
+    transform: none !important;
+  }
+
+  .hover\:shadow-xl:hover {
+    box-shadow: inherit !important;
+  }
+}
+
+/* Optimize for older browsers */
+@supports not (backdrop-filter: blur(10px)) {
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl {
+    backdrop-filter: none !important;
+    background: rgba(23, 23, 23, 0.95) !important;
+  }
+}
+
+/* Reduce complexity on small screens */
+@media (max-width: 640px) {
+  .animate-float-orb-1,
+  .animate-float-orb-2 {
+    animation: none !important;
+  }
+
+  .shadow-2xl {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .backdrop-blur-xl {
+    backdrop-filter: blur(4px) !important;
+  }
+}
+
+/* Memory efficient alternatives */
+.gpu-optimized {
+  /* Use transform3d to force GPU acceleration only when beneficial */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.cpu-optimized {
+  /* Remove GPU acceleration to reduce memory usage */
+  transform: none !important;
+  backface-visibility: visible;
+  perspective: none;
+}
+
+/* Critical path optimizations */
+.critical-path {
+  /* Ensure critical UI elements load with minimal GPU usage */
+  will-change: auto;
+  contain: layout style;
+}

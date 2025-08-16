@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Users, Clock, Star, ChefHat } from "lucide-react";
+import { useTime } from "@/contexts/TimeContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePerformance } from "@/components/PerformanceContext";
+import {
+  SUBSCRIPTION_CHANNELS,
+  eventMatches,
+  EVENT_PATTERNS,
+} from "@/lib/subscriptionChannels";
 import {
   databases,
   client,
@@ -34,15 +42,14 @@ function formatDuration(clockInTime, currentTime = new Date()) {
 export default function ManagerStaffView({ user, isManager }) {
   const [clockedInStaff, setClockedInStaff] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Update current time every 30 seconds for more real-time feel
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 30000); // Update every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  const { currentTime } = useTime();
+  const { subscribe } = useSubscription();
+  const {
+    getBackdropClass,
+    getAnimationClass,
+    getTransitionClass,
+    getShadowClass,
+  } = usePerformance();
 
   const fetchClockedInStaff = useCallback(async () => {
     if (!isManager) return;
@@ -74,30 +81,20 @@ export default function ManagerStaffView({ user, isManager }) {
     if (isManager) {
       fetchClockedInStaff();
 
-      // Subscribe to real-time updates
-      const unsubscribe = client.subscribe(
-        `databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`,
+      // Subscribe to optimized real-time updates
+      const unsubscribe = subscribe(
+        SUBSCRIPTION_CHANNELS.ATTENDANCE(DB_ATTENDANCE, COL_ATTENDANCE),
         (response) => {
-          if (
-            response.events.some(
-              (e) =>
-                e.endsWith(".create") ||
-                e.endsWith(".update") ||
-                e.endsWith(".delete")
-            )
-          ) {
+          if (eventMatches(response.events, EVENT_PATTERNS.ALL_CRUD)) {
             fetchClockedInStaff();
           }
-        }
+        },
+        { debounce: true, debounceDelay: 500 } // Debounce to prevent rapid updates
       );
 
-      return () => {
-        if (unsubscribe && typeof unsubscribe === "function") {
-          unsubscribe();
-        }
-      };
+      return unsubscribe;
     }
-  }, [isManager, fetchClockedInStaff]);
+  }, [isManager, fetchClockedInStaff, subscribe]);
 
   // Role badge styles
   const getRoleBadge = (label) => {
@@ -133,9 +130,19 @@ export default function ManagerStaffView({ user, isManager }) {
 
   return (
     <div className="px-6 pb-4">
-      <div className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-2xl hover:bg-white/[0.03] hover:border-white/20 transition-all duration-300 mx-6 animate-fade-in-up animate-stagger-3">
+      <div
+        className={`${getBackdropClass(
+          "bg-neutral-900/95"
+        )} rounded-2xl border border-white/10 p-6 ${getShadowClass(
+          "shadow-2xl"
+        )} hover:bg-white/[0.03] hover:border-white/20 ${getTransitionClass()} mx-6 ${getAnimationClass(
+          "animate-fade-in-up animate-stagger-3"
+        )}`}
+      >
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30 shadow-lg">
+          <div
+            className={`w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30 ${getShadowClass()}`}
+          >
             <Users className="w-6 h-6 text-blue-300" />
           </div>
           <div>
@@ -151,7 +158,11 @@ export default function ManagerStaffView({ user, isManager }) {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <div
+              className={`w-8 h-8 border-2 border-white/30 border-t-white rounded-full ${getAnimationClass(
+                "animate-spin"
+              )}`}
+            />
           </div>
         ) : clockedInStaff.length === 0 ? (
           <div className="text-center py-12">
@@ -167,15 +178,29 @@ export default function ManagerStaffView({ user, isManager }) {
             {clockedInStaff.map((staff, index) => (
               <div
                 key={staff.$id}
-                className="bg-white/[0.03] backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 group animate-scale-in"
+                className={`bg-white/[0.03] ${getBackdropClass(
+                  "bg-neutral-800/90"
+                )} rounded-xl border border-white/10 p-4 hover:bg-white/[0.06] hover:border-white/20 ${getTransitionClass()} group ${getAnimationClass(
+                  "animate-scale-in"
+                )}`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-white text-sm group-hover:text-blue-200 transition-colors duration-300">
+                  <h4
+                    className={`font-semibold text-white text-sm group-hover:text-blue-200 ${getTransitionClass(
+                      "transition-colors duration-300"
+                    )}`}
+                  >
                     {staff.name}
                   </h4>
-                  <div className="w-2 h-2 bg-green-400 rounded-full shadow-lg shadow-green-400/50">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+                  <div
+                    className={`w-2 h-2 bg-green-400 rounded-full ${getShadowClass()} shadow-green-400/50`}
+                  >
+                    <div
+                      className={`w-2 h-2 bg-green-400 rounded-full ${getAnimationClass(
+                        "animate-ping"
+                      )} opacity-75`}
+                    ></div>
                   </div>
                 </div>
 
@@ -188,7 +213,9 @@ export default function ManagerStaffView({ user, isManager }) {
                       return (
                         <span
                           key={label}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-all duration-200 ${badge.color}`}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${getTransitionClass(
+                            "transition-all duration-200"
+                          )} ${badge.color}`}
                         >
                           <Icon className="w-3 h-3" />
                           <span className="capitalize">{label}</span>

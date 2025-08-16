@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./performance-styles.css";
 import ConditionalBackground from "../components/ConditionalBackground";
+import { TimeProvider } from "../contexts/TimeContext";
+import { SubscriptionProvider } from "../contexts/SubscriptionContext";
+import { PerformanceProvider } from "../components/PerformanceContext";
+import PerformanceMonitor from "../components/PerformanceMonitor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,11 +38,18 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black`}
       >
-        <ConditionalBackground />
-        {/* Content */}
-        <div className="relative z-10 flex flex-col min-h-screen">
-          {children}
-        </div>
+        <TimeProvider>
+          <SubscriptionProvider>
+            <PerformanceProvider>
+              <ConditionalBackground />
+              <PerformanceMonitor />
+              {/* Content */}
+              <div className="relative z-10 flex flex-col min-h-screen">
+                {children}
+              </div>
+            </PerformanceProvider>
+          </SubscriptionProvider>
+        </TimeProvider>
       </body>
     </html>
   );

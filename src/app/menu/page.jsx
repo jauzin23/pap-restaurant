@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ArrowLeft, Edit, Trash2, X } from "lucide-react";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import {
+  SUBSCRIPTION_CHANNELS,
+  eventMatches,
+  EVENT_PATTERNS,
+} from "@/lib/subscriptionChannels";
 import {
   client,
   account,
@@ -28,6 +34,7 @@ const COLLECTION_ID = COL_MENU;
 export default function MenuPage() {
   const [user, setUser] = useState(null);
   const router = useRouter();
+  const { subscribe } = useSubscription();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,14 +54,14 @@ export default function MenuPage() {
   useEffect(() => {
     fetchMenu();
 
-    // Setup realtime subscription with proper event patterns
-    const unsubscribe = client.subscribe(
-      `databases.${DB_ID}.collections.${COLLECTION_ID}.documents`,
+    // Setup optimized realtime subscription
+    const unsubscribe = subscribe(
+      SUBSCRIPTION_CHANNELS.ORDERS(DB_ID, COLLECTION_ID), // Reusing the pattern for menu items
       (response) => {
         const { events, payload } = response;
 
         // Check for create events
-        if (events.some((event) => event.includes("create"))) {
+        if (eventMatches(events, EVENT_PATTERNS.CREATE)) {
           setMenuItems((prev) => {
             // Check if item already exists to prevent duplicates
             if (prev.find((item) => item.$id === payload.$id)) {
@@ -64,26 +71,23 @@ export default function MenuPage() {
           });
         }
         // Check for update events
-        else if (events.some((event) => event.includes("update"))) {
+        else if (eventMatches(events, EVENT_PATTERNS.UPDATE)) {
           setMenuItems((prev) =>
             prev.map((item) => (item.$id === payload.$id ? payload : item))
           );
         }
         // Check for delete events
-        else if (events.some((event) => event.includes("delete"))) {
+        else if (eventMatches(events, EVENT_PATTERNS.DELETE)) {
           setMenuItems((prev) =>
             prev.filter((item) => item.$id !== payload.$id)
           );
         }
-      }
+      },
+      { debounce: true, debounceDelay: 300 }
     );
 
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, []);
+    return unsubscribe;
+  }, [subscribe]);
 
   useEffect(() => {
     account

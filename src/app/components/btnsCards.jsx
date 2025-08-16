@@ -10,6 +10,13 @@ import {
   LogIn,
   LogOut,
 } from "lucide-react";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePerformance } from "@/components/PerformanceContext";
+import {
+  SUBSCRIPTION_CHANNELS,
+  eventMatches,
+  EVENT_PATTERNS,
+} from "@/lib/subscriptionChannels";
 import {
   databases,
   client,
@@ -41,41 +48,38 @@ const cards = [
 
 const BtnsCards = memo(function BtnsCards({ user }) {
   const router = useRouter();
+  const { subscribe } = useSubscription();
+  const {
+    getBackdropClass,
+    getAnimationClass,
+    getTransitionClass,
+    getShadowClass,
+  } = usePerformance();
   const [userClockStatus, setUserClockStatus] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
 
-  // Fetch user clock status with real-time updates
+  // Fetch user clock status with optimized real-time updates
   useEffect(() => {
     if (user?.$id) {
       fetchUserClockStatus();
 
-      // Subscribe to real-time updates for attendance changes
-      const unsubscribe = client.subscribe(
-        `databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`,
+      // Subscribe to optimized real-time updates for attendance changes
+      const unsubscribe = subscribe(
+        SUBSCRIPTION_CHANNELS.ATTENDANCE(DB_ATTENDANCE, COL_ATTENDANCE),
         (response) => {
-          if (
-            response.events.some(
-              (e) =>
-                e.endsWith(".create") ||
-                e.endsWith(".update") ||
-                e.endsWith(".delete")
-            )
-          ) {
+          if (eventMatches(response.events, EVENT_PATTERNS.ALL_CRUD)) {
             // Check if the event is related to the current user
             if (response.payload && response.payload.userId === user.$id) {
               fetchUserClockStatus();
             }
           }
-        }
+        },
+        { debounce: true, debounceDelay: 300 }
       );
 
-      return () => {
-        if (unsubscribe && typeof unsubscribe === "function") {
-          unsubscribe();
-        }
-      };
+      return unsubscribe;
     }
-  }, [user]);
+  }, [user, subscribe]);
 
   async function fetchUserClockStatus() {
     try {
@@ -138,7 +142,11 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   );
 
   return (
-    <section className="border-b border-white/10 bg-white/[0.02] shadow-lg backdrop-blur-sm text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-hidden">
+    <section
+      className={`border-b border-white/10 ${getBackdropClass(
+        "bg-neutral-900/95"
+      )} ${getShadowClass()} text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-hidden`}
+    >
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -252,26 +260,48 @@ const BtnsCards = memo(function BtnsCards({ user }) {
               <div
                 key={card.title}
                 onClick={() => handleCardClick(card.href)}
-                className="cursor-pointer group relative animate-fade-in-left"
+                className={`cursor-pointer group relative ${getAnimationClass(
+                  "animate-fade-in-left"
+                )}`}
                 style={{ animationDelay: `${i * 120}ms` }}
                 title={card.title} // Tooltip for tablet icon-only view
               >
                 {/* Mobile & Desktop: Full card */}
                 <div className="md:hidden xl:block">
-                  <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-4 xl:p-6 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <div
+                    className={`relative bg-neutral-900/95 ${getBackdropClass(
+                      "bg-neutral-900/95"
+                    )} rounded-2xl border border-neutral-800 group-hover:border-neutral-700 p-4 xl:p-6 ${getTransitionClass()} ${getShadowClass()} group-hover:shadow-xl`}
+                  >
                     <div className="flex items-center gap-4 xl:gap-5">
-                      <div className="w-10 h-10 xl:w-12 xl:h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
-                        <Icon className="w-5 h-5 xl:w-6 xl:h-6 text-white group-hover:text-blue-300 transition-colors duration-300" />
+                      <div
+                        className={`w-10 h-10 xl:w-12 xl:h-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 ${getTransitionClass()} group-hover:scale-110 shadow-md`}
+                      >
+                        <Icon
+                          className={`w-5 h-5 xl:w-6 xl:h-6 text-white group-hover:text-blue-300 ${getTransitionClass(
+                            "transition-colors duration-300"
+                          )}`}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h2 className="text-base xl:text-lg font-bold text-white mb-1 group-hover:text-blue-200 transition-colors duration-300 truncate">
+                        <h2
+                          className={`text-base xl:text-lg font-bold text-white mb-1 group-hover:text-blue-200 ${getTransitionClass(
+                            "transition-colors duration-300"
+                          )} truncate`}
+                        >
                           {card.title}
                         </h2>
-                        <p className="text-sm xl:text-sm text-neutral-400 group-hover:text-neutral-300 transition-colors duration-300 leading-tight">
+                        <p
+                          className={`text-sm xl:text-sm text-neutral-400 group-hover:text-neutral-300 ${getTransitionClass(
+                            "transition-colors duration-300"
+                          )} leading-tight`}
+                        >
                           {card.description}
                         </p>
                       </div>
-                      <div className="w-5 h-5 xl:w-6 xl:h-6 text-neutral-500 group-hover:text-blue-300 transition-all duration-300 group-hover:translate-x-1 group-hover:scale-110 flex-shrink-0">
+                      <div
+                        className={`w-5 h-5 xl:w-6 xl:h-6 text-neutral-500 group-hover:text-blue-300 ${getTransitionClass()} group-hover:translate-x-1 group-hover:scale-110 flex-shrink-0`}
+                      >
                         <svg
                           width="24"
                           height="24"
@@ -301,10 +331,20 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
                 {/* Tablet: Icon only */}
                 <div className="hidden md:block xl:hidden">
-                  <div className="relative bg-neutral-900/95 backdrop-blur-sm rounded-xl border border-neutral-800 group-hover:border-neutral-700 p-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <div
+                    className={`relative bg-neutral-900/95 ${getBackdropClass(
+                      "bg-neutral-900/95"
+                    )} rounded-xl border border-neutral-800 group-hover:border-neutral-700 p-3 ${getTransitionClass()} ${getShadowClass()} group-hover:shadow-xl`}
+                  >
                     <div className="flex justify-center">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 transition-all duration-300 group-hover:scale-110 shadow-md">
-                        <Icon className="w-5 h-5 text-white group-hover:text-blue-300 transition-colors duration-300" />
+                      <div
+                        className={`w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 group-hover:from-neutral-700 group-hover:to-neutral-800 flex items-center justify-center border border-neutral-700 group-hover:border-neutral-500 ${getTransitionClass()} group-hover:scale-110 shadow-md`}
+                      >
+                        <Icon
+                          className={`w-5 h-5 text-white group-hover:text-blue-300 ${getTransitionClass(
+                            "transition-colors duration-300"
+                          )}`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -316,7 +356,13 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
         {/* Clock In/Out Section */}
         <div className="mt-auto p-3 md:p-2 xl:p-6 border-t border-neutral-800">
-          <div className="relative bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-800 p-3 xl:p-4 shadow-md animate-fade-in-up animate-stagger-6">
+          <div
+            className={`relative bg-neutral-900/90 ${getBackdropClass(
+              "bg-neutral-900/95"
+            )} rounded-xl border border-neutral-800 p-3 xl:p-4 shadow-md ${getAnimationClass(
+              "animate-fade-in-up animate-stagger-6"
+            )}`}
+          >
             {/* Mobile & Desktop: Full content */}
             <div className="md:hidden xl:block">
               <div className="flex items-center justify-between mb-3">
@@ -327,20 +373,30 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                   </span>
                 </div>
                 {userClockStatus && (
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <div
+                    className={`w-2 h-2 bg-green-400 rounded-full ${getAnimationClass(
+                      "animate-pulse"
+                    )}`}
+                  />
                 )}
               </div>
               <button
                 onClick={!userClockStatus ? handleClockIn : handleClockOut}
                 disabled={clockLoading}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover-scale ${
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${getTransitionClass(
+                  "transition-all duration-200"
+                )} hover-scale ${
                   !userClockStatus
                     ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
                     : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
                 } ${clockLoading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {clockLoading ? (
-                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                  <div
+                    className={`w-3 h-3 border border-white border-t-transparent rounded-full ${getAnimationClass(
+                      "animate-spin"
+                    )}`}
+                  />
                 ) : (
                   <>
                     {!userClockStatus ? (
@@ -365,7 +421,9 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                 <button
                   onClick={!userClockStatus ? handleClockIn : handleClockOut}
                   disabled={clockLoading}
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 hover-scale ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${getTransitionClass(
+                    "transition-all duration-200"
+                  )} hover-scale ${
                     !userClockStatus
                       ? "bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30"
                       : "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30"
@@ -373,7 +431,11 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                   title={!userClockStatus ? "Marcar Entrada" : "Marcar Saída"}
                 >
                   {clockLoading ? (
-                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                    <div
+                      className={`w-3 h-3 border border-white border-t-transparent rounded-full ${getAnimationClass(
+                        "animate-spin"
+                      )}`}
+                    />
                   ) : (
                     <>
                       {!userClockStatus ? (
