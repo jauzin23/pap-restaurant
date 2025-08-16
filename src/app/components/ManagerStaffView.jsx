@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Users, Clock, Star, ChefHat } from "lucide-react";
 import {
   databases,
@@ -9,6 +9,13 @@ import {
   COL_ATTENDANCE,
 } from "@/lib/appwrite";
 import { Query } from "appwrite";
+
+// Mock function to assign random labels for demo purposes
+// In a real app, this would come from the user's actual account data
+function getRandomLabels() {
+  const possibleLabels = [["staff"], ["chef"], ["manager"], ["staff", "chef"]];
+  return possibleLabels[Math.floor(Math.random() * possibleLabels.length)];
+}
 
 function formatDuration(clockInTime, currentTime = new Date()) {
   if (!clockInTime) return "0h 0m";
@@ -37,7 +44,7 @@ export default function ManagerStaffView({ user, isManager }) {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchClockedInStaff = async () => {
+  const fetchClockedInStaff = useCallback(async () => {
     if (!isManager) return;
 
     try {
@@ -61,7 +68,7 @@ export default function ManagerStaffView({ user, isManager }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isManager, user.$id, user.labels]);
 
   useEffect(() => {
     if (isManager) {
@@ -91,18 +98,6 @@ export default function ManagerStaffView({ user, isManager }) {
       };
     }
   }, [isManager, fetchClockedInStaff]);
-
-  // Mock function to assign random labels for demo purposes
-  // In a real app, this would come from the user's actual account data
-  function getRandomLabels() {
-    const possibleLabels = [
-      ["staff"],
-      ["chef"],
-      ["manager"],
-      ["staff", "chef"],
-    ];
-    return possibleLabels[Math.floor(Math.random() * possibleLabels.length)];
-  }
 
   // Role badge styles
   const getRoleBadge = (label) => {
