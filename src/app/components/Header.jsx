@@ -17,7 +17,6 @@ const Header = memo(function Header({ user, logo }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -25,7 +24,6 @@ const Header = memo(function Header({ user, logo }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch user clock status
   const fetchUserClockStatus = useCallback(async () => {
     if (!user?.$id) return;
 
@@ -44,14 +42,12 @@ const Header = memo(function Header({ user, logo }) {
     }
   }, [user?.$id, databases]);
 
-  // Load initial clock status
   useEffect(() => {
     if (user?.$id) {
       fetchUserClockStatus();
     }
   }, [fetchUserClockStatus, user?.$id]);
 
-  // 🚀 REAL-TIME CLOCK STATUS for Header
   useEffect(() => {
     if (!user?.$id) return;
 
@@ -63,18 +59,15 @@ const Header = memo(function Header({ user, logo }) {
         const eventType = response.events[0];
         const payload = response.payload;
 
-        // ONLY update if the change is for the current user
         if (payload?.userId === user.$id) {
           console.log("⏰ Header - INSTANT clock status update");
 
-          // IMMEDIATE optimistic update
           if (eventType.includes(".create") && !payload.clockOut) {
             setUserClockStatus(payload);
           } else if (eventType.includes(".update") && payload.clockOut) {
             setUserClockStatus(null);
           }
 
-          // Background validation
           setTimeout(fetchUserClockStatus, 300);
         }
       }

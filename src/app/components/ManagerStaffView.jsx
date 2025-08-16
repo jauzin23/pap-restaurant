@@ -6,16 +6,6 @@ import { useApp } from "@/contexts/AppContext";
 import { Query } from "appwrite";
 import { DB_ATTENDANCE, COL_ATTENDANCE } from "@/lib/appwrite";
 
-// Simplified label assignment without external API calls
-function getStaffLabels(userId, currentUserId, currentUserLabels) {
-  // If it's the current user, use their actual labels
-  if (userId === currentUserId) {
-    return currentUserLabels || ["staff"];
-  }
-  // For other users, assign default staff label
-  return ["staff"];
-}
-
 function formatDuration(clockInTime, currentTime = new Date()) {
   if (!clockInTime) return "0h 0m";
 
@@ -35,10 +25,10 @@ export default function ManagerStaffView({ user, isManager }) {
   const [loading, setLoading] = useState(true);
   const [lastStaffUpdate, setLastStaffUpdate] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [userDetailsCache, setUserDetailsCache] = useState(new Map());
 
-  const { databases, client } = useApp();
+  const { databases, client, users } = useApp();
 
-  // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -46,126 +36,115 @@ export default function ManagerStaffView({ user, isManager }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Helper functions for styling (simplified)
-  const getBackdropClass = (baseClass) => baseClass;
-  const getShadowClass = () => "shadow-lg";
-  const getTransitionClass = (
-    transitionClass = "transition-all duration-300"
-  ) => transitionClass;
+  const getUserDetails = useCallback(
+    async (userId) => {
+      if (userDetailsCache.has(userId)) {
+        return userDetailsCache.get(userId);
+      }
 
-  // BULLETPROOF: Fetch clocked-in staff with comprehensive error handling
+      try {
+        if (userId === user.$id) {
+          const userDetails = {
+            name: user.name,
+            labels: user.labels || [],
+          };
+          setUserDetailsCache((prev) => new Map(prev).set(userId, userDetails));
+          return userDetails;
+        }
+
+        return { name: "Funcionário", labels: [] };
+      } catch (error) {
+        return { name: "Funcionário", labels: [] };
+      }
+    },
+    [user, userDetailsCache]
+  );
+
   const fetchClockedInStaff = useCallback(async () => {
     if (!isManager) return;
-
     try {
       setLoading(true);
-      console.log("👥 Fetching clocked-in staff...");
 
       const res = await databases.listDocuments(DB_ATTENDANCE, COL_ATTENDANCE, [
         Query.isNull("clockOut"),
         Query.orderDesc("clockIn"),
-        Query.limit(50), // Reasonable limit
+        Query.limit(50),
       ]);
 
-      // Assign labels without external API calls to avoid 404 errors
-      const staffWithLabels = res.documents.map((staff) => ({
-        ...staff,
-        labels: getStaffLabels(staff.userId, user.$id, user.labels),
-      }));
+      const staffWithDetails = res.documents.map((staff) => {
+        // Merge both 'labels' and 'label' fields for compatibility
+        let labelsArr = [];
+        if (Array.isArray(staff.labels)) labelsArr = staff.labels;
+        else if (Array.isArray(staff.label)) labelsArr = staff.label;
+        else if (typeof staff.labels === "string") labelsArr = [staff.labels];
+        else if (typeof staff.label === "string") labelsArr = [staff.label];
 
-      console.log("👥 Staff loaded:", {
-        count: staffWithLabels.length,
-        staffIds: staffWithLabels.map((s) => s.userId.slice(-6)),
-        timestamp: new Date().toLocaleTimeString(),
+        return {
+          ...staff,
+          name: staff.name || "Unknown Staff",
+          labels: labelsArr,
+        };
       });
 
-      setClockedInStaff(staffWithLabels);
+      setClockedInStaff(staffWithDetails);
       setLastStaffUpdate(Date.now());
     } catch (err) {
-      console.error("❌ Error fetching clocked-in staff:", err);
+      console.error("Erro ao obter staff ativo:", err);
       setClockedInStaff([]);
     } finally {
       setLoading(false);
     }
-  }, [isManager, user?.$id, user?.labels, databases]);
+  }, [isManager, databases, getUserDetails]);
 
-  // INITIAL: Load staff on mount
   useEffect(() => {
     if (!isManager) return;
     fetchClockedInStaff();
   }, [fetchClockedInStaff, isManager]);
 
-  // Simplified periodic refresh (no real-time for now)
   useEffect(() => {
     if (!isManager) return;
 
-    console.log("🔥 Setting up REAL-TIME staff attendance tracking");
-
-    // REAL-TIME SUBSCRIPTION - Instant staff updates
     const unsubscribe = client.subscribe(
       [`databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`],
       (response) => {
         const eventType = response.events[0];
         const payload = response.payload;
 
-        console.log("👥 REAL-TIME staff attendance event:", {
-          type: eventType.includes(".create")
-            ? "CLOCK-IN"
-            : eventType.includes(".update")
-            ? "CLOCK-OUT"
-            : "OTHER",
-          userId: payload?.userId?.slice(-6) || "unknown",
-          name: payload?.name || "unnamed",
-          clockOut: payload?.clockOut || null,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-
-        // IMMEDIATE optimistic update
         if (eventType.includes(".create") && !payload.clockOut) {
-          // New clock-in - add to list immediately
-          const newStaff = {
-            ...payload,
-            labels: getStaffLabels(payload.userId, user.$id, user.labels),
-          };
-
           setClockedInStaff((prev) => {
-            // Avoid duplicates
             const exists = prev.some((s) => s.userId === payload.userId);
             if (exists) return prev;
+
+            const newStaff = {
+              ...payload,
+              name: payload.name || "Unknown Staff",
+              labels: Array.isArray(payload.labels) ? payload.labels : [],
+            };
+
             return [newStaff, ...prev];
           });
-
-          console.log("✅ INSTANT clock-in update applied for:", payload.name);
         } else if (eventType.includes(".update") && payload.clockOut) {
-          // Clock-out - remove from list immediately
           setClockedInStaff((prev) =>
             prev.filter((staff) => staff.userId !== payload.userId)
           );
-
-          console.log("✅ INSTANT clock-out update applied for:", payload.name);
         }
 
         setLastStaffUpdate(Date.now());
 
-        // Background validation - fetch fresh data to ensure accuracy
         setTimeout(fetchClockedInStaff, 500);
       }
     );
 
-    // PERIODIC SYNC - Backup refresh every 2 minutes
     const syncInterval = setInterval(() => {
-      console.log("🔄 Periodic staff sync");
       fetchClockedInStaff();
-    }, 120000); // Every 2 minutes
+    }, 120000);
 
     return () => {
-      console.log("🧹 Cleaning up ManagerStaffView real-time subscriptions");
       unsubscribe();
       clearInterval(syncInterval);
     };
-  }, [isManager, fetchClockedInStaff, client, user?.$id, user?.labels]);
+  }, [isManager, fetchClockedInStaff, client, getUserDetails]);
 
-  // Role badge styles
   const getRoleBadgeStyle = (labels) => {
     if (!labels || labels.length === 0) return "bg-gray-500/20 text-gray-400";
 
@@ -249,63 +228,79 @@ export default function ManagerStaffView({ user, isManager }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {clockedInStaff.map((staff) => (
-            <div
-              key={staff.$id}
-              className="p-4 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.05]"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {/* Role Icon */}
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${getRoleBadgeStyle(
-                      staff.labels
-                    )}`}
-                  >
-                    {getRoleIcon(staff.labels)}
-                  </div>
+          {clockedInStaff.map((staff) => {
+            const userLabels = Array.isArray(staff.labels) ? staff.labels : [];
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-white">
-                        {staff.name || "Funcionário"}
-                      </h4>
-
-                      {/* Role Badge */}
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeStyle(
-                          staff.labels
-                        )}`}
-                      >
-                        {staff.labels?.[0] || "staff"}
-                      </span>
+            return (
+              <div
+                key={staff.$id}
+                className="p-4 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.05]"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Role Icon */}
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${getRoleBadgeStyle(
+                        userLabels
+                      )}`}
+                    >
+                      {getRoleIcon(userLabels)}
                     </div>
 
-                    <div className="flex items-center gap-4 mt-1">
-                      <div className="flex items-center gap-1.5 text-sm text-white/60">
-                        <Clock size={14} />
-                        <span>
-                          Entrou às{" "}
-                          {new Date(staff.clockIn).toLocaleTimeString("pt-PT", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-white">
+                          {staff.name || "Funcionário"}
+                        </h4>
+
+                        {/* Role Badges - Display ALL labels */}
+                        {userLabels.length > 0 ? (
+                          userLabels.map((label) => (
+                            <span
+                              key={label}
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeStyle(
+                                [label]
+                              )}`}
+                            >
+                              {label}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
+                            sem papel
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-4 mt-1">
+                        <div className="flex items-center gap-1.5 text-sm text-white/60">
+                          <Clock size={14} />
+                          <span>
+                            Entrou às{" "}
+                            {new Date(staff.clockIn).toLocaleTimeString(
+                              "pt-PT",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Duration */}
-                <div className="text-right">
-                  <div className="text-lg font-bold text-white">
-                    {formatDuration(staff.clockIn, currentTime)}
+                  {/* Duration */}
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-white">
+                      {formatDuration(staff.clockIn, currentTime)}
+                    </div>
+                    <div className="text-sm text-white/50">trabalhadas</div>
                   </div>
-                  <div className="text-sm text-white/50">trabalhadas</div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

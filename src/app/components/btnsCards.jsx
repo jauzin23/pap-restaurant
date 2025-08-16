@@ -41,20 +41,13 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   const [userClockStatus, setUserClockStatus] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
 
-  // Simplified helper functions
   const getBackdropClass = (baseClass) => baseClass;
   const getShadowClass = () => "shadow-lg";
 
-  // BULLETPROOF: Fetch user clock status
   const fetchUserClockStatus = useCallback(async () => {
     if (!user?.$id) return;
 
     try {
-      console.log(
-        "⏰ btnsCards - Fetching clock status for:",
-        user.$id.slice(-6)
-      );
-
       const res = await databases.listDocuments(DB_ATTENDANCE, COL_ATTENDANCE, [
         Query.equal("userId", user.$id),
         Query.isNull("clockOut"),
@@ -63,75 +56,44 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
       const clockStatus = res.documents.length > 0 ? res.documents[0] : null;
       setUserClockStatus(clockStatus);
-
-      console.log("⏰ btnsCards - Clock status:", {
-        isActive: !!clockStatus,
-        timestamp: new Date().toLocaleTimeString(),
-      });
     } catch (err) {
-      console.error("❌ btnsCards - Error fetching clock status:", err);
+      console.error("Erro ao obter o estado do ponto:", err);
       setUserClockStatus(null);
     }
   }, [user?.$id, databases]);
 
-  // INITIAL: Load clock status on mount
   useEffect(() => {
     if (user?.$id) {
       fetchUserClockStatus();
     }
   }, [fetchUserClockStatus, user?.$id]);
 
-  // 🚀 REAL-TIME CLOCK STATUS - Instant updates for current user
   useEffect(() => {
     if (!user?.$id) return;
 
-    console.log(
-      "🔥 btnsCards - Setting up REAL-TIME clock tracking for:",
-      user.$id.slice(-6)
-    );
-
-    // CLOCK STATUS SUBSCRIPTION - Instant updates
     const unsubscribe = client.subscribe(
       [`databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`],
       (response) => {
         const eventType = response.events[0];
         const payload = response.payload;
 
-        // ONLY update if the change is for the current user
         if (payload?.userId === user.$id) {
-          console.log("⏰ btnsCards - INSTANT clock status update:", {
-            type: eventType.includes(".create")
-              ? "CLOCK-IN"
-              : eventType.includes(".update")
-              ? "CLOCK-OUT"
-              : "OTHER",
-            timestamp: new Date().toLocaleTimeString(),
-          });
-
-          // IMMEDIATE optimistic update
           if (eventType.includes(".create") && !payload.clockOut) {
             setUserClockStatus(payload);
-            console.log("✅ INSTANT clock-in status applied");
           } else if (eventType.includes(".update") && payload.clockOut) {
             setUserClockStatus(null);
-            console.log("✅ INSTANT clock-out status applied");
           }
 
-          // Background validation
           setTimeout(fetchUserClockStatus, 300);
         }
       }
     );
 
-    // PERIODIC SYNC - Backup refresh every 3 minutes
     const syncInterval = setInterval(() => {
-      console.log("🔄 btnsCards - Periodic clock sync");
       fetchUserClockStatus();
-    }, 180000); // Every 3 minutes
+    }, 180000);
 
-    // Cleanup
     return () => {
-      console.log("🧹 btnsCards - Cleaning up real-time subscriptions");
       unsubscribe();
       clearInterval(syncInterval);
     };
@@ -140,13 +102,36 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   async function handleClockIn() {
     setClockLoading(true);
     try {
-      // Optimistic update
+      // Debug: Log do objeto user completo
+      console.log("🔍 DEBUG - User object:", user);
+      console.log("🔍 DEBUG - User object keys:", Object.keys(user));
+      console.log("🔍 DEBUG - user.label:", user.label);
+      console.log("🔍 DEBUG - user.labels:", user.labels); // Teste se é 'labels' em vez de 'label'
+      console.log("🔍 DEBUG - typeof user.label:", typeof user.label);
+      console.log(
+        "🔍 DEBUG - Array.isArray(user.label):",
+        Array.isArray(user.label)
+      );
+
+      // Garante que labels seja sempre array de string(s) ou string, nunca undefined
+      const labelValue =
+        typeof user.labels === "string"
+          ? [user.labels]
+          : Array.isArray(user.labels)
+          ? user.labels
+          : [];
+
+      console.log("🔍 DEBUG - labelValue final:", labelValue);
+
       const newRecord = {
         $id: `temp-${Date.now()}`,
         userId: user.$id,
         name: user.name,
+        label: labelValue,
         clockIn: new Date().toISOString(),
       };
+
+      console.log("🔍 DEBUG - newRecord que será salvo:", newRecord);
       setUserClockStatus(newRecord);
 
       const response = await databases.createDocument(
@@ -156,15 +141,15 @@ const BtnsCards = memo(function BtnsCards({ user }) {
         {
           userId: user.$id,
           name: user.name,
+          label: labelValue,
           clockIn: new Date().toISOString(),
         }
       );
 
-      // Replace temp with real record
+      console.log("🔍 DEBUG - Response do banco de dados:", response);
       setUserClockStatus(response);
     } catch (err) {
-      console.error("Error clocking in:", err);
-      // Revert optimistic update
+      console.error("Erro ao marcar entrada:", err);
       setUserClockStatus(null);
     } finally {
       setClockLoading(false);
@@ -176,7 +161,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
     setClockLoading(true);
 
     try {
-      // Optimistic update
       setUserClockStatus(null);
 
       await databases.updateDocument(
@@ -188,8 +172,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
         }
       );
     } catch (err) {
-      console.error("Error clocking out:", err);
-      // Revert optimistic update
+      console.error("Erro ao marcar saída:", err);
       fetchUserClockStatus();
     } finally {
       setClockLoading(false);
@@ -274,7 +257,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
           </div>
         </div>
 
-        {/* Tablet icon header - only visible on tablets */}
         <div className="hidden md:flex xl:hidden justify-center pt-6 pb-4">
           <div className="w-12 h-12 bg-gradient-to-br from-neutral-700 to-neutral-800 rounded-xl flex items-center justify-center border border-neutral-600 shadow-lg">
             <svg

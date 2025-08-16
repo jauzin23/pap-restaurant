@@ -135,7 +135,6 @@ export default function LoginPage() {
                   )}
                 </div>
                 {/* Animated background effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
               </button>
             </form>
 

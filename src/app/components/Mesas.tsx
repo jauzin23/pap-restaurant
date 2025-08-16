@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-// Direct icon imports for bundle size
+// Importação direta de ícones para bundle menor
 import {
   Plus,
   RotateCw,
@@ -39,7 +39,7 @@ interface Table {
   rotation: number;
   tableNumber: number;
   shape: string;
-  status?: string; // Add status field
+  status?: string;
   chairSides: {
     top: boolean;
     right: boolean;
@@ -89,9 +89,8 @@ interface RestaurantFloorPlanProps {
 const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   user,
 }: RestaurantFloorPlanProps) {
-  // ...existing code...
   const [tables, setTables] = useState<Table[]>([]);
-  const [savedTables, setSavedTables] = useState<Table[]>([]); // Store the last saved state
+  const [savedTables, setSavedTables] = useState<Table[]>([]);
   const [editMode, setEditMode] = useState<boolean>(false);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [draggedTable, setDraggedTable] = useState<string | null>(null);
@@ -116,18 +115,18 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Local state for size inputs to allow editing without immediate updates
+  // Estado local para inputs de tamanho (edição sem atualização imediata)
   const [sizeInputs, setSizeInputs] = useState<{
     width: string;
     height: string;
   }>({ width: "", height: "" });
 
-  // Track current drag position without causing re-renders
+  // Guardar posição de arrasto sem re-render
   const dragPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const PIXELS_PER_METER = 40;
 
-  // Helper function to get next available table number
+  // Função auxiliar para obter o próximo número de mesa disponível
   const getNextAvailableTableNumber = (): number => {
     const existingNumbers = tables.map((table) => table.tableNumber);
     let nextNumber = 1;
@@ -137,7 +136,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     return nextNumber;
   };
 
-  // Helper function to duplicate a table
+  // Função auxiliar para duplicar uma mesa
   const duplicateTable = (tableId: string) => {
     if (!isManager) return;
 
@@ -146,21 +145,21 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
 
     const newTable: Table = {
       ...originalTable,
-      id: `temp_${Date.now()}`, // Temporary ID for new table
-      x: originalTable.x + 50, // Offset by 50px to the right
-      y: originalTable.y + 50, // Offset by 50px down
-      tableNumber: getNextAvailableTableNumber(), // Get next available number
+      id: `temp_${Date.now()}`,
+      x: originalTable.x + 50,
+      y: originalTable.y + 50,
+      tableNumber: getNextAvailableTableNumber(),
     };
 
     setTables((prevTables) => [...prevTables, newTable]);
-    setSelectedTable(newTable.id); // Select the new duplicated table
+    setSelectedTable(newTable.id);
     showNotification(
       `Mesa ${originalTable.tableNumber} duplicada como mesa ${newTable.tableNumber}`,
       "success"
     );
   };
 
-  // Helper function to check if table number is available (excluding current table)
+  // Função auxiliar para verificar se o número da mesa está disponível (excluindo a mesa atual)
   const isTableNumberAvailable = (
     number: number,
     excludeTableId?: string
@@ -170,7 +169,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     );
   };
 
-  // Helper function to validate table numbers before saving
+  // Função auxiliar para validar números de mesa antes de guardar
   const validateTableNumbers = (): {
     isValid: boolean;
     duplicates: number[];
@@ -192,7 +191,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     };
   };
 
-  // Handle window resize for responsive layout
+  // Handler de resize da janela para layout responsivo
   useEffect(() => {
     const handleResize = () => {
       setWindowSize({
@@ -211,13 +210,13 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     }
   }, []);
 
-  // Check user permissions
+  // Verificar permissões do utilizador
   useEffect(() => {
     setIsManager(user.labels.includes("manager"));
     setLoading(false);
   }, [user]);
 
-  // Responsive sizing logic - based on RestLayout.tsx with square proportions
+  // Lógica de dimensionamento responsivo baseada em RestLayout.tsx
   const getMaxDimensions = () => {
     const baseSize = Math.sqrt(restaurantSize) * 60;
     // Use RestLayout.tsx scaling as base

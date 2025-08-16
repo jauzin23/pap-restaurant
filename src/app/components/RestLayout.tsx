@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 // Direct icon imports for bundle size
 import { Grid, Edit, Shield, ShieldX, ExternalLink } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
@@ -64,11 +70,137 @@ interface RestaurantDashboardLayoutProps {
   onEditRedirect?: () => void;
 }
 
+// Memoized Table Component for better performance - Simplified for tablets
+const TableComponent = React.memo(
+  ({
+    table,
+    tableScale,
+    chairPositions,
+    tableStyle,
+  }: {
+    table: Table;
+    tableScale: number;
+    chairPositions: ChairPosition[];
+    tableStyle: { borderRadius: string };
+  }) => {
+    // Pre-calculate transform to avoid recalculation
+    const tableTransform = useMemo(
+      () =>
+        `translate3d(${table.x * tableScale}px, ${
+          table.y * tableScale
+        }px, 0) rotate(${table.rotation}deg)`,
+      [table.x, table.y, table.rotation, tableScale]
+    );
+
+    // Optimized chair rendering - support all chairs but batch DOM updates
+    const chairStyles = useMemo(() => {
+      // Only render chairs if scale is large enough to see them
+      if (tableScale < 0.3) return "";
+
+      return chairPositions
+        .map((chairPos, i) => {
+          const chairTransform = `translate3d(-50%, -50%, 0) translate3d(${
+            chairPos.x
+          }px, ${chairPos.y}px, 0) rotate(${
+            -table.rotation + (chairPos.rotation || 0)
+          }deg)`;
+
+          return `
+          .table-${table.id} .chair-${i} {
+            position: absolute;
+            width: ${Math.max(8, 12 * tableScale)}px;
+            height: ${Math.max(8, 12 * tableScale)}px;
+            left: 50%;
+            top: 50%;
+            transform: ${chairTransform};
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 3px;
+            background-color: ${
+              table.status === "occupied"
+                ? "rgba(248, 113, 113, 0.8)"
+                : "rgba(74, 222, 128, 0.8)"
+            };
+            transition: background-color 0.3s ease;
+            will-change: transform;
+          }
+        `;
+        })
+        .join("");
+    }, [chairPositions, tableScale, table.id, table.rotation, table.status]);
+
+    return (
+      <>
+        {chairStyles && (
+          <style dangerouslySetInnerHTML={{ __html: chairStyles }} />
+        )}
+        <div
+          className={`table-${table.id} absolute transition-opacity duration-200 group cursor-default`}
+          style={{
+            left: 0,
+            top: 0,
+            width: `${table.width * tableScale}px`,
+            height: `${table.height * tableScale}px`,
+            transform: tableTransform,
+            transformOrigin: "center center",
+            willChange: "transform, opacity",
+          }}
+        >
+          {/* Table - Show status with colors */}
+          <div
+            className={`w-full h-full border-2 flex items-center justify-center shadow-lg transition-colors duration-300 relative ${
+              table.status === "occupied"
+                ? "border-red-400/60 bg-red-500/10"
+                : "border-green-400/60 bg-green-500/10"
+            }`}
+            style={tableStyle}
+          >
+            {/* Status indicator - only show if table is large enough */}
+            {tableScale > 0.3 && (
+              <div
+                className={`absolute rounded-full border-2 border-white shadow-lg ${
+                  table.status === "occupied"
+                    ? "bg-red-400 shadow-red-400/50"
+                    : "bg-green-400 shadow-green-400/50"
+                }`}
+                style={{
+                  width: `${Math.max(8, 12 * tableScale)}px`,
+                  height: `${Math.max(8, 12 * tableScale)}px`,
+                  top: `${Math.max(4, 6 * tableScale)}px`,
+                  right: `${Math.max(4, 6 * tableScale)}px`,
+                }}
+              />
+            )}
+
+            <span
+              className={`font-bold select-none ${
+                table.status === "occupied" ? "text-red-300" : "text-green-300"
+              }`}
+              style={{
+                fontSize: `${Math.max(10, 16 * tableScale)}px`,
+              }}
+            >
+              {table.tableNumber}
+            </span>
+          </div>
+
+          {/* Chairs as div elements - render all chairs */}
+          {tableScale >= 0.3 &&
+            chairPositions.map((chairPos, i) => (
+              <div key={i} className={`chair-${i}`} />
+            ))}
+        </div>
+      </>
+    );
+  }
+);
+
+TableComponent.displayName = "TableComponent";
+
 const RestLayout = React.memo(function RestLayout({
   user,
   onEditRedirect = () => console.log("Navigate to edit page"),
 }: RestaurantDashboardLayoutProps) {
-  // ...existing code...
+  // State management
   const [tables, setTables] = useState<Table[]>([]);
   const [restaurantSize, setRestaurantSize] = useState<number>(100);
   const [isManager, setIsManager] = useState<boolean>(false);
@@ -76,13 +208,151 @@ const RestLayout = React.memo(function RestLayout({
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  // Handle window resize for responsive layout
+
+  // Memoized calculations to prevent re-computation on every render
+  const maxDimensions = useMemo(() => {
+    const baseSize = Math.sqrt(restaurantSize) * 60;
+    let scale = 1;
+    if (typeof window !== "undefined") {
+      if (windowSize.width < 640) {
+        scale = 0.6; // Mobile
+      } else if (windowSize.width < 1024) {
+        scale = 0.7; // Tablet
+      } else {
+        scale = 0.8; // Desktop
+      }
+    }
+
+    const baseWidth = Math.max(320, baseSize * 1.2 * scale);
+    const baseHeight = Math.max(240, baseSize * scale);
+    const canvasSize = Math.max(baseWidth, baseHeight);
+
+    return {
+      width: canvasSize,
+      height: canvasSize,
+      scale,
+    };
+  }, [restaurantSize, windowSize.width]);
+
+  // Memoized table scale
+  const tableScale = useMemo(
+    () => maxDimensions.scale || 0.8,
+    [maxDimensions.scale]
+  );
+
+  // Optimized chair position calculation function
+  const calculateChairPositions = useCallback(
+    (table: Table, scale: number = 1): ChairPosition[] => {
+      const chairs: ChairPosition[] = [];
+      const { width, height, chairs: chairCount, shape, chairSides } = table;
+      const chairDistance = 18 * scale;
+
+      if (shape === "circular") {
+        const radius = (width * scale) / 2 + chairDistance;
+        for (let i = 0; i < chairCount; i++) {
+          const angle = (2 * Math.PI * i) / chairCount - Math.PI / 2;
+          chairs.push({
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            rotation: angle * (180 / Math.PI) + 90,
+          });
+        }
+      } else {
+        const sides = [
+          { key: "top", enabled: chairSides.top },
+          { key: "right", enabled: chairSides.right },
+          { key: "bottom", enabled: chairSides.bottom },
+          { key: "left", enabled: chairSides.left },
+        ];
+
+        const enabledSides = sides.filter((side) => side.enabled);
+        if (enabledSides.length === 0) return chairs;
+
+        const chairsPerSide = Math.floor(chairCount / enabledSides.length);
+        const remainder = chairCount % enabledSides.length;
+
+        enabledSides.forEach((side, sideIndex) => {
+          const extraChair = sideIndex < remainder ? 1 : 0;
+          const chairsOnThisSide = chairsPerSide + extraChair;
+
+          for (let i = 0; i < chairsOnThisSide; i++) {
+            let x: number, y: number, rotation: number;
+
+            switch (side.key) {
+              case "top":
+                x =
+                  ((width * scale) / (chairsOnThisSide + 1)) * (i + 1) -
+                  (width * scale) / 2;
+                y = -(height * scale) / 2 - chairDistance;
+                rotation = 0;
+                break;
+              case "right":
+                x = (width * scale) / 2 + chairDistance;
+                y =
+                  ((height * scale) / (chairsOnThisSide + 1)) * (i + 1) -
+                  (height * scale) / 2;
+                rotation = 90;
+                break;
+              case "bottom":
+                x =
+                  (width * scale) / 2 -
+                  ((width * scale) / (chairsOnThisSide + 1)) * (i + 1);
+                y = (height * scale) / 2 + chairDistance;
+                rotation = 180;
+                break;
+              case "left":
+                x = -(width * scale) / 2 - chairDistance;
+                y =
+                  (height * scale) / 2 -
+                  ((height * scale) / (chairsOnThisSide + 1)) * (i + 1);
+                rotation = -90;
+                break;
+              default:
+                x = 0;
+                y = 0;
+                rotation = 0;
+            }
+
+            chairs.push({ x, y, rotation });
+          }
+        });
+      }
+
+      return chairs;
+    },
+    []
+  );
+
+  // Memoized chair positions to avoid recalculating on every render
+  const chairPositionsCache = useMemo(() => {
+    const cache = new Map<string, ChairPosition[]>();
+
+    tables.forEach((table) => {
+      const cacheKey = `${table.id}-${table.width}-${table.height}-${
+        table.chairs
+      }-${table.shape}-${JSON.stringify(table.chairSides)}-${tableScale}`;
+
+      if (!cache.has(cacheKey)) {
+        const positions = calculateChairPositions(table, tableScale);
+        cache.set(cacheKey, positions);
+      }
+    });
+
+    return cache;
+  }, [tables, tableScale, calculateChairPositions]);
+
+  // Throttled window resize handler
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setWindowSize({
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
+      }, 150); // Throttle resize events
     };
 
     if (typeof window !== "undefined") {
@@ -90,8 +360,11 @@ const RestLayout = React.memo(function RestLayout({
         width: window.innerWidth,
         height: window.innerHeight,
       });
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
+      window.addEventListener("resize", handleResize, { passive: true });
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        clearTimeout(timeoutId);
+      };
     }
   }, []);
 
@@ -105,26 +378,25 @@ const RestLayout = React.memo(function RestLayout({
     const centerCanvas = () => {
       if (scrollContainerRef.current) {
         const scrollContainer = scrollContainerRef.current;
-        const dimensions = getMaxDimensions();
 
         const containerWidth = scrollContainer.clientWidth;
         const containerHeight = scrollContainer.clientHeight;
 
         // Only center if canvas is larger than container
-        if (dimensions.width > containerWidth - 32) {
+        if (maxDimensions.width > containerWidth - 32) {
           // 32px for padding
           const centerX = Math.max(
             0,
-            (dimensions.width - containerWidth + 32) / 2
+            (maxDimensions.width - containerWidth + 32) / 2
           );
           scrollContainer.scrollLeft = centerX;
         }
 
-        if (dimensions.height > containerHeight - 32) {
+        if (maxDimensions.height > containerHeight - 32) {
           // 32px for padding
           const centerY = Math.max(
             0,
-            (dimensions.height - containerHeight + 32) / 2
+            (maxDimensions.height - containerHeight + 32) / 2
           );
           scrollContainer.scrollTop = centerY;
         }
@@ -134,99 +406,75 @@ const RestLayout = React.memo(function RestLayout({
     // Small delay to ensure component is fully rendered
     const timeoutId = setTimeout(centerCanvas, 100);
     return () => clearTimeout(timeoutId);
-  }, [restaurantSize, windowSize.width, windowSize.height]);
+  }, [
+    maxDimensions.width,
+    maxDimensions.height,
+    windowSize.width,
+    windowSize.height,
+  ]);
 
-  // Realtime subscription for tables
+  // Realtime subscription for tables - simplified and more reliable
   useEffect(() => {
     if (!client) return;
+
+    let updateTimeoutId: NodeJS.Timeout;
+
+    const fetchTables = async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
+          Query.limit(100),
+        ]);
+        const tablesData = res.documents.map((doc) => {
+          const appwriteDoc = doc as unknown as AppwriteDocument;
+          return {
+            id: appwriteDoc.$id,
+            x: appwriteDoc.posX,
+            y: appwriteDoc.posY,
+            width: appwriteDoc.width,
+            height: appwriteDoc.height,
+            chairs: appwriteDoc.chairs,
+            rotation: appwriteDoc.rotation,
+            tableNumber: appwriteDoc.tableNumber,
+            shape: appwriteDoc.shape,
+            status: appwriteDoc.status || "free",
+            chairSides: {
+              top: appwriteDoc.chairTop ?? true,
+              right: appwriteDoc.chairRight ?? true,
+              bottom: appwriteDoc.chairBottom ?? true,
+              left: appwriteDoc.chairLeft ?? true,
+            },
+          };
+        });
+        setTables(tablesData);
+      } catch (err) {
+        console.error("Error fetching tables:", err);
+      }
+    };
 
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents`,
       (response) => {
-        if (
-          response.events.includes(
-            `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.create`
-          )
-        ) {
-          const newTable = response.payload as AppwriteDocument;
-          const tableData = {
-            id: newTable.$id,
-            x: newTable.posX,
-            y: newTable.posY,
-            width: newTable.width,
-            height: newTable.height,
-            chairs: newTable.chairs,
-            rotation: newTable.rotation,
-            tableNumber: newTable.tableNumber,
-            shape: newTable.shape,
-            status: newTable.status || "free", // Include status field
-            chairSides: {
-              top: newTable.chairTop ?? true,
-              right: newTable.chairRight ?? true,
-              bottom: newTable.chairBottom ?? true,
-              left: newTable.chairLeft ?? true,
-            },
-          };
-          setTables((prevTables) => [
-            ...prevTables.filter((t) => t.id !== newTable.$id),
-            tableData,
-          ]);
-        }
-
-        if (
-          response.events.includes(
-            `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.update`
-          )
-        ) {
-          const updatedTable = response.payload as AppwriteDocument;
-          const tableData = {
-            id: updatedTable.$id,
-            x: updatedTable.posX,
-            y: updatedTable.posY,
-            width: updatedTable.width,
-            height: updatedTable.height,
-            chairs: updatedTable.chairs,
-            rotation: updatedTable.rotation,
-            tableNumber: updatedTable.tableNumber,
-            shape: updatedTable.shape,
-            status: updatedTable.status || "free", // Include status field
-            chairSides: {
-              top: updatedTable.chairTop ?? true,
-              right: updatedTable.chairRight ?? true,
-              bottom: updatedTable.chairBottom ?? true,
-              left: updatedTable.chairLeft ?? true,
-            },
-          };
-          setTables((prevTables) =>
-            prevTables.map((table) =>
-              table.id === updatedTable.$id ? tableData : table
-            )
-          );
-        }
-
-        if (
-          response.events.includes(
-            `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.delete`
-          )
-        ) {
-          const deletedTable = response.payload as { $id: string };
-          setTables((prevTables) =>
-            prevTables.filter((table) => table.id !== deletedTable.$id)
-          );
-        }
+        // Simple approach: just refetch all tables on any change
+        clearTimeout(updateTimeoutId);
+        updateTimeoutId = setTimeout(() => {
+          fetchTables();
+        }, 100);
       }
     );
 
     return () => {
+      clearTimeout(updateTimeoutId);
       if (unsubscribe && typeof unsubscribe === "function") {
         unsubscribe();
       }
     };
   }, []);
 
-  // Realtime subscription for settings
+  // Realtime subscription for settings with throttling
   useEffect(() => {
     if (!client) return;
+
+    let settingsUpdateTimeoutId: NodeJS.Timeout;
 
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${SETTINGS_COLLECTION_ID}.documents`,
@@ -236,18 +484,22 @@ const RestLayout = React.memo(function RestLayout({
             `databases.${DATABASE_ID}.collections.${SETTINGS_COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedSettings = response.payload as {
-            $id: string;
-            size: number;
-          };
-          if (updatedSettings.$id === SETTINGS_DOCUMENT_ID) {
-            setRestaurantSize(updatedSettings.size);
-          }
+          clearTimeout(settingsUpdateTimeoutId);
+          settingsUpdateTimeoutId = setTimeout(() => {
+            const updatedSettings = response.payload as {
+              $id: string;
+              size: number;
+            };
+            if (updatedSettings.$id === SETTINGS_DOCUMENT_ID) {
+              setRestaurantSize(updatedSettings.size);
+            }
+          }, 200); // Less frequent updates for settings
         }
       }
     );
 
     return () => {
+      clearTimeout(settingsUpdateTimeoutId);
       if (unsubscribe && typeof unsubscribe === "function") {
         unsubscribe();
       }
@@ -328,131 +580,54 @@ const RestLayout = React.memo(function RestLayout({
     fetchTables();
   }, []);
 
-  // Responsive sizing logic - based on Mesas.tsx with square proportions
-  const getMaxDimensions = () => {
-    const baseSize = Math.sqrt(restaurantSize) * 60;
-    // Use same scaling as Mesas.tsx
-    let scale = 1;
-    if (typeof window !== "undefined") {
-      if (window.innerWidth < 640) {
-        scale = 0.6; // Mobile
-      } else if (window.innerWidth < 1024) {
-        scale = 0.7; // Tablet
-      } else {
-        scale = 0.8; // Desktop - same as Mesas.tsx
-      }
-    }
-
-    // Calculate square canvas based on Mesas.tsx logic but with square proportions
-    const baseWidth = Math.max(320, baseSize * 1.2 * scale);
-    const baseHeight = Math.max(240, baseSize * scale);
-
-    // Use the larger dimension to make it square (same as Mesas.tsx)
-    const canvasSize = Math.max(baseWidth, baseHeight);
-
-    return {
-      width: canvasSize,
-      height: canvasSize, // Always square
-      scale, // Return scale for table scaling
-    };
-  };
-
-  // Calculate scaling factor for tables based on canvas size
-  const getTableScale = () => {
-    const dimensions = getMaxDimensions();
-    return dimensions.scale || 0.8;
-  };
-
-  const getTableStyle = (table: Table) => {
+  // Memoized table style function
+  const getTableStyle = useCallback((table: Table) => {
     return {
       borderRadius: table.shape === "circular" ? "50%" : "2px",
     };
-  };
+  }, []);
 
-  const getChairPositions = (
-    table: Table,
-    scale: number = 1
-  ): ChairPosition[] => {
-    const chairs: ChairPosition[] = [];
-    const { width, height, chairs: chairCount, shape, chairSides } = table;
-    const chairDistance = 18 * scale; // Scale chair distance
-
-    if (shape === "circular") {
-      const radius = (width * scale) / 2 + chairDistance;
-      for (let i = 0; i < chairCount; i++) {
-        const angle = (2 * Math.PI * i) / chairCount - Math.PI / 2;
-        chairs.push({
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius,
-          rotation: angle * (180 / Math.PI) + 90,
-        });
-      }
-    } else {
-      const sides = [
-        { key: "top", enabled: chairSides.top },
-        { key: "right", enabled: chairSides.right },
-        { key: "bottom", enabled: chairSides.bottom },
-        { key: "left", enabled: chairSides.left },
-      ];
-
-      const enabledSides = sides.filter((side) => side.enabled);
-      if (enabledSides.length === 0) return chairs;
-
-      const chairsPerSide = Math.floor(chairCount / enabledSides.length);
-      const remainder = chairCount % enabledSides.length;
-
-      enabledSides.forEach((side, sideIndex) => {
-        const extraChair = sideIndex < remainder ? 1 : 0;
-        const chairsOnThisSide = chairsPerSide + extraChair;
-
-        for (let i = 0; i < chairsOnThisSide; i++) {
-          let x: number, y: number, rotation: number;
-
-          switch (side.key) {
-            case "top":
-              x =
-                ((width * scale) / (chairsOnThisSide + 1)) * (i + 1) -
-                (width * scale) / 2;
-              y = -(height * scale) / 2 - chairDistance;
-              rotation = 0;
-              break;
-            case "right":
-              x = (width * scale) / 2 + chairDistance;
-              y =
-                ((height * scale) / (chairsOnThisSide + 1)) * (i + 1) -
-                (height * scale) / 2;
-              rotation = 90;
-              break;
-            case "bottom":
-              x =
-                (width * scale) / 2 -
-                ((width * scale) / (chairsOnThisSide + 1)) * (i + 1);
-              y = (height * scale) / 2 + chairDistance;
-              rotation = 180;
-              break;
-            case "left":
-              x = -(width * scale) / 2 - chairDistance;
-              y =
-                (height * scale) / 2 -
-                ((height * scale) / (chairsOnThisSide + 1)) * (i + 1);
-              rotation = -90;
-              break;
-            default:
-              x = 0;
-              y = 0;
-              rotation = 0;
-          }
-
-          chairs.push({ x, y, rotation });
-        }
-      });
+  // Viewport-based rendering for performance
+  const visibleTables = useMemo(() => {
+    if (typeof window === "undefined" || !scrollContainerRef.current) {
+      return tables; // Server-side or no container, render all
     }
 
-    return chairs;
-  };
+    const container = scrollContainerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const buffer = 200; // Render tables 200px outside viewport
 
-  const maxDimensions = getMaxDimensions();
-  const tableScale = getTableScale();
+    return tables.filter((table) => {
+      const tableX = table.x * tableScale;
+      const tableY = table.y * tableScale;
+      const tableWidth = table.width * tableScale;
+      const tableHeight = table.height * tableScale;
+
+      // Check if table is within expanded viewport
+      return (
+        tableX + tableWidth + buffer >= 0 &&
+        tableX - buffer <= containerRect.width &&
+        tableY + tableHeight + buffer >= 0 &&
+        tableY - buffer <= containerRect.height
+      );
+    });
+  }, [tables, tableScale, windowSize]);
+
+  // Optimized chair positions getter with caching
+  const getChairPositions = useCallback(
+    (table: Table): ChairPosition[] => {
+      const cacheKey = `${table.id}-${table.width}-${table.height}-${
+        table.chairs
+      }-${table.shape}-${JSON.stringify(table.chairSides)}-${tableScale}`;
+
+      if (chairPositionsCache.has(cacheKey)) {
+        return chairPositionsCache.get(cacheKey)!;
+      }
+
+      return calculateChairPositions(table, tableScale);
+    },
+    [chairPositionsCache, tableScale, calculateChairPositions]
+  );
 
   if (loading) {
     return (
@@ -524,102 +699,40 @@ const RestLayout = React.memo(function RestLayout({
       {/* Restaurant Layout */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto p-4 min-h-0 transition-all duration-300 flex items-center justify-center"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className="flex-1 overflow-auto p-4 min-h-0 transition-opacity duration-300 flex items-center justify-center"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          transform: "translateZ(0)", // Force hardware acceleration
+          contain: "layout style paint", // Optimize repaints
+        }}
       >
         <div
-          className="relative border-2 border-white/20 bg-white/[0.02] backdrop-blur-sm shadow-2xl hover:border-white/30 transition-all duration-300"
+          className="relative border-2 border-white/20 bg-white/[0.02] shadow-2xl transition-opacity duration-300"
           style={{
-            backgroundImage: `
+            backgroundImage:
+              tableScale > 0.7
+                ? `
               linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
               linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
-            `,
+            `
+                : "none", // Remove grid background on small scale for performance
             backgroundSize: `${20 * tableScale}px ${20 * tableScale}px`,
             width: `${maxDimensions.width}px`,
             height: `${maxDimensions.height}px`,
             borderRadius: "16px",
+            contain: "strict", // Strict containment for maximum performance
+            willChange: "transform", // Optimize for transforms
+            transform: "translateZ(0)", // Force layer
           }}
         >
-          {tables.map((table) => (
-            <div
+          {visibleTables.map((table) => (
+            <TableComponent
               key={table.id}
-              className="absolute transition-all duration-200 group cursor-default"
-              style={{
-                left: `${table.x * tableScale}px`,
-                top: `${table.y * tableScale}px`,
-                width: `${table.width * tableScale}px`,
-                height: `${table.height * tableScale}px`,
-                transform: `rotate(${table.rotation}deg)`,
-                transformOrigin: "center center",
-              }}
-            >
-              {/* Table - Show status with colors */}
-              <div
-                className={`w-full h-full border-2 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 relative backdrop-blur-sm ${
-                  table.status === "occupied"
-                    ? "border-red-400/60 bg-red-500/10 hover:bg-red-500/15 hover:border-red-400/80"
-                    : "border-green-400/60 bg-green-500/10 hover:bg-green-500/15 hover:border-green-400/80"
-                }`}
-                style={{
-                  ...getTableStyle(table),
-                }}
-              >
-                {/* Status indicator */}
-                <div
-                  className={`absolute rounded-full border-2 border-white shadow-lg ${
-                    table.status === "occupied"
-                      ? "bg-red-400 shadow-red-400/50"
-                      : "bg-green-400 shadow-green-400/50"
-                  }`}
-                  style={{
-                    width: `${12 * tableScale}px`,
-                    height: `${12 * tableScale}px`,
-                    top: `${6 * tableScale}px`,
-                    right: `${6 * tableScale}px`,
-                  }}
-                  title={
-                    table.status === "occupied" ? "Mesa Ocupada" : "Mesa Livre"
-                  }
-                />
-
-                <span
-                  className={`font-bold select-none ${
-                    table.status === "occupied"
-                      ? "text-red-300"
-                      : "text-green-300"
-                  }`}
-                  style={{
-                    fontSize: `${16 * tableScale}px`,
-                  }}
-                >
-                  {table.tableNumber}
-                </span>
-              </div>
-
-              {/* Chairs */}
-              {getChairPositions(table, tableScale).map((chairPos, i) => (
-                <div
-                  key={i}
-                  className={`absolute border-2 border-white/60 shadow-lg transition-all duration-300 backdrop-blur-sm ${
-                    table.status === "occupied"
-                      ? "bg-red-400/80 group-hover:bg-red-400/90 shadow-red-400/30"
-                      : "bg-green-400/80 group-hover:bg-green-400/90 shadow-green-400/30"
-                  }`}
-                  style={{
-                    width: `${12 * tableScale}px`,
-                    height: `${12 * tableScale}px`,
-                    left: "50%",
-                    top: "50%",
-                    transform: `translate(-50%, -50%) translate(${
-                      chairPos.x
-                    }px, ${chairPos.y}px) rotate(${
-                      -table.rotation + (chairPos.rotation || 0)
-                    }deg)`,
-                    borderRadius: "3px",
-                  }}
-                />
-              ))}
-            </div>
+              table={table}
+              tableScale={tableScale}
+              chairPositions={getChairPositions(table)}
+              tableStyle={getTableStyle(table)}
+            />
           ))}
 
           {/* Empty State */}

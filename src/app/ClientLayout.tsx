@@ -9,7 +9,6 @@ interface ClientLayoutProps {
   geistMono?: { variable: string };
 }
 
-// Simple client wrapper that only provides AppProvider context
 export default function ClientLayout({ children }: ClientLayoutProps) {
   return <AppProvider>{children}</AppProvider>;
 }
