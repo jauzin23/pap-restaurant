@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, memo, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 // Direct icon imports for bundle size
 import {
   Plus,
@@ -19,7 +19,6 @@ import {
   Shield,
   ShieldX,
   AlertTriangle,
-  X,
   Copy,
 } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
@@ -47,6 +46,28 @@ interface Table {
     bottom: boolean;
     left: boolean;
   };
+}
+
+interface AppwriteDocument {
+  $id: string;
+  posX: number;
+  posY: number;
+  width: number;
+  height: number;
+  chairs: number;
+  rotation: number;
+  tableNumber: number;
+  shape: string;
+  status?: string;
+  chairTop?: boolean;
+  chairRight?: boolean;
+  chairBottom?: boolean;
+  chairLeft?: boolean;
+}
+
+interface AppwriteResponse {
+  payload: AppwriteDocument;
+  events: string[];
 }
 
 interface ChairPosition {
@@ -298,7 +319,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.create`
           )
         ) {
-          const newTable: any = response.payload;
+          const newTable = response.payload as AppwriteDocument;
           const tableData = {
             id: newTable.$id,
             x: newTable.posX,
@@ -332,7 +353,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedTable: any = response.payload;
+          const updatedTable = response.payload as AppwriteDocument;
           const tableData = {
             id: updatedTable.$id,
             x: updatedTable.posX,
@@ -368,7 +389,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents.*.delete`
           )
         ) {
-          const deletedTable: any = response.payload;
+          const deletedTable = response.payload as { $id: string };
           setTables((prevTables) =>
             prevTables.filter((table) => table.id !== deletedTable.$id)
           );
@@ -398,7 +419,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             `databases.${DATABASE_ID}.collections.${SETTINGS_COLLECTION_ID}.documents.*.update`
           )
         ) {
-          const updatedSettings: any = response.payload;
+          const updatedSettings = response.payload as { $id: string; size: number };
           if (updatedSettings.$id === SETTINGS_DOCUMENT_ID) {
             setRestaurantSize(updatedSettings.size);
           }
@@ -485,24 +506,26 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
         const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
           Query.limit(100),
         ]);
-        const tablesData = res.documents.map((doc: any) => ({
-          id: doc.$id,
-          x: doc.posX,
-          y: doc.posY,
-          width: doc.width,
-          height: doc.height,
-          chairs: doc.chairs,
-          rotation: doc.rotation,
-          tableNumber: doc.tableNumber,
-          shape: doc.shape,
-          status: doc.status || "free", // Include status field
+        const tablesData = res.documents.map((doc) => {
+          const appwriteDoc = doc as unknown as AppwriteDocument;
+          return {
+          id: appwriteDoc.$id,
+          x: appwriteDoc.posX,
+          y: appwriteDoc.posY,
+          width: appwriteDoc.width,
+          height: appwriteDoc.height,
+          chairs: appwriteDoc.chairs,
+          rotation: appwriteDoc.rotation,
+          tableNumber: appwriteDoc.tableNumber,
+          shape: appwriteDoc.shape,
+          status: appwriteDoc.status || "free", // Include status field
           chairSides: {
-            top: doc.chairTop ?? true,
-            right: doc.chairRight ?? true,
-            bottom: doc.chairBottom ?? true,
-            left: doc.chairLeft ?? true,
+            top: appwriteDoc.chairTop ?? true,
+            right: appwriteDoc.chairRight ?? true,
+            bottom: appwriteDoc.chairBottom ?? true,
+            left: appwriteDoc.chairLeft ?? true,
           },
-        }));
+        }});
         setTables(tablesData);
         setSavedTables(JSON.parse(JSON.stringify(tablesData))); // Deep copy for saved state
       } catch (err) {
@@ -560,7 +583,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       const res = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
         Query.limit(100),
       ]);
-      const existingIds = res.documents.map((doc: any) => doc.$id);
+      const existingIds = res.documents.map((doc) => doc.$id);
 
       // Handle updates and creates
       for (const table of tables) {

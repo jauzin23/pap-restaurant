@@ -5,7 +5,6 @@ import { Users, Clock, Star, ChefHat } from "lucide-react";
 import {
   databases,
   client,
-  account,
   DB_ATTENDANCE,
   COL_ATTENDANCE,
 } from "@/lib/appwrite";
@@ -29,7 +28,6 @@ export default function ManagerStaffView({ user, isManager }) {
   const [clockedInStaff, setClockedInStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [staffDetails, setStaffDetails] = useState(new Map());
 
   // Update current time every 30 seconds for more real-time feel
   useEffect(() => {
@@ -38,6 +36,32 @@ export default function ManagerStaffView({ user, isManager }) {
     }, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
   }, []);
+
+  const fetchClockedInStaff = async () => {
+    if (!isManager) return;
+
+    try {
+      setLoading(true);
+      const res = await databases.listDocuments(DB_ATTENDANCE, COL_ATTENDANCE, [
+        Query.isNull("clockOut"),
+        Query.orderDesc("clockIn"),
+      ]);
+
+      // For now, we'll mock the labels since we don't have them in attendance records
+      // In a real app, you'd store user roles in the attendance record or have a separate users collection
+      const staffWithLabels = res.documents.map((staff) => ({
+        ...staff,
+        labels: staff.userId === user.$id ? user.labels : getRandomLabels(), // Mock labels for demo
+      }));
+
+      setClockedInStaff(staffWithLabels);
+    } catch (err) {
+      console.error("Error fetching clocked in staff:", err);
+      setClockedInStaff([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isManager) {
@@ -66,33 +90,7 @@ export default function ManagerStaffView({ user, isManager }) {
         }
       };
     }
-  }, [isManager]);
-
-  async function fetchClockedInStaff() {
-    if (!isManager) return;
-
-    try {
-      setLoading(true);
-      const res = await databases.listDocuments(DB_ATTENDANCE, COL_ATTENDANCE, [
-        Query.isNull("clockOut"),
-        Query.orderDesc("clockIn"),
-      ]);
-
-      // For now, we'll mock the labels since we don't have them in attendance records
-      // In a real app, you'd store user roles in the attendance record or have a separate users collection
-      const staffWithLabels = res.documents.map((staff) => ({
-        ...staff,
-        labels: staff.userId === user.$id ? user.labels : getRandomLabels(), // Mock labels for demo
-      }));
-
-      setClockedInStaff(staffWithLabels);
-    } catch (err) {
-      console.error("Error fetching clocked in staff:", err);
-      setClockedInStaff([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [isManager, fetchClockedInStaff]);
 
   // Mock function to assign random labels for demo purposes
   // In a real app, this would come from the user's actual account data
@@ -175,7 +173,7 @@ export default function ManagerStaffView({ user, isManager }) {
               <div
                 key={staff.$id}
                 className="bg-white/[0.03] backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 group animate-scale-in"
-                style={{animationDelay: `${index * 100}ms`}}
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-white text-sm group-hover:text-blue-200 transition-colors duration-300">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Users, CheckCircle, Clock, DollarSign, Timer } from "lucide-react";
+import { Users, DollarSign } from "lucide-react";
 import {
   databases,
   client,

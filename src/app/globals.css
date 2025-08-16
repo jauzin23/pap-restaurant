@@ -203,26 +203,28 @@
 
 /* Login page floating orb animations */
 @keyframes floatOrb1 {
-  0%, 100% { 
-    transform: scale(1) translate(0, 0); 
+  0%,
+  100% {
+    transform: scale(1) translate(0, 0);
   }
-  33% { 
-    transform: scale(1.2) translate(50px, -30px); 
+  33% {
+    transform: scale(1.2) translate(50px, -30px);
   }
-  66% { 
-    transform: scale(1.1) translate(25px, -15px); 
+  66% {
+    transform: scale(1.1) translate(25px, -15px);
   }
 }
 
 @keyframes floatOrb2 {
-  0%, 100% { 
-    transform: scale(1) translate(0, 0); 
+  0%,
+  100% {
+    transform: scale(1) translate(0, 0);
   }
-  33% { 
-    transform: scale(1.3) translate(-40px, 40px); 
+  33% {
+    transform: scale(1.3) translate(-40px, 40px);
   }
-  66% { 
-    transform: scale(1.15) translate(-20px, 20px); 
+  66% {
+    transform: scale(1.15) translate(-20px, 20px);
   }
 }
 

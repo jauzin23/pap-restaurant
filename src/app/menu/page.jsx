@@ -36,7 +36,7 @@ export default function MenuPage() {
 
   useEffect(() => {
     if (isMobile) router.push("/unsupported");
-  }, [router]);
+  }, [isMobile, router]);
 
   // Form fields
   const [nome, setNome] = useState("");
@@ -237,7 +237,7 @@ export default function MenuPage() {
                     Nenhum item no menu
                   </p>
                   <p className="text-neutral-500 text-sm mt-2">
-                    Clique em "Adicionar Item" para começar
+                    Clique em &quot;Adicionar Item&quot; para começar
                   </p>
                 </div>
               ) : (
