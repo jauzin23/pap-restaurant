@@ -21,7 +21,6 @@ export default function DashboardPage() {
   }, [router, isMobile]);
 
   useEffect(() => {
-    // If not loading and no user, redirect to login
     if (!loading && !user) {
       router.push("/login");
     }
@@ -39,7 +38,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Don't render anything if no user (will redirect to login)
   if (!user) {
     return null;
   }
