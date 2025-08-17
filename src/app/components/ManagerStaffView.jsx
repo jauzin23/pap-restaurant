@@ -186,7 +186,7 @@ export default function ManagerStaffView({ user, isManager }) {
   }
 
   return (
-    <div className="p-4 md:p-6 rounded-lg bg-black/40 border border-white/10 shadow-lg">
+    <div className="p-4 md:p-6 rounded-lg bg-black/80 border border-white/10 shadow-lg">
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">

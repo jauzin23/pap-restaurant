@@ -19,7 +19,13 @@ import {
   Eye,
   Warehouse,
 } from "lucide-react";
-import { COL_STOCK, DBRESTAURANTE } from "@/lib/appwrite";
+import {
+  COL_STOCK,
+  DBRESTAURANTE,
+  COL_CATEGORY_STOCK,
+  COL_SUPPLIER,
+  LOCATION_STOCK,
+} from "@/lib/appwrite";
 
 export default function Stock() {
   const isMobile = useMediaQuery({ maxWidth: 767 });
@@ -37,6 +43,24 @@ export default function Stock() {
   const [cartAnimation, setCartAnimation] = useState(false);
   const [isCartExpanded, setIsCartExpanded] = useState(false); // Default to closed
   const [cartPulse, setCartPulse] = useState(false); // New state for cart notification
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: "",
+    category: "",
+    description: "",
+    supplier: "",
+    location: "",
+    cost_price: 0,
+    qty: 0, // Default to 0, cannot be changed
+    min_qty: 0,
+  });
+  const [addItemLoading, setAddItemLoading] = useState(false);
+
+  // Dropdown data states
+  const [categories, setCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [dropdownsLoading, setDropdownsLoading] = useState(false);
 
   const ITEMS_PER_PAGE = 50;
 
@@ -102,6 +126,37 @@ export default function Stock() {
   useEffect(() => {
     fetchStock();
   }, []);
+
+  // Fetch dropdown data for the add modal
+  const fetchDropdownData = useCallback(async () => {
+    setDropdownsLoading(true);
+    try {
+      const [categoriesRes, suppliersRes, locationsRes] = await Promise.all([
+        databases.listDocuments(DBRESTAURANTE, COL_CATEGORY_STOCK),
+        databases.listDocuments(DBRESTAURANTE, COL_SUPPLIER),
+        databases.listDocuments(DBRESTAURANTE, LOCATION_STOCK),
+      ]);
+
+      setCategories(categoriesRes.documents);
+      setSuppliers(suppliersRes.documents);
+      setLocations(locationsRes.documents);
+    } catch (err) {
+      console.error("Error fetching dropdown data:", err);
+      // Set empty arrays on error
+      setCategories([]);
+      setSuppliers([]);
+      setLocations([]);
+    } finally {
+      setDropdownsLoading(false);
+    }
+  }, [databases]);
+
+  // Fetch dropdown data when add modal opens
+  useEffect(() => {
+    if (isAddModalOpen && categories.length === 0) {
+      fetchDropdownData();
+    }
+  }, [isAddModalOpen, categories.length, fetchDropdownData]);
 
   const fetchStock = useCallback(async () => {
     if (loading) return; // Prevent double calls
@@ -204,6 +259,64 @@ export default function Stock() {
     [editingRows, databases, loading, fetchStock]
   );
 
+  const handleAddNewItem = useCallback(async () => {
+    if (addItemLoading) return;
+
+    // Validate required fields
+    if (!newItem.name.trim()) {
+      alert("Nome do produto é obrigatório");
+      return;
+    }
+
+    setAddItemLoading(true);
+    try {
+      await databases.createDocument(DBRESTAURANTE, COL_STOCK, "unique()", {
+        name: newItem.name.trim(),
+        category: newItem.category.trim() || null,
+        description: newItem.description.trim() || null,
+        supplier: newItem.supplier.trim() || null,
+        location: newItem.location.trim() || null,
+        cost_price: parseFloat(newItem.cost_price) || 0,
+        qty: parseInt(newItem.qty) || 0,
+        min_qty: parseInt(newItem.min_qty) || 0,
+      });
+
+      // Reset form and close modal
+      setNewItem({
+        name: "",
+        category: "",
+        description: "",
+        supplier: "",
+        location: "",
+        cost_price: 0,
+        qty: 0,
+        min_qty: 0,
+      });
+      setIsAddModalOpen(false);
+
+      // Refresh stock list
+      await fetchStock();
+    } catch (err) {
+      console.error("Error adding new item:", err);
+      alert("Erro ao adicionar produto. Verifique os dados e tente novamente.");
+    } finally {
+      setAddItemLoading(false);
+    }
+  }, [newItem, databases, addItemLoading, fetchStock]);
+
+  const resetAddItemForm = useCallback(() => {
+    setNewItem({
+      name: "",
+      category: "",
+      description: "",
+      supplier: "",
+      location: "",
+      cost_price: 0,
+      qty: 0,
+      min_qty: 0,
+    });
+  }, []);
+
   // Loading state
   if (!user) {
     return (
@@ -287,9 +400,9 @@ export default function Stock() {
   );
 
   return (
-    <div className="min-h-screen bg-black relative">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f0f0f_1px,transparent_1px),linear-gradient(to_bottom,#0f0f0f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Grid background (consistent with menu and pedidos) */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f0f0f_1px,transparent_1px),linear-gradient(to_bottom,#0f0f0f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] pointer-events-none z-0" />
 
       <Header user={user} logo="/logo-icon.svg" />
 
@@ -535,24 +648,45 @@ export default function Stock() {
               }`}
             >
               <Package className="w-4 h-4" />
-              Movimentar
+              Editar Stock
             </button>
           </div>
-
-          {/* Refresh button */}
-          <Button
-            className="ml-auto flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800 transition"
-            onClick={fetchStock}
-            disabled={loading}
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
         </div>
 
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <div className="space-y-8">
+            {/* Overview Header with Actions */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Overview do Stock
+                </h2>
+                <p className="text-neutral-400">
+                  Gestão e monitorização do inventário
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800 transition"
+                  onClick={fetchStock}
+                  disabled={loading}
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                  />
+                  Atualizar
+                </Button>
+                <Button
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-600/50 bg-green-600 text-white hover:bg-green-700 transition shadow-lg"
+                  onClick={() => setIsAddModalOpen(true)}
+                >
+                  <Plus className="w-4 h-4" />
+                  Novo Item
+                </Button>
+              </div>
+            </div>
+
             {/* Warnings Section */}
             <div className="space-y-4">
               {/* Critical Stock Alert - qty <= min_qty */}
@@ -823,7 +957,7 @@ export default function Stock() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400" />
                 <input
                   type="text"
-                  placeholder="Pesquisar para movimentar..."
+                  placeholder="Pesquisar..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -1003,6 +1137,357 @@ export default function Stock() {
                       movementMode === "add" ? "Adição" : "Remoção"
                     }`}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Item Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-neutral-900/95 backdrop-blur-sm border border-neutral-700/50 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-neutral-700/50 bg-gradient-to-r from-green-600/10 to-emerald-600/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-green-500/20 border border-green-500/30">
+                    <Package className="w-6 h-6 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Adicionar Novo Item
+                    </h3>
+                    <p className="text-sm text-neutral-400">
+                      Preencha os dados do novo produto
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    resetAddItemForm();
+                  }}
+                  className="p-2 rounded-xl bg-neutral-700/50 hover:bg-neutral-600/50 text-neutral-300 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {dropdownsLoading && (
+                <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-400">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">A carregar dados...</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Nome do Produto *
+                    </label>
+                    <input
+                      type="text"
+                      value={newItem.name}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="Ex: Arroz Agulha"
+                      className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white placeholder:text-neutral-400 focus:border-green-500/50 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Categoria
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={newItem.category}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            category: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-neutral-800/80 border border-neutral-600/50 rounded-xl text-white focus:border-green-500 focus:outline-none transition-all duration-200 appearance-none cursor-pointer hover:bg-neutral-800"
+                        disabled={dropdownsLoading}
+                      >
+                        <option
+                          value=""
+                          className="bg-neutral-800 text-neutral-400"
+                        >
+                          Selecionar categoria...
+                        </option>
+                        {categories.map((category) => (
+                          <option
+                            key={category.$id}
+                            value={category.name || category.category}
+                            className="bg-neutral-800 text-white py-2"
+                          >
+                            {category.name || category.category}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg
+                          className="w-5 h-5 text-neutral-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Descrição
+                    </label>
+                    <textarea
+                      value={newItem.description}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Descrição adicional do produto"
+                      rows={3}
+                      className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white placeholder:text-neutral-400 focus:border-green-500/50 focus:outline-none transition-colors resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Fornecedor
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={newItem.supplier}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            supplier: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-neutral-800/80 border border-neutral-600/50 rounded-xl text-white focus:border-green-500 focus:outline-none transition-all duration-200 appearance-none cursor-pointer hover:bg-neutral-800"
+                        disabled={dropdownsLoading}
+                      >
+                        <option
+                          value=""
+                          className="bg-neutral-800 text-neutral-400"
+                        >
+                          Selecionar fornecedor...
+                        </option>
+                        {suppliers.map((supplier) => (
+                          <option
+                            key={supplier.$id}
+                            value={supplier.name || supplier.supplier}
+                            className="bg-neutral-800 text-white py-2"
+                          >
+                            {supplier.name || supplier.supplier}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg
+                          className="w-5 h-5 text-neutral-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stock & Pricing Information */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Localização
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={newItem.location}
+                        onChange={(e) =>
+                          setNewItem((prev) => ({
+                            ...prev,
+                            location: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-neutral-800/80 border border-neutral-600/50 rounded-xl text-white focus:border-green-500 focus:outline-none transition-all duration-200 appearance-none cursor-pointer hover:bg-neutral-800"
+                        disabled={dropdownsLoading}
+                      >
+                        <option
+                          value=""
+                          className="bg-neutral-800 text-neutral-400"
+                        >
+                          Selecionar localização...
+                        </option>
+                        {locations.map((location) => (
+                          <option
+                            key={location.$id}
+                            value={location.name || location.location}
+                            className="bg-neutral-800 text-white py-2"
+                          >
+                            {location.name || location.location}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg
+                          className="w-5 h-5 text-neutral-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Preço de Custo (€)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newItem.cost_price || ""}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          cost_price: e.target.value,
+                        }))
+                      }
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white placeholder:text-neutral-400 focus:border-green-500/50 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Stock Mínimo
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newItem.min_qty || ""}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          min_qty: e.target.value,
+                        }))
+                      }
+                      placeholder="0"
+                      className="w-full px-4 py-3 bg-neutral-800/50 border border-neutral-700/50 rounded-xl text-white placeholder:text-neutral-400 focus:border-green-500/50 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  {/* Preview Card */}
+                  <div className="mt-6 p-4 bg-neutral-800/30 border border-neutral-700/30 rounded-xl">
+                    <h4 className="text-sm font-medium text-neutral-300 mb-3">
+                      Pré-visualização:
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Nome:</span>
+                        <span className="text-white font-medium">
+                          {newItem.name || "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Categoria:</span>
+                        <span className="text-white">
+                          {newItem.category || "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Stock:</span>
+                        <span className="font-mono text-neutral-400">
+                          0 (inicial)
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Mínimo:</span>
+                        <span className="font-mono text-yellow-400">
+                          {newItem.min_qty || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-neutral-700/50 bg-neutral-900/50">
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    resetAddItemForm();
+                  }}
+                  className="px-6 py-3 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 hover:text-white rounded-xl font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAddNewItem}
+                  disabled={addItemLoading || !newItem.name.trim()}
+                  className={`px-6 py-3 rounded-xl font-bold text-white transition-all duration-200 shadow-lg hover:shadow-xl ${
+                    !newItem.name.trim()
+                      ? "bg-neutral-600 cursor-not-allowed opacity-50"
+                      : addItemLoading
+                      ? "bg-green-600/70 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700 hover:scale-[1.02]"
+                  }`}
+                >
+                  {addItemLoading ? (
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Adicionando...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                      Adicionar Item
+                    </div>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

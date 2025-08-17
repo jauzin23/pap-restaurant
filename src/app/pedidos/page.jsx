@@ -705,10 +705,12 @@ export default function OrdersPage() {
     );
 
   return (
-    <div className="min-h-screen flex flex-col bg-black">
+    <div className="min-h-screen bg-black flex flex-col relative overflow-hidden">
+      {/* Grid background (consistent with stock page) */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f0f0f_1px,transparent_1px),linear-gradient(to_bottom,#0f0f0f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] pointer-events-none z-0" />
       <Header user={user} logo="/logo-icon.svg" />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
         <div className="bg-neutral-900/60 backdrop-blur-sm border-b border-neutral-700">
           <div className="max-w-7xl mx-auto px-6 py-6">
@@ -758,7 +760,7 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-black">
+        <div className="flex-1 overflow-y-auto ">
           <div className="max-w-7xl mx-auto px-6 py-8">
             {/* Active Orders by Table */}
             {!showCompleted && (
@@ -1017,7 +1019,7 @@ export default function OrdersPage() {
               <section className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-white">
-                    pedidos Pagas
+                    Pedidos Pagos
                   </h2>
                   {paidOrders.length > 0 && (
                     <div className="text-sm text-white/60">
@@ -1030,10 +1032,10 @@ export default function OrdersPage() {
                   <div className="text-center py-16">
                     <div className="bg-neutral-900/60 backdrop-blur-sm rounded-xl border border-neutral-700 p-8 max-w-md mx-auto">
                       <p className="text-white/70 text-lg mb-2">
-                        Não há pedidos pagas hoje.
+                        Não há pedidos pagos hoje.
                       </p>
                       <p className="text-white/50 text-sm">
-                        As pedidos pagas aparecerão aqui
+                        As pedidos pagos aparecerão aqui
                       </p>
                     </div>
                   </div>
@@ -1220,7 +1222,7 @@ export default function OrdersPage() {
                     <select
                       value={tableNumber}
                       onChange={(e) => setTableNumber(e.target.value)}
-                      className="w-full px-3 py-2 bg-neutral-800/60 border border-neutral-600 rounded-xl text-white focus:outline-none focus:border-neutral-500"
+                      className="w-full px-3 py-2 bg-black border-2 border-white/20 rounded-xl text-white focus:outline-none focus:border-white/50 hover:border-white/30 transition-colors"
                     >
                       <option value="">Seleccionar Mesa</option>
                       {tables
@@ -1306,7 +1308,7 @@ export default function OrdersPage() {
                                       parseInt(e.target.value) || 0
                                     )
                                   }
-                                  className="w-full px-2 py-1 bg-neutral-700/60 border border-neutral-600 rounded-lg text-white text-sm"
+                                  className="w-full px-2 py-1 bg-black border border-white/30 rounded-lg text-white text-sm focus:outline-none focus:border-white/70 hover:border-white/50 transition-colors"
                                   min="1"
                                 />
                               </div>
@@ -1321,7 +1323,7 @@ export default function OrdersPage() {
                                   onChange={(e) =>
                                     updateItemPrice(idx, e.target.value)
                                   }
-                                  className="w-full px-2 py-1 bg-neutral-700/60 border border-neutral-600 rounded-lg text-white text-sm"
+                                  className="w-full px-2 py-1 bg-black border border-white/30 rounded-lg text-white text-sm focus:outline-none focus:border-white/70 hover:border-white/50 transition-colors"
                                 />
                               </div>
                             </div>
@@ -1334,7 +1336,7 @@ export default function OrdersPage() {
                                 onChange={(e) =>
                                   updateItemNotes(idx, e.target.value)
                                 }
-                                className="w-full px-2 py-1 bg-neutral-700/60 border border-neutral-600 rounded-lg text-white text-sm"
+                                className="w-full px-2 py-1 bg-black border border-white/30 rounded-lg text-white text-sm focus:outline-none focus:border-white/70 hover:border-white/50 transition-colors placeholder-white/70"
                                 rows={2}
                                 placeholder="Observações especiais..."
                               />
@@ -1369,7 +1371,7 @@ export default function OrdersPage() {
                     <button
                       onClick={() => setModalOpen(false)}
                       disabled={saving}
-                      className="flex-1 px-4 py-2 border border-neutral-600 text-white/80 rounded-xl hover:bg-neutral-800/60 disabled:opacity-50"
+                      className="flex-1 px-4 py-2 border-2 border-white/30 text-white rounded-xl hover:bg-white/10 hover:border-white/50 disabled:opacity-50 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -1378,11 +1380,11 @@ export default function OrdersPage() {
                       disabled={
                         !tableNumber || selectedItems.length === 0 || saving
                       }
-                      className="flex-1 px-4 py-2 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 border border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 px-4 py-2 bg-white text-black rounded-xl hover:bg-white/90 border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
                     >
                       {saving ? (
                         <div className="flex items-center justify-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
                           <span>
                             {editingOrder ? "Actualizar..." : "A criar..."}
                           </span>
@@ -1406,69 +1408,166 @@ export default function OrdersPage() {
                         type="text"
                         value={menuSearchTerm}
                         onChange={(e) => setMenuSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-neutral-800/60 border border-neutral-600 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-neutral-500"
-                        placeholder="Procurar por nome..."
+                        className="w-full pl-10 pr-4 py-2 bg-black border-2 border-white/20 rounded-xl text-white placeholder-white/70 focus:outline-none focus:border-white/50 hover:border-white/30 transition-colors"
+                        placeholder="Procurar por nome, categoria ou tag..."
                       />
                     </div>
                   </div>
 
-                  <div className="max-h-96 overflow-y-auto space-y-2">
-                    {menuItems
-                      .filter((item) =>
-                        item.nome
-                          .toLowerCase()
-                          .includes(menuSearchTerm.toLowerCase())
-                      )
-                      .map((item) => (
-                        <div
-                          key={item.$id}
-                          className="bg-neutral-800/60 p-3 rounded-xl border border-neutral-700 hover:border-neutral-600 cursor-pointer hover:bg-neutral-800/80"
-                          onClick={() => addItemToOrder(item)}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-white">
-                                {item.nome}
-                              </h4>
-                              {item.descricao && (
-                                <p className="text-sm text-white/60 mt-1">
-                                  {item.descricao}
-                                </p>
-                              )}
-                            </div>
-                            <span className="font-bold text-white ml-2">
-                              €{Number(item.preco || 0).toFixed(2)}
-                            </span>
-                          </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {(() => {
+                      // Filter items first
+                      const filteredItems = menuItems.filter((item) => {
+                        const searchLower = menuSearchTerm.toLowerCase();
+                        return (
+                          item.nome.toLowerCase().includes(searchLower) ||
+                          (item.descricao &&
+                            item.descricao
+                              .toLowerCase()
+                              .includes(searchLower)) ||
+                          (item.category &&
+                            item.category
+                              .toLowerCase()
+                              .includes(searchLower)) ||
+                          (item.tags &&
+                            item.tags.some((tag) =>
+                              tag.toLowerCase().includes(searchLower)
+                            ))
+                        );
+                      });
 
-                          {/* Ingredients badges */}
-                          {item.ingredientes && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {Array.isArray(item.ingredientes)
-                                ? item.ingredientes.map((ingredient, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2 py-1 bg-neutral-700/60 text-white/70 text-xs rounded-lg border border-neutral-600"
-                                    >
-                                      {ingredient}
+                      // Group by category
+                      const groupedItems = filteredItems.reduce((acc, item) => {
+                        const category = item.category || "Sem Categoria";
+                        if (!acc[category]) {
+                          acc[category] = [];
+                        }
+                        acc[category].push(item);
+                        return acc;
+                      }, {});
+
+                      // Sort categories: put "Sem Categoria" last
+                      const sortedCategories = Object.keys(groupedItems).sort(
+                        (a, b) => {
+                          if (a === "Sem Categoria") return 1;
+                          if (b === "Sem Categoria") return -1;
+                          return a.localeCompare(b);
+                        }
+                      );
+
+                      return (
+                        <div className="space-y-4">
+                          {sortedCategories.map((category) => (
+                            <div key={category} className="space-y-2">
+                              {/* Category Header */}
+                              <div className="sticky top-0 bg-neutral-900/95 backdrop-blur-sm border-b border-neutral-700 pb-2 mb-2">
+                                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                  {category === "Sem Categoria" ? (
+                                    <span className="px-2 py-1 bg-neutral-700/50 text-neutral-300 text-sm rounded-lg border border-neutral-600">
+                                      {category}
                                     </span>
-                                  ))
-                                : typeof item.ingredientes === "string"
-                                ? item.ingredientes
-                                    .split(",")
-                                    .map((ingredient, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="px-2 py-1 bg-neutral-700/60 text-white/70 text-xs rounded-lg border border-neutral-600"
-                                      >
-                                        {ingredient.trim()}
+                                  ) : (
+                                    <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-lg border border-blue-500/30">
+                                      {category}
+                                    </span>
+                                  )}
+                                  <span className="text-sm text-white/50">
+                                    ({groupedItems[category].length}{" "}
+                                    {groupedItems[category].length === 1
+                                      ? "item"
+                                      : "itens"}
+                                    )
+                                  </span>
+                                </h3>
+                              </div>
+
+                              {/* Category Items */}
+                              <div className="space-y-2">
+                                {groupedItems[category].map((item) => (
+                                  <div
+                                    key={item.$id}
+                                    className="bg-neutral-800/60 p-3 rounded-xl border border-neutral-700 hover:border-neutral-600 cursor-pointer hover:bg-neutral-800/80 transition-all duration-200"
+                                    onClick={() => addItemToOrder(item)}
+                                  >
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="flex-1">
+                                        <h4 className="font-medium text-white">
+                                          {item.nome}
+                                        </h4>
+                                        {item.descricao && (
+                                          <p className="text-sm text-white/60 mt-1">
+                                            {item.descricao}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <span className="font-bold text-white ml-2">
+                                        €{Number(item.preco || 0).toFixed(2)}
                                       </span>
-                                    ))
-                                : null}
+                                    </div>
+
+                                    {/* Tags */}
+                                    {item.tags && item.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mb-2">
+                                        {item.tags.map((tag, idx) => (
+                                          <span
+                                            key={idx}
+                                            className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg border border-purple-500/30"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Ingredients */}
+                                    {item.ingredientes &&
+                                      item.ingredientes.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                          {Array.isArray(item.ingredientes)
+                                            ? item.ingredientes.map(
+                                                (ingredient, idx) => (
+                                                  <span
+                                                    key={idx}
+                                                    className="px-2 py-1 bg-neutral-700/60 text-white/70 text-xs rounded-lg border border-neutral-600"
+                                                  >
+                                                    {ingredient}
+                                                  </span>
+                                                )
+                                              )
+                                            : typeof item.ingredientes ===
+                                              "string"
+                                            ? item.ingredientes
+                                                .split(",")
+                                                .map((ingredient, idx) => (
+                                                  <span
+                                                    key={idx}
+                                                    className="px-2 py-1 bg-neutral-700/60 text-white/70 text-xs rounded-lg border border-neutral-600"
+                                                  >
+                                                    {ingredient.trim()}
+                                                  </span>
+                                                ))
+                                            : null}
+                                        </div>
+                                      )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+
+                          {filteredItems.length === 0 && (
+                            <div className="text-center py-8">
+                              <p className="text-white/60">
+                                Nenhum item encontrado
+                              </p>
+                              <p className="text-white/40 text-sm mt-1">
+                                Tente procurar por outro termo
+                              </p>
                             </div>
                           )}
                         </div>
-                      ))}
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1520,7 +1619,7 @@ export default function OrdersPage() {
             <div className="flex gap-3">
               <button
                 onClick={hideConfirm}
-                className="flex-1 px-4 py-2 border border-neutral-600 text-white/80 rounded-lg hover:bg-neutral-800/60"
+                className="flex-1 px-4 py-2 border-2 border-white/30 text-white rounded-lg hover:bg-white/10 hover:border-white/50 transition-colors"
               >
                 Cancelar
               </button>
