@@ -26,13 +26,27 @@ export default function DashboardPage() {
     }
   }, [router, loading, user]);
 
-  // Show loading while checking user
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/70">A carregar dashboard...</p>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Background grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f0f0f_1px,transparent_1px),linear-gradient(to_bottom,#0f0f0f_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Loading spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-white/10 rounded-full"></div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-t-purple-500 border-r-pink-500 border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+          </div>
+
+          {/* Logo and text */}
+          <div className="mt-8 text-center">
+            <div className="mb-4 flex justify-center"></div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent mb-2">
+              Mesa+
+            </h2>
+            <p className="text-white/50 text-sm">A carregar o dashboard...</p>
+          </div>
         </div>
       </div>
     );

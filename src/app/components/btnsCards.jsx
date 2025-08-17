@@ -6,6 +6,7 @@ import {
   BookOpen,
   ShoppingCart,
   CalendarCheck,
+  Boxes,
   Clock,
   LogIn,
   LogOut,
@@ -32,6 +33,12 @@ const cards = [
     description: "Ver reservas atuais",
     href: "/reservas",
     icon: CalendarCheck,
+  },
+  {
+    title: "Stock",
+    description: "Gerir stock",
+    href: "/stock",
+    icon: Boxes,
   },
 ];
 
@@ -102,17 +109,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   async function handleClockIn() {
     setClockLoading(true);
     try {
-      // Debug: Log do objeto user completo
-      console.log("🔍 DEBUG - User object:", user);
-      console.log("🔍 DEBUG - User object keys:", Object.keys(user));
-      console.log("🔍 DEBUG - user.label:", user.label);
-      console.log("🔍 DEBUG - user.labels:", user.labels); // Teste se é 'labels' em vez de 'label'
-      console.log("🔍 DEBUG - typeof user.label:", typeof user.label);
-      console.log(
-        "🔍 DEBUG - Array.isArray(user.label):",
-        Array.isArray(user.label)
-      );
-
       // Garante que labels seja sempre array de string(s) ou string, nunca undefined
       const labelValue =
         typeof user.labels === "string"
@@ -120,8 +116,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
           : Array.isArray(user.labels)
           ? user.labels
           : [];
-
-      console.log("🔍 DEBUG - labelValue final:", labelValue);
 
       const newRecord = {
         $id: `temp-${Date.now()}`,
@@ -131,7 +125,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
         clockIn: new Date().toISOString(),
       };
 
-      console.log("🔍 DEBUG - newRecord que será salvo:", newRecord);
       setUserClockStatus(newRecord);
 
       const response = await databases.createDocument(
@@ -146,7 +139,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
         }
       );
 
-      console.log("🔍 DEBUG - Response do banco de dados:", response);
       setUserClockStatus(response);
     } catch (err) {
       console.error("Erro ao marcar entrada:", err);
@@ -187,7 +179,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   );
 
   return (
-    <section className="border-b border-white/10 bg-neutral-900/95 shadow-lg text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-hidden">
+    <section className="border-b border-white/10 bg-neutral-900/95 shadow-lg text-white w-full md:w-20 xl:w-72 h-full flex-shrink-0 border-r flex flex-col relative overflow-y-auto">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -420,7 +412,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
                   title={!userClockStatus ? "Marcar Entrada" : "Marcar Saída"}
                 >
                   {clockLoading ? (
-                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3 h-full border border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
                       {!userClockStatus ? (

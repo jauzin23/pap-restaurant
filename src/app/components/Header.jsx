@@ -51,8 +51,6 @@ const Header = memo(function Header({ user, logo }) {
   useEffect(() => {
     if (!user?.$id) return;
 
-    console.log("🔥 Header - Setting up REAL-TIME clock tracking");
-
     const unsubscribe = client.subscribe(
       [`databases.${DB_ATTENDANCE}.collections.${COL_ATTENDANCE}.documents`],
       (response) => {
@@ -60,8 +58,6 @@ const Header = memo(function Header({ user, logo }) {
         const payload = response.payload;
 
         if (payload?.userId === user.$id) {
-          console.log("⏰ Header - INSTANT clock status update");
-
           if (eventType.includes(".create") && !payload.clockOut) {
             setUserClockStatus(payload);
           } else if (eventType.includes(".update") && payload.clockOut) {
@@ -74,7 +70,6 @@ const Header = memo(function Header({ user, logo }) {
     );
 
     return () => {
-      console.log("🧹 Header - Cleaning up real-time subscriptions");
       unsubscribe();
     };
   }, [user?.$id, fetchUserClockStatus, client]);
@@ -165,10 +160,10 @@ const Header = memo(function Header({ user, logo }) {
             )}
             <div className="hidden sm:block min-w-0">
               <h1 className="text-lg lg:text-xl font-bold text-white truncate">
-                PAP Restaurant
+                MESA+
               </h1>
               <p className="text-xs text-white/60 truncate">
-                Sistema de Gestão
+                Gestão De Restaurante
               </p>
             </div>
 

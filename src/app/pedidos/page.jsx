@@ -256,12 +256,9 @@ export default function OrdersPage() {
   }, [databases]);
 
   const subscribeToOrders = useCallback(() => {
-    console.log("Setting up orders subscription...");
     const unsubscribe = client.subscribe(
       `databases.${DB_ID}.collections.${ORDERS_COLLECTION_ID}.documents`,
       (response) => {
-        console.log("Real-time order event:", response);
-
         // Handle different events
         if (
           response.events.some(
@@ -283,12 +280,9 @@ export default function OrdersPage() {
   }, [client, fetchOrders]);
 
   const subscribeToTables = useCallback(() => {
-    console.log("Setting up tables subscription...");
     const unsubscribe = client.subscribe(
       `databases.${DB_ID}.collections.${TABLES_COLLECTION_ID}.documents`,
       (response) => {
-        console.log("Real-time table event:", response);
-
         // Immediate table update
         setTimeout(() => {
           fetchTables();

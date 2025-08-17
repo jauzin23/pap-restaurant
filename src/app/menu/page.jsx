@@ -55,13 +55,9 @@ export default function MenuPage() {
 
   const subscribeToMenu = useCallback(() => {
     try {
-      console.log("Setting up menu subscription...");
-
       const unsubscribe = client.subscribe(
         `databases.${DB_ID}.collections.${COLLECTION_ID}.documents`,
         (response) => {
-          console.log("Real-time menu event:", response);
-
           if (
             response.events.some(
               (event) =>
@@ -233,9 +229,7 @@ export default function MenuPage() {
             <h2 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent mb-2">
               Mesa+
             </h2>
-            <p className="text-white/50 text-sm">
-              A carregar o seu dashboard...
-            </p>
+            <p className="text-white/50 text-sm">A carregar o dashboard...</p>
           </div>
         </div>
       </div>

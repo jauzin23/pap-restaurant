@@ -12,6 +12,9 @@ const COL_MENU = "689d00e2001afa755161";
 const COL_ORDERS = "689deb6800375112de90";
 const COL_TABLES = "689c9a26000b5abf71c8";
 const COL_ATTENDANCE = "689f484b000af0ce9173";
+const COL_STOCK = "68a1f4b1002d0630a22d";
+const COL_TAGS = "68a2122700108d29391d";
+const COL_CATEGORY = "68a211d80028d7e913b5";
 
 export {
   client,
@@ -23,4 +26,5 @@ export {
   COL_ORDERS,
   COL_TABLES,
   COL_ATTENDANCE,
+  COL_STOCK,
 };

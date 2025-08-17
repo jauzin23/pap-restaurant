@@ -568,8 +568,6 @@ const RestLayout = React.memo(function RestLayout({
             },
           };
         });
-        console.log("Fetched tables:", tablesData);
-        console.log("Restaurant size:", restaurantSize);
         setTables(tablesData);
       } catch (err) {
         console.error("Error fetching tables:", err);

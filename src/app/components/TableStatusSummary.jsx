@@ -27,7 +27,6 @@ export default function TableStatusSummary() {
         [Query.limit(100)]
       );
       setTables(response.documents);
-      console.log("Mesas carregadas:", response.documents.length);
     } catch (err) {
       console.error("Erro ao carregar mesas:", err);
     }
@@ -56,7 +55,6 @@ export default function TableStatusSummary() {
 
       setRevenue(total);
       setLastOrders(orders.slice(0, 3));
-      console.log("Faturação carregada:", total, "€");
     } catch (err) {
       console.error("Erro ao carregar faturação:", err);
       setRevenue(0);
@@ -74,11 +72,9 @@ export default function TableStatusSummary() {
   useEffect(() => {
     if (!client) return;
 
-    console.log("Configurando tempo real para mesas");
     const unsubscribe = client.subscribe(
       `databases.${DBRESTAURANTE}.collections.${COL_TABLES}.documents`,
       (response) => {
-        console.log("Mesa atualizada:", response.payload?.tableNumber);
         loadTables(); // Recarregar mesas
       }
     );
@@ -90,12 +86,10 @@ export default function TableStatusSummary() {
   useEffect(() => {
     if (!client) return;
 
-    console.log("Configurando tempo real para pedidos");
     const unsubscribe = client.subscribe(
       `databases.${DBRESTAURANTE}.collections.${COL_ORDERS}.documents`,
       (response) => {
         if (response.payload?.status === "pago") {
-          console.log("Pedido pago - atualizando faturação");
           loadRevenue(); // Recarregar faturação
         }
       }

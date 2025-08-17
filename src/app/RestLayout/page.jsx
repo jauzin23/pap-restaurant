@@ -38,9 +38,7 @@ export default function RestLayout() {
             <h2 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent mb-2">
               Mesa+
             </h2>
-            <p className="text-white/50 text-sm">
-              A carregar o seu dashboard...
-            </p>
+            <p className="text-white/50 text-sm">A carregar o dashboard...</p>
           </div>
         </div>
       </div>
