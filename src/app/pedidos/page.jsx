@@ -151,7 +151,7 @@ export default function OrdersPage() {
   // Effects
   useEffect(() => {
     fetchUser();
-  }, [account, router]);
+  }, [fetchUser]);
 
   useEffect(() => {
     if (user) {
@@ -169,7 +169,14 @@ export default function OrdersPage() {
         tablesUnsubscribe();
       };
     }
-  }, [user, databases, client]);
+  }, [
+    user,
+    fetchOrders,
+    fetchMenuItems,
+    fetchTables,
+    subscribeToOrders,
+    subscribeToTables,
+  ]);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -191,7 +198,7 @@ export default function OrdersPage() {
     } catch (err) {
       console.error("Error fetching orders:", err);
     }
-  }, [databases]);
+  }, [databases, updateTableStatuses]);
 
   // Function to update table statuses based on actual orders
   async function updateTableStatuses(currentOrders) {
@@ -282,7 +289,7 @@ export default function OrdersPage() {
   const subscribeToTables = useCallback(() => {
     const unsubscribe = client.subscribe(
       `databases.${DB_ID}.collections.${TABLES_COLLECTION_ID}.documents`,
-      (response) => {
+      () => {
         // Immediate table update
         setTimeout(() => {
           fetchTables();
@@ -775,7 +782,7 @@ export default function OrdersPage() {
                         Não há pedidos ativos no momento.
                       </p>
                       <p className="text-white/50 text-sm">
-                        Clique em "Novo Pedido" para começar
+                        Clique em &quot;Novo Pedido&quot; para começar
                       </p>
                     </div>
                   </div>

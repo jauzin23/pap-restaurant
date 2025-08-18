@@ -27,7 +27,7 @@ export default function ManagerStaffView({ user, isManager }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userDetailsCache, setUserDetailsCache] = useState(new Map());
 
-  const { databases, client, users } = useApp();
+  const { databases, client } = useApp();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -53,7 +53,7 @@ export default function ManagerStaffView({ user, isManager }) {
         }
 
         return { name: "Funcionário", labels: [] };
-      } catch (error) {
+      } catch {
         return { name: "Funcionário", labels: [] };
       }
     },
@@ -94,7 +94,7 @@ export default function ManagerStaffView({ user, isManager }) {
     } finally {
       setLoading(false);
     }
-  }, [isManager, databases, getUserDetails]);
+  }, [isManager, databases]);
 
   useEffect(() => {
     if (!isManager) return;

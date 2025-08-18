@@ -48,9 +48,6 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   const [userClockStatus, setUserClockStatus] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
 
-  const getBackdropClass = (baseClass) => baseClass;
-  const getShadowClass = () => "shadow-lg";
-
   const fetchUserClockStatus = useCallback(async () => {
     if (!user?.$id) return;
 
@@ -285,7 +282,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
         {/* Navigation Cards */}
         <div className="flex-1 flex flex-col md:flex-col xl:flex-col gap-2 md:gap-3 xl:gap-4 p-3 md:p-2 xl:p-6">
-          {cards.map((card, i) => {
+          {cards.map((card) => {
             const Icon = card.icon;
 
             return (
