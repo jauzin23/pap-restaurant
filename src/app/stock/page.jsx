@@ -760,13 +760,13 @@ export default function Stock() {
                           Stock Baixo
                         </h3>
                         <span className="px-3 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-sm font-medium text-yellow-300">
-                          {warningStock.length}{" "}
+                          {warningStock.length}&nbsp;
                           {warningStock.length === 1 ? "item" : "itens"}
                         </span>
                       </div>
                       <p className="text-yellow-300/90 mb-4">
-                        Produtos próximos do limite mínimo. Considere fazer
-                        reposição em breve.
+                        Produtos pr&oacute;ximos do limite m&iacute;nimo.
+                        Considere fazer reposi&ccedil;&atilde;o em breve.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {warningStock.slice(0, 10).map((item) => (
