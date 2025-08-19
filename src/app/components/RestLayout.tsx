@@ -641,7 +641,7 @@ const RestLayout = React.memo(function RestLayout({
   }
 
   return (
-    <div className=" rounded-lg bg-black/80 backdrop-blur-lg border border-white/10">
+    <div className=" rounded-lg bg-black backdrop-blur-lg border border-white/10">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between p-3 lg:p-8 border-b border-white/10 gap-3">
         <div className="flex items-center gap-2 lg:gap-5 min-w-0">

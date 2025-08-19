@@ -8,6 +8,7 @@ import { LogOut, Star, Users, ChefHat, Clock } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import { Query } from "appwrite";
 import { DB_ATTENDANCE, COL_ATTENDANCE } from "@/lib/appwrite";
+import ShinyText from "./ShinyText";
 
 const Header = memo(function Header({ user, logo }) {
   const router = useRouter();
@@ -160,7 +161,12 @@ const Header = memo(function Header({ user, logo }) {
             )}
             <div className="hidden sm:block min-w-0">
               <h1 className="text-lg lg:text-xl font-bold text-white truncate">
-                MESA+
+                <ShinyText
+                  text="MESA+"
+                  disabled={false}
+                  speed={2}
+                  className="custom-class"
+                />
               </h1>
               <p className="text-xs text-white/60 truncate">
                 Gestão De Restaurante
@@ -234,14 +240,14 @@ const Header = memo(function Header({ user, logo }) {
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 disabled:opacity-50 h-10 md:h-12 justify-center"
+              className="flex items-center px-3 md:px-4 py-2 md:py-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 disabled:opacity-50 h-10 md:h-12 justify-center"
             >
               <LogOut
                 size={14}
                 className={clsx(isLoggingOut && "animate-spin")}
               />
               <span className="hidden xl:inline text-sm font-medium">
-                {isLoggingOut ? "Saindo..." : "Sair"}
+                {isLoggingOut ? "Saindo..." : ""}
               </span>
             </button>
           </div>

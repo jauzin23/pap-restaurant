@@ -5,6 +5,7 @@ import { Users, DollarSign } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import { Query } from "appwrite";
 import { DBRESTAURANTE, COL_TABLES, COL_ORDERS } from "@/lib/appwrite";
+import CountUp from "./CountUp";
 
 function getTodayDateString() {
   return new Date().toISOString().split("T")[0];
@@ -109,7 +110,7 @@ export default function TableStatusSummary() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-6 rounded-lg bg-black/80 backdrop-blur-lg border border-white/10">
+      <div className="flex items-center justify-center p-6 rounded-lg bg-black backdrop-blur-lg border border-white/10">
         <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       </div>
     );
@@ -118,7 +119,7 @@ export default function TableStatusSummary() {
   return (
     <div className="grid md:gap-6">
       {/* Card das Mesas */}
-      <div className="p-4 md:p-6 rounded-lg bg-black/80 backdrop-blur-lg border border-white/10">
+      <div className="p-4 md:p-6 rounded-lg bg-black backdrop-blur-lg border border-white/10">
         <div className="flex items-center gap-3 mb-4 md:mb-6">
           <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">
             <Users
@@ -184,7 +185,7 @@ export default function TableStatusSummary() {
       </div>
 
       {/* Card da Faturação */}
-      <div className="p-4 md:p-6 rounded-lg bg-black/80 backdrop-blur-lg border border-white/10">
+      <div className="p-4 md:p-6 rounded-lg bg-black backdrop-blur-lg border border-white/10">
         <div className="flex items-center gap-3 mb-4 md:mb-6">
           <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center border border-emerald-500/20">
             <DollarSign
@@ -207,7 +208,17 @@ export default function TableStatusSummary() {
                 €
               </span>
               <span className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none">
-                {revenue.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}
+                <CountUp
+                  from={0}
+                  to={revenue.toLocaleString("pt-PT", {
+                    minimumFractionDigits: 2,
+                  })}
+                  separator=","
+                  direction="up"
+                  duration={0.5}
+                  className="count-up-text"
+                />
+                {}
               </span>
             </div>
             <p className="text-sm text-white/60 mt-2 text-center font-medium">

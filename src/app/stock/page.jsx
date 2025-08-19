@@ -344,15 +344,15 @@ export default function Stock() {
         isMovementMode
           ? "cursor-pointer hover:border-purple-500/50 active:scale-95"
           : ""
-      }`}
+      } select-none`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-white text-lg truncate group-hover:text-purple-300 transition-colors">
+          <h4 className="font-bold text-white text-lg truncate group-hover:text-purple-300 transition-colors select-none">
             {item.name}
           </h4>
-          <p className="text-sm text-neutral-400 truncate">
+          <p className="text-sm text-neutral-400 truncate select-none">
             {item.category || item.description}
           </p>
         </div>
@@ -361,7 +361,7 @@ export default function Stock() {
             item.qty <= item.min_qty
               ? "bg-red-500/20 text-red-300 border border-red-500/30"
               : "bg-green-500/20 text-green-300 border border-green-500/30"
-          }`}
+          } select-none`}
         >
           {item.qty <= item.min_qty ? "Baixo" : "OK"}
         </div>
@@ -369,23 +369,27 @@ export default function Stock() {
 
       <div className="space-y-2 mb-4">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-neutral-400">Stock atual</span>
+          <span className="text-sm text-neutral-400 select-none">
+            Stock atual
+          </span>
           <span
             className={`font-mono font-bold text-lg ${
               item.qty <= item.min_qty ? "text-red-400" : "text-green-400"
-            }`}
+            } select-none`}
           >
             {item.qty}
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-sm text-neutral-400">Mínimo</span>
-          <span className="font-mono text-yellow-400">{item.min_qty}</span>
+          <span className="text-sm text-neutral-400 select-none">Mínimo</span>
+          <span className="font-mono text-yellow-400 select-none">
+            {item.min_qty}
+          </span>
         </div>
         {item.cost_price && (
           <div className="flex justify-between items-center">
-            <span className="text-sm text-neutral-400">Preço</span>
-            <span className="font-mono text-blue-400">
+            <span className="text-sm text-neutral-400 select-none">Preço</span>
+            <span className="font-mono text-blue-400 select-none">
               €{item.cost_price.toFixed(2)}
             </span>
           </div>
@@ -393,8 +397,8 @@ export default function Stock() {
       </div>
 
       <div className="flex items-center justify-between text-xs text-neutral-500">
-        <span>{item.supplier || "N/A"}</span>
-        <span>{item.location || "N/A"}</span>
+        <span className="select-none">{item.supplier || "N/A"}</span>
+        <span className="select-none">{item.location || "N/A"}</span>
       </div>
     </div>
   );
@@ -632,7 +636,7 @@ export default function Stock() {
               onClick={() => handleTabSwitch("overview")}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
                 activeTab === "overview"
-                  ? "bg-purple-600 text-white shadow-lg"
+                  ? "bg-purple-600 text-white"
                   : "bg-neutral-800/50 text-neutral-400 hover:text-white hover:bg-neutral-700/50 border border-neutral-700"
               }`}
             >
@@ -774,7 +778,6 @@ export default function Stock() {
                             key={item.$id}
                             onClick={() => {
                               handleTabSwitch("movement");
-                              handleItemClick(item);
                             }}
                             className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded-lg text-yellow-200 text-sm font-medium transition-colors"
                           >
@@ -794,7 +797,7 @@ export default function Stock() {
             </div>
 
             {/* Overview table */}
-            <div className="bg-neutral-900/80 rounded-xl shadow-lg border border-neutral-700 overflow-hidden">
+            <div className="bg-neutral-900 rounded-xl shadow-lg border border-neutral-700 overflow-hidden">
               <div className="p-4 border-b border-neutral-700">
                 <h1 className="text-2xl font-bold text-white">Inventário</h1>
                 <p className="text-neutral-400 text-sm">

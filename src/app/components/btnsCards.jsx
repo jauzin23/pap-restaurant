@@ -29,16 +29,16 @@ const cards = [
     icon: ShoppingCart,
   },
   {
-    title: "Reservas",
-    description: "Ver reservas atuais",
-    href: "/reservas",
-    icon: CalendarCheck,
-  },
-  {
     title: "Stock",
     description: "Gerir stock",
     href: "/stock",
     icon: Boxes,
+  },
+  {
+    title: "Reservas",
+    description: "Ver reservas atuais",
+    href: "/reservas",
+    icon: CalendarCheck,
   },
 ];
 
@@ -47,6 +47,9 @@ const BtnsCards = memo(function BtnsCards({ user }) {
   const { databases, client } = useApp();
   const [userClockStatus, setUserClockStatus] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
+
+  const getBackdropClass = (baseClass) => baseClass;
+  const getShadowClass = () => "shadow-lg";
 
   const fetchUserClockStatus = useCallback(async () => {
     if (!user?.$id) return;
@@ -282,7 +285,7 @@ const BtnsCards = memo(function BtnsCards({ user }) {
 
         {/* Navigation Cards */}
         <div className="flex-1 flex flex-col md:flex-col xl:flex-col gap-2 md:gap-3 xl:gap-4 p-3 md:p-2 xl:p-6">
-          {cards.map((card) => {
+          {cards.map((card, i) => {
             const Icon = card.icon;
 
             return (

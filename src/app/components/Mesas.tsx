@@ -67,7 +67,7 @@ interface AppwriteDocument {
 
 interface AppwriteResponse {
   payload: AppwriteDocument;
-  events: string[]; // Keeping track of events
+  events: string[];
 }
 
 interface ChairPosition {
@@ -248,7 +248,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   // Recalculate dimensions when dependencies change
   const maxDimensions = useMemo(
     () => getMaxDimensions(),
-    [restaurantSize, windowSize.width] // Removed windowSize.height for optimization
+    [restaurantSize, windowSize.width, windowSize.height]
   );
 
   // Check for unsaved changes
