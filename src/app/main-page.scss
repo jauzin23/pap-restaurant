@@ -1,0 +1,413 @@
+// Main Page Styles - Restaurant Dashboard Redesign
+// Updated to work correctly with fixed header and sidebar
+
+// Variables
+$primary-black: #000000;
+$card-bg: #111111;
+$border-color: #222222;
+$text-primary: #ffffff;
+$text-secondary: #888888;
+$accent-color: #ffffff;
+$hover-bg: #1a1a1a;
+$success-color: #00ff00;
+$error-color: #ff4444;
+$warning-color: #ffaa00;
+
+// Fonts
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap");
+
+.main-page-container {
+  min-height: 100vh;
+  background: $primary-black;
+  color: $text-primary;
+  font-family: "JetBrains Mono", monospace;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+
+  .main-page-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .main-page-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+    margin-top: 80px; // Space for fixed header
+    margin-left: 280px; // Space for fixed sidebar
+
+    .main-content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 40px;
+      min-height: 0;
+
+      .content-grid {
+        display: grid;
+        gap: 24px;
+        width: 100%;
+        min-height: min-content;
+
+        // RestLayout as primary component - give it more space
+        .component-wrapper:first-child {
+          grid-column: 1 / -1;
+          min-height: 600px;
+        }
+
+        .component-wrapper {
+          background: $card-bg;
+          border: 1px solid $border-color;
+          border-radius: 8px;
+          padding: 24px;
+          position: relative;
+          transition: all 0.2s ease;
+          overflow: hidden;
+
+          &:hover {
+            border-color: #333;
+            transform: translateY(-1px);
+          }
+
+          // Dashboard-style headers
+          .component-header {
+            padding: 24px;
+            border-bottom: 1px solid $border-color;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            h2,
+            h3 {
+              font-size: 18px;
+              font-weight: 600;
+              margin: 0;
+              color: $text-primary;
+            }
+
+            .component-icon {
+              width: 32px;
+              height: 32px;
+              background: $accent-color;
+              border-radius: 4px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              &::after {
+                content: "";
+                width: 16px;
+                height: 16px;
+                background: $primary-black;
+                border-radius: 2px;
+              }
+            }
+          }
+
+          // Dashboard-style content
+          .component-content {
+            padding: 16px 24px;
+
+            .content-item {
+              display: flex;
+              align-items: center;
+              gap: 16px;
+              padding: 16px 0;
+              border-bottom: 1px solid $border-color;
+              transition: all 0.2s ease;
+
+              &:last-child {
+                border-bottom: none;
+              }
+
+              &:hover {
+                background: rgba(255, 255, 255, 0.02);
+              }
+
+              .item-icon {
+                width: 32px;
+                height: 32px;
+                background: $accent-color;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+
+                &::after {
+                  content: "";
+                  width: 16px;
+                  height: 16px;
+                  background: $primary-black;
+                  border-radius: 2px;
+                }
+              }
+
+              .item-content {
+                flex: 1;
+
+                .item-title {
+                  font-size: 14px;
+                  font-weight: 500;
+                  margin-bottom: 2px;
+                  color: $text-primary;
+                }
+
+                .item-subtitle {
+                  font-size: 12px;
+                  color: $text-secondary;
+                }
+              }
+
+              .item-meta {
+                text-align: right;
+                flex-shrink: 0;
+
+                .meta-value {
+                  font-size: 12px;
+                  color: $text-secondary;
+                  margin-bottom: 2px;
+                }
+
+                .status-dot {
+                  width: 6px;
+                  height: 6px;
+                  border-radius: 50%;
+                  background: $text-secondary;
+                  margin-left: auto;
+
+                  &.active {
+                    background: #00ff00;
+                    box-shadow: 0 0 4px #00ff00;
+                  }
+
+                  &.warning {
+                    background: #ffaa00;
+                    box-shadow: 0 0 4px #ffaa00;
+                  }
+
+                  &.error {
+                    background: #ff4444;
+                    box-shadow: 0 0 4px #ff4444;
+                  }
+                }
+              }
+            }
+          }
+
+          // Legacy styling for non-dashboard styled components
+          h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            color: $text-primary;
+          }
+
+          h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: $text-primary;
+          }
+
+          p {
+            font-size: 14px;
+            color: $text-secondary;
+            margin: 0 0 16px 0;
+            line-height: 1.5;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Loading state
+.loading-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+
+  .loading-spinner {
+    position: relative;
+    width: 48px;
+    height: 48px;
+
+    .spinner-base {
+      width: 100%;
+      height: 100%;
+      border: 3px solid $border-color;
+      border-radius: 50%;
+    }
+
+    .spinner-active {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 3px solid transparent;
+      border-top: 3px solid $accent-color;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .loading-content {
+    text-align: center;
+
+    .loading-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: $text-primary;
+      margin: 0 0 8px 0;
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: $text-secondary;
+      margin: 0;
+    }
+  }
+}
+
+// Legacy loading state (keeping for compatibility)
+.main-page-loading {
+  min-height: 100vh;
+  background: $primary-black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+  font-family: "JetBrains Mono", monospace;
+
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid $border-color;
+    border-top: 3px solid $accent-color;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    text-align: center;
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: $text-primary;
+      margin: 0 0 8px 0;
+    }
+
+    p {
+      font-size: 14px;
+      color: $text-secondary;
+      margin: 0;
+    }
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Scrollbar styling (matching dashboard)
+.main-content-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-content-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-content-area::-webkit-scrollbar-thumb {
+  background: $border-color;
+  border-radius: 3px;
+}
+
+.main-content-area::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
+
+// Responsive Design
+@media (max-width: 1024px) {
+  .main-page-container {
+    .main-page-content {
+      margin-left: 260px; // Match smaller sidebar width
+    }
+
+    .main-content-area {
+      padding: 32px;
+
+      .content-grid {
+        gap: 20px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .main-page-container {
+    .main-page-content {
+      margin-left: 0; // No sidebar margin on mobile
+      margin-top: 80px; // Keep header space
+    }
+
+    .main-content-area {
+      padding: 16px;
+
+      .content-grid {
+        gap: 16px;
+
+        .component-wrapper {
+          padding: 16px;
+
+          .component-header {
+            padding: 16px;
+          }
+
+          .component-content {
+            padding: 12px 16px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Additional mobile styles for when sidebar is shown
+@media (max-width: 768px) {
+  .main-page-container {
+    &.sidebar-open {
+      .main-page-content {
+        &::before {
+          content: "";
+          position: fixed;
+          top: 80px;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 44;
+        }
+      }
+    }
+  }
+}

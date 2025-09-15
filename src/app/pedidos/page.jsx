@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   ArrowLeft,
@@ -15,6 +15,8 @@ import {
   History,
   ChevronDown,
   ChevronRight,
+  Edit,
+  CreditCard,
 } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import { Query } from "appwrite";
@@ -35,6 +37,7 @@ const TABLES_COLLECTION_ID = COL_TABLES;
 
 export default function OrdersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { databases, account, client } = useApp();
 
   // State declarations
@@ -56,6 +59,7 @@ export default function OrdersPage() {
   const [expandedTables, setExpandedTables] = useState(new Set());
   const [paidOrdersPage, setPaidOrdersPage] = useState(1);
   const [ordersPerPage] = useState(25);
+  const [multiTableMode, setMultiTableMode] = useState(null); // Array of table numbers for multi-table orders
 
   // Paid orders filtering and sorting
   const [paidOrdersSearch, setPaidOrdersSearch] = useState("");
@@ -193,20 +197,48 @@ export default function OrdersPage() {
   // Table grouping functions
   function groupOrdersByTable(orders) {
     return orders.reduce((grouped, order) => {
-      const table = order.numeroMesa.toString();
-      if (!grouped[table]) {
-        grouped[table] = [];
+      // Only group single-table orders by table
+      const tables = Array.isArray(order.numeroMesa)
+        ? order.numeroMesa
+        : [order.numeroMesa];
+
+      // Only include single-table orders in table sections
+      if (tables.length === 1) {
+        const table = tables[0].toString();
+        if (!grouped[table]) {
+          grouped[table] = [];
+        }
+        grouped[table].push(order);
       }
-      grouped[table].push(order);
       return grouped;
     }, {});
   }
 
+  // Get multi-table orders (orders that span multiple tables)
+  function getMultiTableOrders(orders) {
+    return orders.filter((order) => {
+      const tables = Array.isArray(order.numeroMesa)
+        ? order.numeroMesa
+        : [order.numeroMesa];
+      return tables.length > 1;
+    });
+  }
+
+  // Get single table orders for a specific table
+  function getSingleTableOrders(orders, tableNumber) {
+    return orders.filter((order) => {
+      const tables = Array.isArray(order.numeroMesa)
+        ? order.numeroMesa
+        : [order.numeroMesa];
+      return (
+        tables.length === 1 && tables[0].toString() === tableNumber.toString()
+      );
+    });
+  }
+
   function getTableTotal(tableNumber) {
-    const tableOrders = activeOrders.filter(
-      (order) =>
-        order.numeroMesa.toString() === tableNumber.toString() && !order.paid
-    );
+    // Only count single-table orders for individual table totals
+    const tableOrders = getSingleTableOrders(activeOrders, tableNumber);
     return tableOrders.reduce((sum, order) => sum + (order.total || 0), 0);
   }
 
@@ -272,6 +304,62 @@ export default function OrdersPage() {
     }
   }, [user, databases, client]);
 
+  // Handle URL parameters for auto-expanding tables
+  useEffect(() => {
+    const tableParam = searchParams.get("table");
+    const tablesParam = searchParams.get("tables");
+
+    if (tableParam) {
+      // Single table parameter
+      const tableNumber = parseInt(tableParam, 10);
+      if (!isNaN(tableNumber)) {
+        setExpandedTables((prev) => new Set([...prev, tableNumber]));
+        setTableNumber(tableNumber); // Pre-select for new orders
+
+        // Scroll to the table section after a short delay to ensure it's rendered
+        setTimeout(() => {
+          const tableElement = document.getElementById(`table-${tableNumber}`);
+          if (tableElement) {
+            tableElement.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        }, 100);
+      }
+    } else if (tablesParam) {
+      // Multiple tables parameter
+      const tableNumbers = tablesParam
+        .split(",")
+        .map((num) => parseInt(num.trim(), 10))
+        .filter((num) => !isNaN(num));
+      if (tableNumbers.length > 0) {
+        setExpandedTables((prev) => new Set([...prev, ...tableNumbers]));
+
+        // Auto-open modal for multi-table order creation
+        setModalOpen(true);
+        setEditingOrder(null);
+        setSelectedItems([]);
+
+        // Show special message for multi-table order
+        setMultiTableMode(tableNumbers);
+
+        // Scroll to first table
+        setTimeout(() => {
+          const firstTableElement = document.getElementById(
+            `table-${tableNumbers[0]}`
+          );
+          if (firstTableElement) {
+            firstTableElement.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        }, 100);
+      }
+    }
+  }, [searchParams]);
+
   const fetchOrders = useCallback(async () => {
     try {
       const response = await databases.listDocuments(
@@ -303,11 +391,16 @@ export default function OrdersPage() {
         TABLES_COLLECTION_ID
       );
 
-      // Group orders by table
+      // Group orders by table - handle array format
       const ordersByTable = currentOrders.reduce((acc, order) => {
-        const tableNum = order.numeroMesa;
-        if (!acc[tableNum]) acc[tableNum] = [];
-        acc[tableNum].push(order);
+        // Handle both old single table format and new array format
+        const tables = Array.isArray(order.numeroMesa)
+          ? order.numeroMesa
+          : [order.numeroMesa];
+        tables.forEach((tableNum) => {
+          if (!acc[tableNum]) acc[tableNum] = [];
+          acc[tableNum].push(order);
+        });
         return acc;
       }, {});
 
@@ -418,7 +511,19 @@ export default function OrdersPage() {
       typeof item === "string" ? JSON.parse(item) : item
     );
     setSelectedItems(parsedItems);
-    setTableNumber(order.numeroMesa.toString());
+
+    // Handle both old single table format and new array format
+    const tables = Array.isArray(order.numeroMesa)
+      ? order.numeroMesa
+      : [order.numeroMesa];
+    if (tables.length === 1) {
+      setTableNumber(tables[0].toString());
+      setMultiTableMode(null);
+    } else {
+      setMultiTableMode(tables);
+      setTableNumber("");
+    }
+
     setModalOpen(true);
   }
 
@@ -576,28 +681,40 @@ export default function OrdersPage() {
 
       // Check if table should be freed
       if (order) {
-        // Get all orders for this table
-        const allOrdersRes = await databases.listDocuments(
-          DB_ID,
-          ORDERS_COLLECTION_ID,
-          [Query.equal("numeroMesa", order.numeroMesa)]
-        );
+        // Handle both old single table format and new array format
+        const tables = Array.isArray(order.numeroMesa)
+          ? order.numeroMesa
+          : [order.numeroMesa];
 
-        // Check if all orders for this table are paid
-        const unpaidOrders = allOrdersRes.documents.filter(
-          (doc) => !doc.paid && doc.$id !== orderId
-        );
+        for (const tableNum of tables) {
+          // Get all orders for this table
+          const allOrdersRes = await databases.listDocuments(
+            DB_ID,
+            ORDERS_COLLECTION_ID,
+            [Query.contains("numeroMesa", tableNum)]
+          );
 
-        if (unpaidOrders.length === 0) {
-          // All orders are paid, free the table
-          const table = tables.find((t) => t.tableNumber === order.numeroMesa);
-          if (table && table.status === "occupied") {
-            await databases.updateDocument(
-              DB_ID,
-              TABLES_COLLECTION_ID,
-              table.$id,
-              { status: "free" }
-            );
+          // Check if all orders for this table are paid
+          const unpaidOrders = allOrdersRes.documents.filter((doc) => {
+            if (doc.paid || doc.$id === orderId) return false;
+            // Handle both old single table format and new array format
+            const docTables = Array.isArray(doc.numeroMesa)
+              ? doc.numeroMesa
+              : [doc.numeroMesa];
+            return docTables.includes(tableNum);
+          });
+
+          if (unpaidOrders.length === 0) {
+            // All orders are paid, free the table
+            const table = tables.find((t) => t.tableNumber === tableNum);
+            if (table && table.status === "occupied") {
+              await databases.updateDocument(
+                DB_ID,
+                TABLES_COLLECTION_ID,
+                table.$id,
+                { status: "free" }
+              );
+            }
           }
         }
       }
@@ -655,9 +772,14 @@ export default function OrdersPage() {
 
     setMarkingTablePaid((prev) => new Set([...prev, tableNumber]));
     try {
-      const tableOrders = activeOrders.filter(
-        (order) => order.numeroMesa === tableNumber && !order.paid
-      );
+      const tableOrders = activeOrders.filter((order) => {
+        if (order.paid) return false;
+        // Handle both old single table format and new array format
+        const tables = Array.isArray(order.numeroMesa)
+          ? order.numeroMesa
+          : [order.numeroMesa];
+        return tables.includes(tableNumber);
+      });
 
       // Optimistic update - immediately move all table orders to paid
       const updatedOrders = tableOrders.map((order) => ({
@@ -668,9 +790,14 @@ export default function OrdersPage() {
       }));
 
       setActiveOrders((prev) =>
-        prev.filter(
-          (order) => !(order.numeroMesa === tableNumber && !order.paid)
-        )
+        prev.filter((order) => {
+          if (order.paid) return true;
+          // Handle both old single table format and new array format
+          const tables = Array.isArray(order.numeroMesa)
+            ? order.numeroMesa
+            : [order.numeroMesa];
+          return !tables.includes(tableNumber);
+        })
       );
       setPaidOrders((prev) => [...updatedOrders, ...prev]);
 
@@ -720,10 +847,107 @@ export default function OrdersPage() {
   }
 
   async function handleSave() {
-    if (!tableNumber || selectedItems.length === 0 || saving) return;
+    if (
+      (!tableNumber && !multiTableMode) ||
+      selectedItems.length === 0 ||
+      saving
+    )
+      return;
 
     setSaving(true);
     try {
+      if (multiTableMode) {
+        // Handle multi-table order creation - create ONE order with multiple tables
+        const total = selectedItems.reduce(
+          (sum, item) => sum + item.quantidade * item.preco,
+          0
+        );
+
+        // Validate that all selected tables exist
+        const validTables = [];
+        for (const tableNum of multiTableMode) {
+          const selectedTable = tables.find((t) => t.tableNumber === tableNum);
+          if (selectedTable) {
+            validTables.push(tableNum);
+          } else {
+            console.warn(`Mesa ${tableNum} não encontrada`);
+          }
+        }
+
+        if (validTables.length === 0) {
+          addNotification("Nenhuma mesa válida selecionada!", "error");
+          return;
+        }
+
+        const orderData = {
+          numeroMesa: validTables, // Array of table numbers
+          itens: selectedItems.map((item) =>
+            JSON.stringify({
+              nome: item.nome,
+              preco: item.preco,
+              quantidade: item.quantidade,
+              notas: item.notas || "",
+            })
+          ),
+          total: total,
+          paid: false,
+          status: "pendente",
+          criadoEm: new Date().toISOString(),
+          staffID: user.$id,
+        };
+
+        // Create temporary order for immediate UI feedback
+        const tempOrder = {
+          ...orderData,
+          $id: `temp-${validTables.join("-")}-${Date.now()}`,
+          $createdAt: new Date().toISOString(),
+        };
+
+        setActiveOrders((prev) => [tempOrder, ...prev]);
+
+        const response = await databases.createDocument(
+          DB_ID,
+          ORDERS_COLLECTION_ID,
+          "unique()",
+          orderData
+        );
+
+        // Replace temp order with real one
+        setActiveOrders((prev) =>
+          prev.map((order) => (order.$id === tempOrder.$id ? response : order))
+        );
+
+        // Mark all tables as occupied if they're currently free
+        for (const tableNum of validTables) {
+          const selectedTable = tables.find((t) => t.tableNumber === tableNum);
+          if (selectedTable && selectedTable.status === "free") {
+            await databases.updateDocument(
+              DB_ID,
+              TABLES_COLLECTION_ID,
+              selectedTable.$id,
+              { status: "occupied" }
+            );
+          }
+        }
+
+        setModalOpen(false);
+        setMultiTableMode(null); // Clear multi-table mode
+        addNotification(
+          `Pedido criado para ${validTables.length} mesa${
+            validTables.length > 1 ? "s" : ""
+          }!`,
+          "success"
+        );
+
+        // Clear form state
+        setSelectedItems([]);
+        setTableNumber("");
+        setEditingOrder(null);
+
+        return;
+      }
+
+      // Handle single table order (convert to array format for consistency)
       // Validate that the selected table exists
       const selectedTable = tables.find(
         (t) => t.tableNumber.toString() === tableNumber
@@ -740,7 +964,7 @@ export default function OrdersPage() {
       );
 
       const orderData = {
-        numeroMesa: parseInt(tableNumber),
+        numeroMesa: [parseInt(tableNumber)], // Convert to array format
         itens: selectedItems.map((item) =>
           JSON.stringify({
             nome: item.nome,
@@ -843,25 +1067,40 @@ export default function OrdersPage() {
         await databases.deleteDocument(DB_ID, ORDERS_COLLECTION_ID, orderId);
 
         if (orderToDelete) {
-          // Check if there are any remaining orders for this table
-          const allOrdersRes = await databases.listDocuments(
-            DB_ID,
-            ORDERS_COLLECTION_ID,
-            [Query.equal("numeroMesa", orderToDelete.numeroMesa)]
-          );
+          // Handle both old single table format and new array format
+          const tables = Array.isArray(orderToDelete.numeroMesa)
+            ? orderToDelete.numeroMesa
+            : [orderToDelete.numeroMesa];
 
-          // If no orders left for this table, free it
-          if (allOrdersRes.documents.length === 0) {
-            const table = tables.find(
-              (t) => t.tableNumber === orderToDelete.numeroMesa
+          for (const tableNum of tables) {
+            // Check if there are any remaining orders for this table
+            const allOrdersRes = await databases.listDocuments(
+              DB_ID,
+              ORDERS_COLLECTION_ID,
+              [Query.contains("numeroMesa", tableNum)]
             );
-            if (table && table.status === "occupied") {
-              await databases.updateDocument(
-                DB_ID,
-                TABLES_COLLECTION_ID,
-                table.$id,
-                { status: "free" }
-              );
+
+            // Filter to only include orders that actually contain this table
+            const actualOrdersForTable = allOrdersRes.documents.filter(
+              (doc) => {
+                const docTables = Array.isArray(doc.numeroMesa)
+                  ? doc.numeroMesa
+                  : [doc.numeroMesa];
+                return docTables.includes(tableNum);
+              }
+            );
+
+            // If no orders left for this table, free it
+            if (actualOrdersForTable.length === 0) {
+              const table = tables.find((t) => t.tableNumber === tableNum);
+              if (table && table.status === "occupied") {
+                await databases.updateDocument(
+                  DB_ID,
+                  TABLES_COLLECTION_ID,
+                  table.$id,
+                  { status: "free" }
+                );
+              }
             }
           }
         }
@@ -968,359 +1207,506 @@ export default function OrdersPage() {
             <div className="max-w-7xl mx-auto px-6 py-8">
               {/* Active Orders by Table */}
               {!showCompleted && (
-                <section className="space-y-6">
-                  <h2 className="text-xl font-bold text-white">
-                    Pedidos ativos (Por Mesa)
-                  </h2>
-                  {Object.keys(groupOrdersByTable(activeOrders)).length ===
-                  0 ? (
-                    <div className="text-center py-16">
-                      <div className="bg-neutral-900/60 backdrop-blur-sm rounded-xl border border-neutral-700 p-8 max-w-md mx-auto">
-                        <p className="text-white/70 text-lg mb-2">
-                          Não há pedidos ativos no momento.
-                        </p>
-                        <p className="text-white/50 text-sm">
-                          Clique em "Novo Pedido" para começar
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                      {Object.entries(groupOrdersByTable(activeOrders)).map(
-                        ([tableNumber, orders]) => (
+                <section className="space-y-8">
+                  {/* Multi-Table Orders Section */}
+                  {getMultiTableOrders(activeOrders).length > 0 && (
+                    <div>
+                      <h2 className="text-xl font-bold text-white mb-6">
+                        Pedidos Multi-Mesa
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {getMultiTableOrders(activeOrders).map((order) => (
                           <div
-                            key={tableNumber}
+                            key={order.$id}
                             className="bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-700 overflow-hidden shadow-lg hover:shadow-xl hover:border-neutral-600 transition-all duration-300"
                           >
-                            {/* Table Header */}
+                            {/* Multi-Table Order Header */}
                             <div className="bg-neutral-800/60 p-4 border-b border-neutral-700">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-3">
                                   <span className="text-xl font-bold text-white">
-                                    Mesa {tableNumber}
+                                    Mesa
+                                    {Array.isArray(order.numeroMesa) &&
+                                    order.numeroMesa.length > 1
+                                      ? "s"
+                                      : ""}{" "}
+                                    {Array.isArray(order.numeroMesa)
+                                      ? order.numeroMesa.join(", ")
+                                      : order.numeroMesa}
                                   </span>
-                                  <span className="px-2 py-1 bg-red-500/20 text-red-400 text-sm rounded-lg border border-red-500/30">
-                                    {orders.length} Pedido
-                                    {orders.length > 1 ? "s" : ""}
+                                  <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-sm rounded-lg border border-purple-500/30">
+                                    Multi-Mesa
                                   </span>
                                 </div>
-                                <button
-                                  onClick={() =>
-                                    toggleTableExpansion(tableNumber)
-                                  }
-                                  className="text-white/60 hover:text-white"
-                                >
-                                  {expandedTables.has(tableNumber) ? (
-                                    <ChevronDown className="w-5 h-5" />
-                                  ) : (
-                                    <ChevronRight className="w-5 h-5" />
-                                  )}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => openEditModal(order)}
+                                    className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg border border-yellow-500 transition-colors duration-200 flex items-center gap-1.5"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={() => openPaymentModal(order.$id)}
+                                    className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg border border-green-500 transition-colors duration-200 flex items-center gap-1.5"
+                                  >
+                                    <CreditCard className="w-4 h-4" />
+                                    Pagar
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(order.$id)}
+                                    disabled={deleting.has(order.$id)}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-50 text-white text-sm rounded-lg border border-red-500 transition-colors duration-200 flex items-center gap-1.5"
+                                  >
+                                    {deleting.has(order.$id) ? (
+                                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                    Apagar
+                                  </button>
+                                </div>
                               </div>
-
-                              {/* Status badges */}
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {(() => {
-                                  const statuses = orders.reduce(
-                                    (acc, order) => {
-                                      const status = order.status || "pendente";
-                                      acc[status] = (acc[status] || 0) + 1;
-                                      return acc;
-                                    },
-                                    {}
-                                  );
-
-                                  return Object.entries(statuses).map(
-                                    ([status, count]) => (
-                                      <span
-                                        key={status}
-                                        className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border ${statusColors[status]}`}
-                                      >
-                                        {(() => {
-                                          const StatusIcon =
-                                            statusIcons[status];
-                                          return (
-                                            <StatusIcon className="w-3 h-3" />
-                                          );
-                                        })()}
-                                        {count}x {statusLabels[status]}
-                                      </span>
-                                    )
-                                  );
-                                })()}
-                              </div>
-
-                              {/* Table total and pay button */}
                               <div className="flex items-center justify-between">
-                                <span className="text-lg font-bold text-green-400">
-                                  Total: €
-                                  {getTableTotal(tableNumber).toFixed(2)}
+                                <span className="text-white/70 text-sm">
+                                  #{order.$id.slice(-6)} •{" "}
+                                  {new Date(order.$createdAt).toLocaleString(
+                                    "pt"
+                                  )}
                                 </span>
-                                {(() => {
-                                  // Check if all items in all orders for this table are served
-                                  const allTableItems = orders.flatMap(
-                                    (order) => order.items || order.itens || []
-                                  );
-                                  const allItemsServed = allTableItems.every(
-                                    (item) => {
-                                      const parsedItem =
-                                        typeof item === "string"
-                                          ? JSON.parse(item)
-                                          : item;
-                                      return parsedItem.status === "servido";
-                                    }
-                                  );
-
-                                  return allItemsServed &&
-                                    allTableItems.length > 0 ? (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedOrderForPayment(
-                                          `table-${tableNumber}`
-                                        );
-                                        setSelectedPaymentMethod("");
-                                        setPaymentModalOpen(true);
-                                      }}
-                                      disabled={markingTablePaid.has(
-                                        parseInt(tableNumber)
-                                      )}
-                                      className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm font-medium border border-green-500/30 hover:border-green-500/50 disabled:opacity-50"
-                                    >
-                                      {markingTablePaid.has(
-                                        parseInt(tableNumber)
-                                      ) ? (
-                                        <div className="flex items-center space-x-2">
-                                          <div className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
-                                          <span>A processar...</span>
-                                        </div>
-                                      ) : (
-                                        "Marcar Mesa como Paga"
-                                      )}
-                                    </button>
-                                  ) : (
-                                    <span className="px-3 py-1.5 bg-neutral-500/20 text-neutral-400 rounded-lg text-sm font-medium border border-neutral-500/30">
-                                      Itens por servir...
-                                    </span>
-                                  );
-                                })()}
+                                <span className="text-xl font-bold text-green-400">
+                                  {order.total?.toFixed(2)}€
+                                </span>
                               </div>
                             </div>
 
-                            {/* Orders List */}
-                            {expandedTables.has(tableNumber) && (
-                              <div className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
-                                {orders.map((order) => (
-                                  <div
-                                    key={order.$id}
-                                    className="bg-neutral-800/40 p-3 rounded-lg border border-neutral-700"
-                                  >
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div>
-                                        <h4 className="font-semibold text-white text-sm">
-                                          Pedido #{order.$id.slice(-6)}
-                                        </h4>
-                                        <p className="text-xs text-white/60">
-                                          {new Date(
-                                            order.$createdAt
-                                          ).toLocaleString("pt")}
-                                        </p>
+                            {/* Multi-Table Order Items */}
+                            <div className="p-4 space-y-3">
+                              {(order.items || order.itens || []).map(
+                                (item, index) => {
+                                  const parsedItem =
+                                    typeof item === "string"
+                                      ? JSON.parse(item)
+                                      : item;
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex justify-between items-center py-2 border-b border-neutral-700/50 last:border-0"
+                                    >
+                                      <div className="flex-1">
+                                        <span className="text-white font-medium">
+                                          {parsedItem.nome}
+                                        </span>
+                                        {parsedItem.notas && (
+                                          <p className="text-white/60 text-sm">
+                                            {parsedItem.notas}
+                                          </p>
+                                        )}
                                       </div>
-                                      <span className="text-sm font-bold text-green-400">
-                                        €{order.total.toFixed(2)}
-                                      </span>
+                                      <div className="text-right">
+                                        <span className="text-white/70 text-sm">
+                                          {parsedItem.quantidade ||
+                                            parsedItem.quantity}
+                                          x
+                                        </span>
+                                        <span className="text-white font-medium ml-2">
+                                          {(
+                                            (parsedItem.preco ||
+                                              parsedItem.price) *
+                                            (parsedItem.quantidade ||
+                                              parsedItem.quantity)
+                                          ).toFixed(2)}
+                                          €
+                                        </span>
+                                      </div>
                                     </div>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                                    {/* Order items */}
-                                    <div className="space-y-1 mb-3">
-                                      {(order.items || order.itens || []).map(
-                                        (item, idx) => {
-                                          const parsedItem =
-                                            typeof item === "string"
-                                              ? JSON.parse(item)
-                                              : item;
-                                          const itemStatus =
-                                            parsedItem.status || "pendente";
-                                          return (
-                                            <div
-                                              key={idx}
-                                              className="flex justify-between items-center text-xs bg-neutral-900/50 p-2 rounded border border-neutral-700"
-                                            >
-                                              <div className="flex-1">
-                                                <div className="flex items-center justify-between mb-1">
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="text-white/80">
-                                                      {parsedItem.quantidade}x{" "}
-                                                      {parsedItem.nome}
-                                                    </span>
-                                                    <span
-                                                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                                        itemStatus ===
-                                                        "pendente"
-                                                          ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-                                                          : itemStatus ===
-                                                            "preparando"
-                                                          ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                                                          : itemStatus ===
-                                                            "pronto"
-                                                          ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
-                                                          : itemStatus ===
-                                                            "servido"
-                                                          ? "bg-green-500/20 text-green-300 border border-green-500/30"
-                                                          : "bg-neutral-500/20 text-neutral-300 border border-neutral-500/30"
-                                                      }`}
-                                                    >
-                                                      {itemStatus === "pendente"
-                                                        ? "Pendente"
-                                                        : itemStatus ===
-                                                          "preparando"
-                                                        ? "A fazer"
-                                                        : itemStatus ===
-                                                          "pronto"
-                                                        ? "Pronto"
-                                                        : itemStatus ===
-                                                          "servido"
-                                                        ? "Servido"
-                                                        : itemStatus}
-                                                    </span>
-                                                  </div>
-                                                  <span className="text-white/80 ml-2">
-                                                    €
-                                                    {(
-                                                      parsedItem.quantidade *
-                                                      parsedItem.preco
-                                                    ).toFixed(2)}
-                                                  </span>
-                                                </div>
-                                                {parsedItem.notas && (
-                                                  <div className="mb-2">
-                                                    <span className="text-white/50 text-xs italic">
-                                                      {parsedItem.notas}
-                                                    </span>
-                                                  </div>
-                                                )}
-                                                <div className="flex gap-1">
-                                                  {itemStatus ===
-                                                    "pendente" && (
-                                                    <button
-                                                      onClick={() =>
-                                                        updateItemStatus(
-                                                          order.$id,
-                                                          idx,
-                                                          "preparando"
-                                                        )
-                                                      }
-                                                      className="px-1 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs border border-blue-500/30 hover:bg-blue-500/30"
-                                                    >
-                                                      Começar
-                                                    </button>
-                                                  )}
-                                                  {itemStatus ===
-                                                    "preparando" && (
-                                                    <button
-                                                      onClick={() =>
-                                                        updateItemStatus(
-                                                          order.$id,
-                                                          idx,
-                                                          "pronto"
-                                                        )
-                                                      }
-                                                      className="px-1 py-0.5 bg-orange-500/20 text-orange-300 rounded text-xs border border-orange-500/30 hover:bg-orange-500/30"
-                                                    >
-                                                      Terminar
-                                                    </button>
-                                                  )}
-                                                  {itemStatus === "pronto" && (
-                                                    <button
-                                                      onClick={() =>
-                                                        updateItemStatus(
-                                                          order.$id,
-                                                          idx,
-                                                          "servido"
-                                                        )
-                                                      }
-                                                      className="px-1 py-0.5 bg-green-500/20 text-green-300 rounded text-xs border border-green-500/30 hover:bg-green-500/30"
-                                                    >
-                                                      Entregar
-                                                    </button>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          );
-                                        }
+                  {/* Single Table Orders Section */}
+                  <div>
+                    <h2 className="text-xl font-bold text-white mb-6">
+                      Pedidos por Mesa Individual
+                    </h2>
+                    {Object.keys(groupOrdersByTable(activeOrders)).length ===
+                      0 && getMultiTableOrders(activeOrders).length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="bg-neutral-900/60 backdrop-blur-sm rounded-xl border border-neutral-700 p-8 max-w-md mx-auto">
+                          <p className="text-white/70 text-lg mb-2">
+                            Não há pedidos ativos no momento.
+                          </p>
+                          <p className="text-white/50 text-sm">
+                            Clique em "Novo Pedido" para começar
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {Object.entries(groupOrdersByTable(activeOrders)).map(
+                          ([tableNumber, orders]) => (
+                            <div
+                              key={tableNumber}
+                              id={`table-${tableNumber}`}
+                              className="bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-700 overflow-hidden shadow-lg hover:shadow-xl hover:border-neutral-600 transition-all duration-300"
+                            >
+                              {/* Table Header */}
+                              <div className="bg-neutral-800/60 p-4 border-b border-neutral-700">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xl font-bold text-white">
+                                      Mesa {tableNumber}
+                                    </span>
+                                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-sm rounded-lg border border-red-500/30">
+                                      {orders.length} Pedido
+                                      {orders.length > 1 ? "s" : ""}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setTableNumber(tableNumber);
+                                        setSelectedItems([]);
+                                        setEditingOrder(null);
+                                        setModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg border border-blue-500 transition-colors duration-200 flex items-center gap-1.5"
+                                      title={`Adicionar pedido à Mesa ${tableNumber}`}
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                      Novo Pedido
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        toggleTableExpansion(tableNumber)
+                                      }
+                                      className="text-white/60 hover:text-white"
+                                    >
+                                      {expandedTables.has(tableNumber) ? (
+                                        <ChevronDown className="w-5 h-5" />
+                                      ) : (
+                                        <ChevronRight className="w-5 h-5" />
                                       )}
-                                    </div>
+                                    </button>
+                                  </div>
+                                </div>
 
-                                    {/* Action buttons */}
-                                    <div className="flex flex-wrap gap-1">
-                                      {/* Only show payment button if ALL items are served */}
-                                      {(() => {
-                                        const allItems =
-                                          order.items || order.itens || [];
-                                        const allItemsServed = allItems.every(
-                                          (item) => {
+                                {/* Status badges */}
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {(() => {
+                                    const statuses = orders.reduce(
+                                      (acc, order) => {
+                                        const status =
+                                          order.status || "pendente";
+                                        acc[status] = (acc[status] || 0) + 1;
+                                        return acc;
+                                      },
+                                      {}
+                                    );
+
+                                    return Object.entries(statuses).map(
+                                      ([status, count]) => (
+                                        <span
+                                          key={status}
+                                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border ${statusColors[status]}`}
+                                        >
+                                          {(() => {
+                                            const StatusIcon =
+                                              statusIcons[status];
+                                            return (
+                                              <StatusIcon className="w-3 h-3" />
+                                            );
+                                          })()}
+                                          {count}x {statusLabels[status]}
+                                        </span>
+                                      )
+                                    );
+                                  })()}
+                                </div>
+
+                                {/* Table total and pay button */}
+                                <div className="flex items-center justify-between">
+                                  <span className="text-lg font-bold text-green-400">
+                                    Total: €
+                                    {getTableTotal(tableNumber).toFixed(2)}
+                                  </span>
+                                  {(() => {
+                                    // Check if all items in all orders for this table are served
+                                    const allTableItems = orders.flatMap(
+                                      (order) =>
+                                        order.items || order.itens || []
+                                    );
+                                    const allItemsServed = allTableItems.every(
+                                      (item) => {
+                                        const parsedItem =
+                                          typeof item === "string"
+                                            ? JSON.parse(item)
+                                            : item;
+                                        return parsedItem.status === "servido";
+                                      }
+                                    );
+
+                                    return allItemsServed &&
+                                      allTableItems.length > 0 ? (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedOrderForPayment(
+                                            `table-${tableNumber}`
+                                          );
+                                          setSelectedPaymentMethod("");
+                                          setPaymentModalOpen(true);
+                                        }}
+                                        disabled={markingTablePaid.has(
+                                          parseInt(tableNumber)
+                                        )}
+                                        className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm font-medium border border-green-500/30 hover:border-green-500/50 disabled:opacity-50"
+                                      >
+                                        {markingTablePaid.has(
+                                          parseInt(tableNumber)
+                                        ) ? (
+                                          <div className="flex items-center space-x-2">
+                                            <div className="w-3 h-3 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+                                            <span>A processar...</span>
+                                          </div>
+                                        ) : (
+                                          "Marcar Mesa como Paga"
+                                        )}
+                                      </button>
+                                    ) : (
+                                      <span className="px-3 py-1.5 bg-neutral-500/20 text-neutral-400 rounded-lg text-sm font-medium border border-neutral-500/30">
+                                        Itens por servir...
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+
+                              {/* Orders List */}
+                              {expandedTables.has(tableNumber) && (
+                                <div className="p-4 space-y-3 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
+                                  {orders.map((order) => (
+                                    <div
+                                      key={order.$id}
+                                      className="bg-neutral-800/40 p-3 rounded-lg border border-neutral-700"
+                                    >
+                                      <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                          <h4 className="font-semibold text-white text-sm">
+                                            Pedido #{order.$id.slice(-6)}
+                                          </h4>
+                                          <p className="text-xs text-white/60">
+                                            {new Date(
+                                              order.$createdAt
+                                            ).toLocaleString("pt")}
+                                          </p>
+                                        </div>
+                                        <span className="text-sm font-bold text-green-400">
+                                          €{order.total.toFixed(2)}
+                                        </span>
+                                      </div>
+
+                                      {/* Order items */}
+                                      <div className="space-y-1 mb-3">
+                                        {(order.items || order.itens || []).map(
+                                          (item, idx) => {
                                             const parsedItem =
                                               typeof item === "string"
                                                 ? JSON.parse(item)
                                                 : item;
+                                            const itemStatus =
+                                              parsedItem.status || "pendente";
                                             return (
-                                              parsedItem.status === "servido"
+                                              <div
+                                                key={idx}
+                                                className="flex justify-between items-center text-xs bg-neutral-900/50 p-2 rounded border border-neutral-700"
+                                              >
+                                                <div className="flex-1">
+                                                  <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-white/80">
+                                                        {parsedItem.quantidade}x{" "}
+                                                        {parsedItem.nome}
+                                                      </span>
+                                                      <span
+                                                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                          itemStatus ===
+                                                          "pendente"
+                                                            ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                                                            : itemStatus ===
+                                                              "preparando"
+                                                            ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                                            : itemStatus ===
+                                                              "pronto"
+                                                            ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+                                                            : itemStatus ===
+                                                              "servido"
+                                                            ? "bg-green-500/20 text-green-300 border border-green-500/30"
+                                                            : "bg-neutral-500/20 text-neutral-300 border border-neutral-500/30"
+                                                        }`}
+                                                      >
+                                                        {itemStatus ===
+                                                        "pendente"
+                                                          ? "Pendente"
+                                                          : itemStatus ===
+                                                            "preparando"
+                                                          ? "A fazer"
+                                                          : itemStatus ===
+                                                            "pronto"
+                                                          ? "Pronto"
+                                                          : itemStatus ===
+                                                            "servido"
+                                                          ? "Servido"
+                                                          : itemStatus}
+                                                      </span>
+                                                    </div>
+                                                    <span className="text-white/80 ml-2">
+                                                      €
+                                                      {(
+                                                        parsedItem.quantidade *
+                                                        parsedItem.preco
+                                                      ).toFixed(2)}
+                                                    </span>
+                                                  </div>
+                                                  {parsedItem.notas && (
+                                                    <div className="mb-2">
+                                                      <span className="text-white/50 text-xs italic">
+                                                        {parsedItem.notas}
+                                                      </span>
+                                                    </div>
+                                                  )}
+                                                  <div className="flex gap-1">
+                                                    {itemStatus ===
+                                                      "pendente" && (
+                                                      <button
+                                                        onClick={() =>
+                                                          updateItemStatus(
+                                                            order.$id,
+                                                            idx,
+                                                            "preparando"
+                                                          )
+                                                        }
+                                                        className="px-1 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs border border-blue-500/30 hover:bg-blue-500/30"
+                                                      >
+                                                        Começar
+                                                      </button>
+                                                    )}
+                                                    {itemStatus ===
+                                                      "preparando" && (
+                                                      <button
+                                                        onClick={() =>
+                                                          updateItemStatus(
+                                                            order.$id,
+                                                            idx,
+                                                            "pronto"
+                                                          )
+                                                        }
+                                                        className="px-1 py-0.5 bg-orange-500/20 text-orange-300 rounded text-xs border border-orange-500/30 hover:bg-orange-500/30"
+                                                      >
+                                                        Terminar
+                                                      </button>
+                                                    )}
+                                                    {itemStatus ===
+                                                      "pronto" && (
+                                                      <button
+                                                        onClick={() =>
+                                                          updateItemStatus(
+                                                            order.$id,
+                                                            idx,
+                                                            "servido"
+                                                          )
+                                                        }
+                                                        className="px-1 py-0.5 bg-green-500/20 text-green-300 rounded text-xs border border-green-500/30 hover:bg-green-500/30"
+                                                      >
+                                                        Entregar
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
                                             );
                                           }
-                                        );
-
-                                        return (
-                                          allItemsServed &&
-                                          allItems.length > 0 && (
-                                            <button
-                                              onClick={() =>
-                                                openPaymentModal(order.$id)
-                                              }
-                                              disabled={markingPaid.has(
-                                                order.$id
-                                              )}
-                                              className="px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50"
-                                            >
-                                              {markingPaid.has(order.$id) ? (
-                                                <div className="w-3 h-3 border border-green-400 border-t-transparent rounded-full animate-spin" />
-                                              ) : (
-                                                "Pagar"
-                                              )}
-                                            </button>
-                                          )
-                                        );
-                                      })()}
-                                      <button
-                                        onClick={() => openEditModal(order)}
-                                        className="px-2 py-1 bg-neutral-700/60 hover:bg-neutral-600 text-white text-xs rounded border border-neutral-600"
-                                      >
-                                        Editar
-                                      </button>
-                                      <button
-                                        onClick={() => handleDelete(order.$id)}
-                                        disabled={deleting.has(order.$id)}
-                                        className="px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded border border-red-500/30 disabled:opacity-50"
-                                      >
-                                        {deleting.has(order.$id) ? (
-                                          <div className="flex items-center space-x-1">
-                                            <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
-                                            <span>A apagar...</span>
-                                          </div>
-                                        ) : (
-                                          "Apagar"
                                         )}
-                                      </button>
+                                      </div>
+
+                                      {/* Action buttons */}
+                                      <div className="flex flex-wrap gap-1">
+                                        {/* Only show payment button if ALL items are served */}
+                                        {(() => {
+                                          const allItems =
+                                            order.items || order.itens || [];
+                                          const allItemsServed = allItems.every(
+                                            (item) => {
+                                              const parsedItem =
+                                                typeof item === "string"
+                                                  ? JSON.parse(item)
+                                                  : item;
+                                              return (
+                                                parsedItem.status === "servido"
+                                              );
+                                            }
+                                          );
+
+                                          return (
+                                            allItemsServed &&
+                                            allItems.length > 0 && (
+                                              <button
+                                                onClick={() =>
+                                                  openPaymentModal(order.$id)
+                                                }
+                                                disabled={markingPaid.has(
+                                                  order.$id
+                                                )}
+                                                className="px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50"
+                                              >
+                                                {markingPaid.has(order.$id) ? (
+                                                  <div className="w-3 h-3 border border-green-400 border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                  "Pagar"
+                                                )}
+                                              </button>
+                                            )
+                                          );
+                                        })()}
+                                        <button
+                                          onClick={() => openEditModal(order)}
+                                          className="px-2 py-1 bg-neutral-700/60 hover:bg-neutral-600 text-white text-xs rounded border border-neutral-600"
+                                        >
+                                          Editar
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            handleDelete(order.$id)
+                                          }
+                                          disabled={deleting.has(order.$id)}
+                                          className="px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs rounded border border-red-500/30 disabled:opacity-50"
+                                        >
+                                          {deleting.has(order.$id) ? (
+                                            <div className="flex items-center space-x-1">
+                                              <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                                              <span>A apagar...</span>
+                                            </div>
+                                          ) : (
+                                            "Apagar"
+                                          )}
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </section>
               )}
 
@@ -1576,7 +1962,14 @@ export default function OrdersPage() {
                                 <div className="flex justify-between items-start mb-3">
                                   <div>
                                     <h4 className="font-semibold text-white">
-                                      Mesa {order.numeroMesa}
+                                      Mesa
+                                      {Array.isArray(order.numeroMesa) &&
+                                      order.numeroMesa.length > 1
+                                        ? "s"
+                                        : ""}{" "}
+                                      {Array.isArray(order.numeroMesa)
+                                        ? order.numeroMesa.join(", ")
+                                        : order.numeroMesa}
                                     </h4>
                                     <p className="text-xs text-white/60">
                                       Pedido #{order.$id.slice(-6)}
@@ -1725,77 +2118,181 @@ export default function OrdersPage() {
 
         {/* Order Modal */}
         {modalOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-neutral-900/95 backdrop-blur-sm rounded-xl border border-neutral-700 w-full max-w-4xl h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent shadow-2xl">
-              <div className="p-6">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-neutral-900/95 backdrop-blur-sm rounded-xl border border-neutral-700 w-full h-full sm:h-[95vh] max-w-none sm:max-w-[95vw] overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent shadow-2xl">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-white">
                     {editingOrder ? "Editar Pedido" : "Novo Pedido"}
                   </h2>
                   <button
-                    onClick={() => setModalOpen(false)}
+                    onClick={() => {
+                      setModalOpen(false);
+                      setMultiTableMode(null); // Clear multi-table mode
+                    }}
                     className="text-white/60 hover:text-white"
                   >
                     <X className="w-6 h-6" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="flex flex-col xl:grid xl:grid-cols-2 gap-4 sm:gap-6 h-full">
                   {/* Order Form */}
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6 xl:flex-1">
                     <div>
                       <label className="block text-sm font-medium text-white mb-2">
-                        Mesa
+                        Mesas
                       </label>
-                      <select
-                        value={tableNumber}
-                        onChange={(e) => setTableNumber(e.target.value)}
-                        className="w-full pl-3 pr-8 py-2 bg-black border-2 border-white/20 rounded text-white focus:outline-none focus:border-white/50 hover:border-white/30 transition-colors"
-                      >
-                        <option value="">Seleccionar Mesa</option>
-                        {tables
-                          .sort((a, b) => a.tableNumber - b.tableNumber)
-                          .map((table) => (
-                            <option key={table.$id} value={table.tableNumber}>
-                              Mesa {table.tableNumber} (
-                              {table.status === "free" ? "Livre" : "Ocupada"})
-                            </option>
-                          ))}
-                      </select>
-                      {tableNumber && (
-                        <div className="mt-2">
-                          {(() => {
-                            const selectedTable = tables.find(
-                              (t) => t.tableNumber.toString() === tableNumber
-                            );
-                            if (selectedTable) {
-                              return (
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-3 h-3 rounded-full ${
-                                      selectedTable.status === "free"
-                                        ? "bg-green-400"
-                                        : "bg-red-400"
-                                    }`}
-                                  ></div>
-                                  <span className="text-sm text-white/70">
-                                    Mesa {selectedTable.tableNumber} -{" "}
-                                    {selectedTable.status === "free"
-                                      ? "Livre"
-                                      : "Ocupada"}{" "}
-                                    - {selectedTable.chairs} lugares
+                      <div className="space-y-3">
+                        {/* Selected Tables Display */}
+                        {(multiTableMode?.length > 0 || tableNumber) && (
+                          <div className="bg-black border-2 border-blue-500/50 rounded p-3">
+                            <div className="text-blue-300 text-sm mb-2">
+                              {multiTableMode?.length > 1 ||
+                              (multiTableMode?.length === 1 && !tableNumber)
+                                ? "Pedido para múltiplas mesas:"
+                                : "Mesa selecionada:"}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {multiTableMode ? (
+                                multiTableMode.map((tableNum, index) => (
+                                  <span
+                                    key={tableNum}
+                                    className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2"
+                                  >
+                                    Mesa {tableNum}
+                                    <button
+                                      onClick={() => {
+                                        const newTables = multiTableMode.filter(
+                                          (t) => t !== tableNum
+                                        );
+                                        if (newTables.length === 0) {
+                                          setMultiTableMode(null);
+                                          setTableNumber("");
+                                        } else if (newTables.length === 1) {
+                                          setMultiTableMode(null);
+                                          setTableNumber(newTables[0]);
+                                        } else {
+                                          setMultiTableMode(newTables);
+                                        }
+                                      }}
+                                      className="hover:bg-red-500 rounded-full p-0.5"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
                                   </span>
-                                </div>
-                              );
-                            }
-                            return (
-                              <span className="text-sm text-red-400">
-                                Mesa não encontrada
-                              </span>
-                            );
-                          })()}
+                                ))
+                              ) : tableNumber ? (
+                                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                                  Mesa {tableNumber}
+                                  <button
+                                    onClick={() => setTableNumber("")}
+                                    className="hover:bg-red-500 rounded-full p-0.5"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Table Selection Dropdown */}
+                        <div>
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const selectedTableNum = parseInt(e.target.value);
+                              if (!selectedTableNum) return;
+
+                              // Check if table is already selected
+                              const isAlreadySelected =
+                                multiTableMode?.includes(selectedTableNum) ||
+                                tableNumber == selectedTableNum;
+
+                              if (isAlreadySelected) return;
+
+                              if (multiTableMode) {
+                                // Add to existing multi-table selection
+                                setMultiTableMode([
+                                  ...multiTableMode,
+                                  selectedTableNum,
+                                ]);
+                              } else if (tableNumber) {
+                                // Convert single table to multi-table
+                                setMultiTableMode([
+                                  parseInt(tableNumber),
+                                  selectedTableNum,
+                                ]);
+                                setTableNumber("");
+                              } else {
+                                // First table selection
+                                setTableNumber(selectedTableNum);
+                              }
+                            }}
+                            className="w-full pl-3 pr-8 py-3 sm:py-2 bg-black border-2 border-white/20 rounded text-white text-base sm:text-sm focus:outline-none focus:border-white/50 hover:border-white/30 transition-colors"
+                          >
+                            <option value="">+ Adicionar Mesa</option>
+                            {tables
+                              .sort((a, b) => a.tableNumber - b.tableNumber)
+                              .filter((table) => {
+                                // Filter out already selected tables
+                                const isSelected =
+                                  multiTableMode?.includes(table.tableNumber) ||
+                                  tableNumber == table.tableNumber;
+                                return !isSelected;
+                              })
+                              .map((table) => (
+                                <option
+                                  key={table.$id}
+                                  value={table.tableNumber}
+                                >
+                                  Mesa {table.tableNumber} (
+                                  {table.status === "free"
+                                    ? "Livre"
+                                    : "Ocupada"}
+                                  )
+                                </option>
+                              ))}
+                          </select>
                         </div>
-                      )}
+
+                        {/* Table info for single selection */}
+                        {tableNumber && !multiTableMode && (
+                          <div className="mt-2">
+                            {(() => {
+                              const selectedTable = tables.find(
+                                (t) => t.tableNumber.toString() === tableNumber
+                              );
+                              if (selectedTable) {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-3 h-3 rounded-full ${
+                                        selectedTable.status === "free"
+                                          ? "bg-green-400"
+                                          : "bg-red-400"
+                                      }`}
+                                    ></div>
+                                    <span className="text-sm text-white/70">
+                                      Mesa {selectedTable.tableNumber} -{" "}
+                                      {selectedTable.status === "free"
+                                        ? "Livre"
+                                        : "Ocupada"}{" "}
+                                      - {selectedTable.chairs} lugares
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span className="text-sm text-red-400">
+                                  Mesa não encontrada
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -2039,18 +2536,23 @@ export default function OrdersPage() {
 
                     <div className="flex gap-3">
                       <button
-                        onClick={() => setModalOpen(false)}
+                        onClick={() => {
+                          setModalOpen(false);
+                          setMultiTableMode(null); // Clear multi-table mode
+                        }}
                         disabled={saving}
-                        className="flex-1 px-4 py-2 border-2 border-white/30 text-white rounded-xl hover:bg-white/10 hover:border-white/50 disabled:opacity-50 transition-colors"
+                        className="flex-1 px-6 py-4 sm:px-4 sm:py-2 border-2 border-white/30 text-white text-base sm:text-sm rounded-xl hover:bg-white/10 hover:border-white/50 disabled:opacity-50 transition-colors touch-manipulation font-medium"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleSave}
                         disabled={
-                          !tableNumber || selectedItems.length === 0 || saving
+                          (!tableNumber && !multiTableMode) ||
+                          selectedItems.length === 0 ||
+                          saving
                         }
-                        className="flex-1 px-4 py-2 bg-white text-black rounded-xl hover:bg-white/90 border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                        className="flex-1 px-6 py-4 sm:px-4 sm:py-2 bg-white text-black text-base sm:text-sm rounded-xl hover:bg-white/90 border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors touch-manipulation"
                       >
                         {saving ? (
                           <div className="flex items-center justify-center space-x-2">
@@ -2067,13 +2569,13 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Menu Items */}
-                  <div className="space-y-4">
+                  <div className="space-y-4 xl:flex-1">
                     <div>
                       <label className="block text-sm font-medium text-white mb-2">
                         Procurar Itens da Ementa
                       </label>
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
                         <input
                           type="text"
                           value={tempMenuSearchValue}
@@ -2096,13 +2598,16 @@ export default function OrdersPage() {
                               setMenuSearchTerm
                             )
                           }
-                          className="w-full pl-10 pr-4 py-2 bg-black border-2 border-white/20 rounded text-white placeholder-white/70 focus:outline-none focus:border-white/50 hover:border-white/30 transition-colors"
+                          className="w-full pl-12 pr-4 py-3 sm:py-2 bg-black border-2 border-white/20 rounded text-white placeholder-white/70 text-base sm:text-sm focus:outline-none focus:border-white/50 hover:border-white/30 transition-colors"
                           placeholder="Procurar por nome, categoria ou tag..."
                         />
                       </div>
                     </div>
 
-                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
+                    <div
+                      className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent"
+                      style={{ maxHeight: "calc(100vh - 300px)" }}
+                    >
                       {(() => {
                         // Filter items first
                         const filteredItems = menuItems.filter((item) => {
@@ -2151,14 +2656,14 @@ export default function OrdersPage() {
                             {sortedCategories.map((category) => (
                               <div key={category} className="space-y-2">
                                 {/* Category Header */}
-                                <div className="sticky top-0 bg-neutral-900/95 backdrop-blur-sm border-b border-neutral-700 pb-2 mb-2">
-                                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <div className="sticky top-0 bg-neutral-900/95 backdrop-blur-sm border-b border-neutral-700 pb-3 mb-3">
+                                  <h3 className="text-lg sm:text-base font-semibold text-white flex items-center gap-2">
                                     {category === "Sem Categoria" ? (
-                                      <span className="px-2 py-1 bg-neutral-700/50 text-neutral-300 text-sm rounded-lg border border-neutral-600">
+                                      <span className="px-3 py-2 sm:px-2 sm:py-1 bg-neutral-700/50 text-neutral-300 text-sm rounded-lg border border-neutral-600">
                                         {category}
                                       </span>
                                     ) : (
-                                      <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-lg border border-blue-500/30">
+                                      <span className="px-3 py-2 sm:px-2 sm:py-1 bg-blue-500/20 text-blue-300 text-sm rounded-lg border border-blue-500/30">
                                         {category}
                                       </span>
                                     )}
@@ -2173,32 +2678,36 @@ export default function OrdersPage() {
                                 </div>
 
                                 {/* Category Items */}
-                                <div className="space-y-2">
+                                <div className="grid grid-cols-1 gap-3">
                                   {groupedItems[category].map((item) => (
                                     <div
                                       key={item.$id}
-                                      className="bg-neutral-800/60 p-3 rounded-xl border border-neutral-700 hover:border-neutral-600 cursor-pointer hover:bg-neutral-800/80 transition-all duration-200"
+                                      className="bg-neutral-800/60 p-4 rounded-xl border-2 border-neutral-700 hover:border-neutral-500 cursor-pointer hover:bg-neutral-800/80 transition-all duration-200 touch-manipulation active:scale-[0.98] min-h-[100px] sm:min-h-[80px]"
                                       onClick={() => addItemToOrder(item)}
                                     >
-                                      <div className="flex justify-between items-start mb-2">
+                                      <div className="flex justify-between items-start mb-3">
                                         <div className="flex-1">
-                                          <h4 className="font-medium text-white">
+                                          <h4 className="font-medium text-white text-base sm:text-sm line-clamp-2">
                                             {item.nome}
                                           </h4>
                                           {item.descricao && (
-                                            <p className="text-sm text-white/60 mt-1">
+                                            <p className="text-sm sm:text-xs text-white/60 mt-2 line-clamp-2">
                                               {item.descricao}
                                             </p>
                                           )}
                                         </div>
-                                        <span className="font-bold text-white ml-2">
-                                          €{Number(item.preco || 0).toFixed(2)}
-                                        </span>
+                                        <div className="flex items-center gap-2 ml-3">
+                                          <span className="font-bold text-green-400 text-lg sm:text-base">
+                                            €
+                                            {Number(item.preco || 0).toFixed(2)}
+                                          </span>
+                                          <Plus className="w-6 h-6 sm:w-5 sm:h-5 text-white/70 hover:text-white transition-colors" />
+                                        </div>
                                       </div>
 
                                       {/* Tags */}
                                       {item.tags && item.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mb-2">
+                                        <div className="flex flex-wrap gap-2">
                                           {item.tags.map((tag, idx) => (
                                             <span
                                               key={idx}

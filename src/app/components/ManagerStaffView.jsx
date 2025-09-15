@@ -166,18 +166,19 @@ export default function ManagerStaffView({ user, isManager }) {
   };
 
   const getRoleIcon = (labels) => {
-    if (!labels || labels.length === 0) return <Users size={14} />;
+    if (!labels || labels.length === 0)
+      return <Users size={16} style={{ color: "#000000" }} />;
 
     const primaryLabel = labels[0].toLowerCase();
 
     switch (primaryLabel) {
       case "manager":
-        return <Star size={14} />;
+        return <Star size={16} style={{ color: "#000000" }} />;
       case "chef":
       case "kitchen":
-        return <ChefHat size={14} />;
+        return <ChefHat size={16} style={{ color: "#000000" }} />;
       default:
-        return <Users size={14} />;
+        return <Users size={16} style={{ color: "#000000" }} />;
     }
   };
 
@@ -186,27 +187,60 @@ export default function ManagerStaffView({ user, isManager }) {
   }
 
   return (
-    <div className="p-4 md:p-6 rounded-lg bg-black border border-white/10 shadow-lg">
-      <div className="flex items-center justify-between mb-4 md:mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">
-            <Users size={18} className="text-blue-400" />
+    <div
+      style={{
+        background: "#111111",
+        border: "1px solid #222222",
+        borderRadius: "8px",
+        overflow: "hidden",
+      }}
+    >
+      {/* Dashboard-style Header */}
+      <div
+        style={{
+          padding: "24px",
+          borderBottom: "1px solid #222222",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div className="flex items-center gap-4">
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              background: "#ffffff",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Users size={16} style={{ color: "#000000" }} />
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-white">Staff Ativo</h3>
-            <p className="text-sm text-white/60">
-              {clockedInStaff.length}{" "}
-              {clockedInStaff.length === 1
-                ? "funcionário ativo"
-                : "funcionários ativos"}
-            </p>
-            {lastStaffUpdate && (
-              <p className="text-xs text-white/40 mt-1">
-                Última atualização:{" "}
-                {new Date(lastStaffUpdate).toLocaleTimeString()}
-              </p>
-            )}
-          </div>
+          <h3
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              margin: "0",
+              color: "#ffffff",
+            }}
+          >
+            Staff Ativo
+          </h3>
+        </div>
+        <div
+          style={{
+            fontSize: "12px",
+            color: "#888888",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            fontWeight: "500",
+          }}
+        >
+          {clockedInStaff.length}{" "}
+          {clockedInStaff.length === 1 ? "ativo" : "ativos"}
         </div>
       </div>
 
@@ -216,93 +250,141 @@ export default function ManagerStaffView({ user, isManager }) {
         </div>
       ) : clockedInStaff.length === 0 ? (
         <div className="text-center py-12">
-          <div className="w-16 h-16 bg-white/[0.05] rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10">
-            <Users size={24} className="text-white/30" />
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              background: "#ffffff",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px auto",
+            }}
+          >
+            <Users size={32} style={{ color: "#000000" }} />
           </div>
-          <p className="text-white/50 text-lg font-medium">
+          <p
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              margin: "0 0 8px 0",
+              color: "#ffffff",
+            }}
+          >
             Nenhum funcionário ativo
           </p>
-          <p className="text-white/30 text-sm mt-2">
+          <p style={{ fontSize: "14px", color: "#888888", margin: "0" }}>
             Aguardando entrada de funcionários...
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div>
           {clockedInStaff.map((staff) => {
             const userLabels = Array.isArray(staff.labels) ? staff.labels : [];
 
             return (
               <div
                 key={staff.$id}
-                className="p-4 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.05]"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "16px",
+                  padding: "16px 24px",
+                  borderBottom: "1px solid #222222",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) =>
+                  (e.target.style.background = "rgba(255, 255, 255, 0.02)")
+                }
+                onMouseLeave={(e) =>
+                  (e.target.style.background = "transparent")
+                }
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {/* Role Icon */}
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${getRoleBadgeStyle(
-                        userLabels
-                      )}`}
-                    >
-                      {getRoleIcon(userLabels)}
-                    </div>
+                {/* Item Icon */}
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    background: "#ffffff",
+                    borderRadius: "4px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: "0",
+                  }}
+                >
+                  {getRoleIcon(userLabels)}
+                </div>
 
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-white">
-                          {staff.name || "Funcionário"}
-                        </h4>
-
-                        {/* Role Badges - Display ALL labels */}
-                        {userLabels.length > 0 ? (
-                          userLabels.map((label) => (
-                            <span
-                              key={label}
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeStyle(
-                                [label]
-                              )}`}
-                            >
-                              {label}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
-                            sem papel
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-4 mt-1">
-                        <div className="flex items-center gap-1.5 text-sm text-white/60">
-                          <Clock size={14} />
-                          <span>
-                            Entrou às{" "}
-                            {new Date(staff.clockIn).toLocaleTimeString(
-                              "pt-PT",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                {/* Item Content */}
+                <div style={{ flex: "1" }}>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      marginBottom: "2px",
+                      color: "#ffffff",
+                    }}
+                  >
+                    {staff.name || "Funcionário"}
                   </div>
-
-                  {/* Duration */}
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-white">
-                      {formatDuration(staff.clockIn, currentTime)}
-                    </div>
-                    <div className="text-sm text-white/50">trabalhadas</div>
+                  <div style={{ fontSize: "12px", color: "#888888" }}>
+                    Entrou às{" "}
+                    {new Date(staff.clockIn).toLocaleTimeString("pt-PT", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {userLabels.length > 0 && ` • ${userLabels.join(", ")}`}
                   </div>
+                </div>
+
+                {/* Item Meta */}
+                <div style={{ textAlign: "right", flexShrink: "0" }}>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#888888",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    {formatDuration(staff.clockIn, currentTime)}
+                  </div>
+                  <div
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      background: "#00ff00",
+                      marginLeft: "auto",
+                      boxShadow: "0 0 4px #00ff00",
+                    }}
+                  ></div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Dashboard-style Footer */}
+      <div style={{ padding: "20px 24px", textAlign: "center" }}>
+        <button
+          style={{
+            background: "#ffffff",
+            color: "#000000",
+            border: "none",
+            padding: "10px 20px",
+            borderRadius: "4px",
+            fontSize: "12px",
+            fontWeight: "600",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          VER TODO O STAFF
+        </button>
+      </div>
     </div>
   );
 }
