@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 // Importação direta de ícones para bundle menor
 import {
   Plus,
@@ -100,6 +101,8 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   });
   const [showAddMenu, setShowAddMenu] = useState<boolean>(false);
   const [restaurantSize, setRestaurantSize] = useState<number>(100);
+  const [pendingRestaurantSize, setPendingRestaurantSize] =
+    useState<number>(100);
   const [showSizeMenu, setShowSizeMenu] = useState<boolean>(false);
   const [isManager, setIsManager] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -114,6 +117,8 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const router = useRouter();
 
   // Estado local para inputs de tamanho (edição sem atualização imediata)
   const [sizeInputs, setSizeInputs] = useState<{
@@ -218,7 +223,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
 
   // Lógica de dimensionamento responsivo baseada em RestLayout.tsx
   const getMaxDimensions = () => {
-    const baseSize = Math.sqrt(restaurantSize) * 60;
+    const baseSize = Math.sqrt(pendingRestaurantSize) * 60;
     // Use RestLayout.tsx scaling as base
     let scale = 1;
     if (typeof window !== "undefined") {
@@ -248,18 +253,25 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   // Recalculate dimensions when dependencies change
   const maxDimensions = useMemo(
     () => getMaxDimensions(),
-    [restaurantSize, windowSize.width, windowSize.height]
+    [pendingRestaurantSize, windowSize.width, windowSize.height]
   );
 
-  // Check for unsaved changes
+  // Sync pendingRestaurantSize with restaurantSize when restaurantSize changes
+  useEffect(() => {
+    setPendingRestaurantSize(restaurantSize);
+  }, [restaurantSize]);
+
+  // Check for unsaved changes (including restaurant size changes)
   useEffect(() => {
     if (editMode && savedTables.length > 0) {
-      const hasChanges = JSON.stringify(tables) !== JSON.stringify(savedTables);
-      setHasUnsavedChanges(hasChanges);
+      const hasTableChanges =
+        JSON.stringify(tables) !== JSON.stringify(savedTables);
+      const hasSizeChanges = pendingRestaurantSize !== restaurantSize;
+      setHasUnsavedChanges(hasTableChanges || hasSizeChanges);
     } else {
       setHasUnsavedChanges(false);
     }
-  }, [tables, savedTables, editMode]);
+  }, [tables, savedTables, editMode, pendingRestaurantSize, restaurantSize]);
 
   // Center the canvas on load and when dimensions change
   useEffect(() => {
@@ -441,35 +453,11 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     return maxDimensions.scale || 0.8;
   }, [maxDimensions]);
 
-  const handleSetRestaurantSize = async (size: number) => {
+  const handleSetRestaurantSize = (size: number) => {
     if (!isManager) return;
 
-    setRestaurantSize(size);
-    try {
-      await databases.updateDocument(
-        DATABASE_ID,
-        SETTINGS_COLLECTION_ID,
-        SETTINGS_DOCUMENT_ID,
-        { id: SETTINGS_DOCUMENT_ID, size }
-      );
-      showNotification("Tamanho do restaurante atualizado!", "success");
-    } catch (err) {
-      try {
-        await databases.createDocument(
-          DATABASE_ID,
-          SETTINGS_COLLECTION_ID,
-          SETTINGS_DOCUMENT_ID,
-          { id: SETTINGS_DOCUMENT_ID, size }
-        );
-        showNotification("Tamanho do restaurante definido!", "success");
-      } catch (createErr) {
-        console.error(
-          "Erro ao criar/atualizar tamanho do restaurante:",
-          createErr
-        );
-        showNotification("Erro ao atualizar tamanho do restaurante", "error");
-      }
-    }
+    // Only update pending size, don't save to database yet
+    setPendingRestaurantSize(size);
   };
 
   useEffect(() => {
@@ -550,6 +538,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     if (editMode) {
       // Reset to saved state when exiting edit mode
       setTables(JSON.parse(JSON.stringify(savedTables)));
+      setPendingRestaurantSize(restaurantSize); // Reset pending size to current saved size
       setSelectedTable(null);
       setHasUnsavedChanges(false);
       setTableNumberError("");
@@ -638,15 +627,43 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
         }
       }
 
+      // Save restaurant size if it has changed
+      if (pendingRestaurantSize !== restaurantSize) {
+        try {
+          await databases.updateDocument(
+            DATABASE_ID,
+            SETTINGS_COLLECTION_ID,
+            SETTINGS_DOCUMENT_ID,
+            { id: SETTINGS_DOCUMENT_ID, size: pendingRestaurantSize }
+          );
+          setRestaurantSize(pendingRestaurantSize);
+        } catch (err) {
+          try {
+            await databases.createDocument(
+              DATABASE_ID,
+              SETTINGS_COLLECTION_ID,
+              SETTINGS_DOCUMENT_ID,
+              { id: SETTINGS_DOCUMENT_ID, size: pendingRestaurantSize }
+            );
+            setRestaurantSize(pendingRestaurantSize);
+          } catch (createErr) {
+            console.error(
+              "Erro ao criar/atualizar tamanho do restaurante:",
+              createErr
+            );
+            throw createErr; // Re-throw to be caught by outer catch
+          }
+        }
+      }
+
       // Update saved state
       setSavedTables(JSON.parse(JSON.stringify(tables)));
       setHasUnsavedChanges(false);
       showNotification("Layout guardado com sucesso!", "success");
 
-      // Exit edit mode after successful save
+      // Redirect to home page after successful save
       setTimeout(() => {
-        setEditMode(false);
-        setSelectedTable(null);
+        router.push("/");
       }, 1000);
     } catch (err) {
       console.error("Erro ao salvar layout:", err);
@@ -1234,8 +1251,9 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
               </div>
             </div>
             <p className="text-neutral-300 mb-8 leading-relaxed">
-              Tem alterações não guardadas que serão perdidas se sair do modo de
-              edição. Quer guardar as alterações primeiro ou descartar?
+              Tem alterações não guardadas (mesas e/ou tamanho do restaurante)
+              que serão perdidas se sair do modo de edição. Quer guardar as
+              alterações primeiro ou descartar?
             </p>
             <div className="flex gap-3">
               <button
@@ -1362,7 +1380,10 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                   className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
                 >
                   <Ruler size={16} />
-                  {restaurantSize}m²
+                  {pendingRestaurantSize}m²
+                  {pendingRestaurantSize !== restaurantSize && (
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                  )}
                   <ChevronDown
                     size={14}
                     className={`transition-transform duration-200 ${
@@ -1891,7 +1912,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                           }}
                           className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
                           min="1"
-                          max="15"
+                          max="50"
                         />
                       </div>
                       {selectedTableData.shape !== "circular" && (

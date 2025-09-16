@@ -1,0 +1,1005 @@
+// Variables
+$primary-blue: #3b82f6;
+$primary-blue-dark: #1d4ed8;
+$amber: #f59e0b;
+$green: #10b981;
+$red: #ef4444;
+$indigo: #6366f1;
+$purple: #8b5cf6;
+
+$gray-50: #f8fafc;
+$gray-100: #f1f5f9;
+$gray-200: #e2e8f0;
+$gray-300: #cbd5e1;
+$gray-400: #94a3b8;
+$gray-500: #6b7280;
+$gray-600: #64748b;
+$gray-700: #374151;
+$gray-800: #1e293b;
+
+$font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+// Loading animations
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+// Base styles
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: $gray-50;
+  font-family: $font-family;
+  overflow: hidden;
+
+  // Main container
+  &__main {
+    display: flex;
+    flex: 1;
+    margin-top: 80px;
+    height: calc(100vh - 80px);
+  }
+
+  // Sidebar
+  &__sidebar {
+    width: 320px;
+    background: white;
+    border-right: 1px solid $gray-200;
+    box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    position: fixed;
+    top: 80px;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+
+    // Mobile responsiveness
+    @media (max-width: 1024px) {
+      transform: translateX(-100%);
+      z-index: 150;
+      background: white;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+      border-right: none;
+      padding-top: 4rem; // Extra space for close button
+
+      &--open {
+        transform: translateX(0);
+      }
+    }
+  }
+
+  &__sidebar-footer {
+    padding-top: 1rem;
+    border-top: 1px solid $gray-200;
+    text-align: center;
+  }
+
+  // Mobile close button for sidebar
+  .mobile-sidebar-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: $gray-600;
+    transition: all 0.2s ease;
+    display: none;
+    z-index: 10;
+
+    &:hover {
+      background: $gray-100;
+      color: $gray-800;
+    }
+
+    // Show on mobile and tablet
+    @media (max-width: 1024px) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  // Navigation
+  &__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+  }
+
+  &__nav-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $gray-400;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  // Content area
+  &__content {
+    flex: 1;
+    margin-left: 320px;
+    background: $gray-50;
+    overflow-y: auto;
+    height: 100%;
+    transition: margin-left 0.3s ease;
+
+    // Mobile responsiveness
+    @media (max-width: 1024px) {
+      margin-left: 0;
+    }
+  }
+
+  &__content-inner {
+    padding: 2rem;
+    min-height: 100%;
+  }
+}
+
+// Profile card
+.profile-card {
+  background: #ffffff;
+  border: 1px solid $gray-200;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+}
+
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $indigo, $purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.25);
+  color: white;
+}
+
+.profile-info {
+  flex: 1;
+
+  &__name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: $gray-800;
+    margin-bottom: 0.125rem;
+  }
+
+  &__role {
+    font-size: 0.75rem;
+    color: $gray-600;
+    font-weight: 500;
+  }
+}
+
+.settings-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: $gray-100;
+  border: 1px solid $gray-200;
+  color: $gray-600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $gray-200;
+  }
+}
+
+// Profile badges
+.profile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+// Navigation items
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 56px;
+  background: white;
+
+  &:not(&--active):hover {
+    background: $gray-50 !important;
+    border-color: $gray-300 !important;
+  }
+
+  &__content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 0.75rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+  }
+}
+
+// Version text
+.version-text {
+  font-size: 0.6875rem;
+  color: $gray-400;
+  font-weight: 500;
+}
+
+// Demo cards
+.demo-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid $gray-200;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $gray-800;
+    margin-bottom: 0.5rem;
+  }
+
+  &__description {
+    color: $gray-600;
+    line-height: 1.5;
+  }
+}
+
+// New layout structure
+.dashboard__layout {
+  display: flex;
+  height: 100%;
+
+  // Left side - RestLayout
+  &-left {
+    flex: 2;
+  }
+
+  // Right side - Statistics cards
+  &-right {
+    flex: 1;
+    min-width: 320px;
+    max-width: 400px;
+  }
+}
+
+// Statistics cards
+.stats-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  // Height will be set by JavaScript to match RestLayout
+
+  .stat-card {
+    background: #ffffff;
+    border: 1px solid $gray-200;
+    border-radius: 16px;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1; // Each card takes equal height (1/3 of total minus gaps)
+    min-height: 0; // Allow shrinking if needed
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.1);
+    }
+
+    &__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      flex-shrink: 0;
+    }
+
+    &__content {
+      flex: 1;
+    }
+
+    &__value {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    &__label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: $gray-600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    // Card variants
+    &--profit {
+      .stat-card__icon {
+        background: linear-gradient(135deg, $green, #059669);
+        color: white;
+        box-shadow: 0 8px 25px -8px rgba(16, 185, 129, 0.3);
+      }
+
+      .stat-card__value {
+        color: $green;
+      }
+    }
+
+    &--orders {
+      .stat-card__icon {
+        background: linear-gradient(135deg, $primary-blue, $primary-blue-dark);
+        color: white;
+        box-shadow: 0 8px 25px -8px rgba(59, 130, 246, 0.3);
+      }
+
+      .stat-card__value {
+        color: $primary-blue;
+      }
+    }
+
+    &--reservations {
+      .stat-card__icon {
+        background: linear-gradient(135deg, $amber, #d97706);
+        color: white;
+        box-shadow: 0 8px 25px -8px rgba(245, 158, 11, 0.3);
+      }
+
+      .stat-card__value {
+        color: $amber;
+      }
+    }
+  }
+}
+
+// Responsive design for the new layout
+@media (max-width: 1400px) {
+  .dashboard__layout {
+    &-left {
+      flex: 1.5;
+    }
+
+    &-right {
+      min-width: 300px;
+    }
+  }
+}
+
+@media (max-width: 1200px) {
+  .dashboard__layout {
+    flex-direction: column;
+    gap: 1.5rem;
+
+    &-left {
+      flex: none;
+      min-height: 500px;
+      max-height: none;
+    }
+
+    &-right {
+      flex: none;
+      min-width: auto;
+      max-width: none;
+    }
+  }
+
+  .stats-cards {
+    flex-direction: row;
+    height: auto !important; // Override JavaScript height on mobile
+    min-height: auto !important; // Reset min-height
+
+    .stat-card {
+      flex: 1;
+      min-height: 100px;
+
+      &__icon {
+        width: 56px;
+        height: 56px;
+      }
+
+      &__value {
+        font-size: 1.875rem;
+      }
+
+      &__label {
+        font-size: 0.75rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard__layout {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .stats-cards {
+    flex-direction: column;
+    gap: 1rem;
+    height: auto !important; // Override JavaScript height on mobile
+    min-height: auto !important; // Reset min-height
+
+    .stat-card {
+      padding: 1.5rem;
+      min-height: 80px;
+
+      &__icon {
+        width: 48px;
+        height: 48px;
+      }
+
+      &__value {
+        font-size: 1.5rem;
+      }
+    }
+  }
+}
+
+// Mobile overlay for sidebar
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 149; // Just below sidebar
+  opacity: 1;
+  transition: opacity 0.3s ease;
+
+  @media (min-width: 1025px) {
+    display: none; // Hide on desktop
+  }
+}
+
+// Loading components
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  padding: 40px;
+  color: $gray-600;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: $gray-800;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .loading-spinner {
+    color: $primary-blue;
+  }
+}
+
+// Navigation item skeleton
+.nav-item-skeleton {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid $gray-200;
+  gap: 12px;
+
+  .skeleton-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    @extend .skeleton;
+  }
+
+  .skeleton-text {
+    flex: 1;
+    height: 16px;
+    border-radius: 4px;
+    @extend .skeleton;
+  }
+
+  .skeleton-count {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    @extend .skeleton;
+  }
+}
+
+// Order Management Styles
+.order-management {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid $gray-200;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .order-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid $gray-200;
+    background: $gray-50;
+
+    .back-button {
+      background: transparent;
+      border: none;
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: $gray-600;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $gray-200;
+        color: $gray-800;
+      }
+    }
+
+    h2 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.125rem; // Reduzido de 1.25rem para 1.125rem
+      font-weight: 600;
+      color: $gray-800;
+    }
+
+    .order-header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .add-order-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: $primary-blue;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $primary-blue-dark;
+        transform: translateY(-1px);
+      }
+    }
+
+    .checkout-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: $green;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #059669;
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        background: $gray-300;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .orders-loading,
+  .no-orders {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 3rem;
+    color: $gray-600;
+    gap: 1rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: $gray-800;
+    }
+
+    p {
+      margin: 0;
+      text-align: center;
+    }
+
+    .loading-spinner {
+      color: $primary-blue;
+    }
+  }
+
+  .orders-list {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .order-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: white;
+    border: 1px solid $gray-200;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: $gray-300;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-item-image {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      background: $gray-100;
+      color: $gray-600;
+      flex-shrink: 0;
+    }
+
+    .order-item-info {
+      flex: 1;
+      min-width: 0;
+
+      h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: $gray-800;
+      }
+
+      .order-item-price {
+        font-size: 0.75rem; // Reduzido para 0.75rem (12px)
+        font-weight: 400; // Reduzido para 400 (normal)
+        color: $green;
+        margin-bottom: 0.5rem;
+      }
+
+      .order-item-time {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        color: $gray-500;
+        margin-bottom: 0.5rem;
+
+        // Different colors based on urgency/status
+        &.time-recent {
+          color: $green; // Green for recent orders
+        }
+
+        &.time-medium {
+          color: $amber; // Amber for medium time
+        }
+
+        &.time-urgent {
+          color: $red; // Red for urgent orders
+        }
+
+        &.time-completed {
+          color: $gray-400; // Gray for completed orders
+        }
+      }
+
+      .order-notes {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        background: $gray-50;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: $gray-700;
+        margin-top: 0.5rem;
+      }
+
+      .note-editor {
+        margin-top: 0.5rem;
+
+        textarea {
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid $gray-300;
+          border-radius: 6px;
+          font-size: 0.875rem;
+          resize: vertical;
+          min-height: 60px;
+
+          &:focus {
+            outline: none;
+            border-color: $primary-blue;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+        }
+
+        .note-actions {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+
+          button {
+            display: flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+
+            &.save-note {
+              background: $green;
+              color: white;
+
+              &:hover {
+                background: #059669;
+              }
+            }
+
+            &.cancel-note {
+              background: $gray-200;
+              color: $gray-700;
+
+              &:hover {
+                background: $gray-300;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .order-item-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-shrink: 0;
+
+      button {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 100px;
+        justify-content: center;
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      }
+
+      .status-toggle {
+        &.status-pendente {
+          background: $amber;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #d97706;
+          }
+        }
+
+        &.status-preparando {
+          background: $primary-blue;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: $primary-blue-dark;
+          }
+        }
+
+        &.status-concluido {
+          background: $green;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #059669;
+          }
+
+          &:disabled {
+            background: $green;
+            opacity: 0.8;
+            cursor: not-allowed;
+
+            &:hover {
+              background: $green;
+            }
+          }
+        }
+      }
+
+      .edit-note {
+        background: $gray-200;
+        color: $gray-700;
+
+        &:hover {
+          background: $gray-300;
+        }
+      }
+
+      .delete-order {
+        background: $red;
+        color: white;
+
+        &:hover {
+          background: #dc2626;
+        }
+      }
+    }
+  }
+}
+
+// Responsive design for order management
+@media (max-width: 768px) {
+  .order-management {
+    .order-header {
+      padding: 1rem;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+
+      .back-button {
+        align-self: flex-start;
+      }
+
+      h2 {
+        font-size: 1rem; // Reduzido de 1.125rem para 1rem no mobile
+        text-align: center;
+      }
+
+      .order-header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .add-order-button,
+        .checkout-button {
+          padding: 0.75rem 1rem;
+          font-size: 0.875rem;
+          justify-content: center;
+        }
+      }
+    }
+
+    .orders-list {
+      padding: 1rem;
+    }
+
+    .order-item {
+      flex-direction: column;
+      gap: 1rem;
+
+      .order-item-image {
+        align-self: center;
+      }
+
+      .order-item-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 100%;
+
+        button {
+          flex: 1;
+          min-width: auto;
+        }
+      }
+    }
+  }
+}

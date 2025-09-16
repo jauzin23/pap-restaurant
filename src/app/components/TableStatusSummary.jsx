@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Users, DollarSign } from "lucide-react";
+import { Users, DollarSign, RefreshCw, AlertCircle } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import { Query } from "appwrite";
 import { DBRESTAURANTE, COL_TABLES, COL_ORDERS } from "@/lib/appwrite";
 import CountUp from "./CountUp";
+import "./table-status-summary-redesigned.scss";
 
 function getTodayDateString() {
   return new Date().toISOString().split("T")[0];
@@ -110,151 +111,80 @@ export default function TableStatusSummary() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-6 rounded-lg bg-black backdrop-blur-lg border border-white/10">
-        <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      <div className="table-status-summary-redesigned">
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Carregando dados...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid md:gap-6">
-      {/* Card das Mesas */}
-      <div className="p-4 md:p-6 rounded-lg bg-black backdrop-blur-lg border border-white/10">
-        <div className="flex items-center gap-3 mb-4 md:mb-6">
-          <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/20">
-            <Users
-              size={16}
-              className="text-blue-400 md:w-[18px] md:h-[18px]"
-            />
-          </div>
-          <div>
-            <h3 className="text-base md:text-lg font-bold text-white">Mesas</h3>
-            <p className="text-xs md:text-sm text-white/70">Estado das mesas</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
-          <div className="text-center p-2 md:p-3 rounded-lg bg-white/[0.02] border border-white/5">
-            <div className="text-xl md:text-2xl font-bold text-white">
-              {totalMesas}
-            </div>
-            <div className="text-xs md:text-sm text-white/60 font-medium">
-              Total
-            </div>
-          </div>
-          <div className="text-center p-2 md:p-3 rounded-lg bg-white/[0.02] border border-white/5">
-            <div className="text-xl md:text-2xl font-bold text-red-400">
-              {mesasOcupadas}
-            </div>
-            <div className="text-xs md:text-sm text-white/60 font-medium">
-              Ocupadas
-            </div>
-          </div>
-          <div className="text-center p-2 md:p-3 rounded-lg bg-white/[0.02] border border-white/5">
-            <div className="text-xl md:text-2xl font-bold text-green-400">
-              {mesasLivres}
-            </div>
-            <div className="text-xs md:text-sm text-white/60 font-medium">
-              Livres
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 md:mt-6 p-3 md:p-4 rounded-lg bg-white/[0.02] border border-white/5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm md:text-base text-white/80 font-medium">
-              Taxa de Ocupação
-            </span>
-            <span className="text-lg md:text-xl font-bold text-white">
-              {percentagemOcupacao.toFixed(1)}%
-            </span>
-          </div>
-          <div className="w-full bg-white/10 rounded-full h-2 md:h-3">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                percentagemOcupacao > 80
-                  ? "bg-red-500"
-                  : percentagemOcupacao > 60
-                  ? "bg-yellow-500"
-                  : "bg-green-500"
-              }`}
-              style={{ width: `${percentagemOcupacao}%` }}
-            />
-          </div>
-        </div>
+    <div className="table-status-summary-redesigned">
+      <div className="section-header">
+        <Users className="header-icon" size={18} />
+        <h3 className="header-title">Status das Mesas & Faturação</h3>
+        <button
+          onClick={() => {
+            loadTables();
+            loadRevenue();
+          }}
+          className="refresh-btn"
+          disabled={loading}
+        >
+          <RefreshCw size={14} />
+        </button>
       </div>
 
-      {/* Card da Faturação */}
-      <div className="p-4 md:p-6 rounded-lg bg-black backdrop-blur-lg border border-white/10">
-        <div className="flex items-center gap-3 mb-4 md:mb-6">
-          <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center border border-emerald-500/20">
-            <DollarSign
-              size={16}
-              className="text-emerald-400 md:w-[18px] md:h-[18px]"
-            />
+      {/* Tables Grid */}
+      <div className="table-grid">
+        {tables.slice(0, 12).map((table) => (
+          <div
+            key={table.$id}
+            className={`table-card ${
+              table.status === "free"
+                ? "available"
+                : table.status === "occupied"
+                ? "occupied"
+                : "reserved"
+            }`}
+          >
+            <div className="table-number">
+              Mesa {table.numero || table.number}
+            </div>
+            <div className="table-status">
+              {table.status === "free"
+                ? "Livre"
+                : table.status === "occupied"
+                ? "Ocupada"
+                : "Reservada"}
+            </div>
+            <div className="table-capacity">{table.capacity || 4} lugares</div>
           </div>
-          <div>
-            <h3 className="text-base md:text-lg font-bold text-white">
-              Faturação
-            </h3>
-            <p className="text-xs md:text-sm text-white/70">Vendas de hoje</p>
-          </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="mb-4 md:mb-6">
-          <div className="flex flex-col items-center justify-center gap-1 md:gap-2">
-            <div className="flex items-end gap-1 md:gap-2">
-              <span className="text-xl md:text-2xl text-emerald-400 font-bold">
-                €
-              </span>
-              <span className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none">
-                <CountUp
-                  from={0}
-                  to={revenue.toLocaleString("pt-PT", {
-                    minimumFractionDigits: 2,
-                  })}
-                  separator=","
-                  direction="up"
-                  duration={0.5}
-                  className="count-up-text"
-                />
-                {}
-              </span>
-            </div>
-            <p className="text-sm text-white/60 mt-2 text-center font-medium">
-              Pedidos pagos hoje
-            </p>
-          </div>
+      {/* Status Summary */}
+      <div className="status-summary">
+        <div className="status-item available">
+          <div className="status-count">{mesasLivres}</div>
+          <div className="status-label">Livres</div>
         </div>
-
-        <div className="pt-4 border-t border-white/10">
-          <div className="mb-2 text-sm text-white/70 font-semibold">
-            Últimos pedidos pagos
-          </div>
-          {lastOrders.length === 0 ? (
-            <div className="text-sm text-white/50 italic">
-              Nenhum pedido hoje
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {lastOrders.map((order) => (
-                <div
-                  key={order.$id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-colors"
-                >
-                  <span className="font-mono text-white/80 text-sm">
-                    #{order.$id.slice(-6)}
-                  </span>
-                  <span className="font-bold text-emerald-400 text-sm">
-                    €{" "}
-                    {(order.total || 0).toLocaleString("pt-PT", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="divider"></div>
+        <div className="status-item occupied">
+          <div className="status-count">{mesasOcupadas}</div>
+          <div className="status-label">Ocupadas</div>
+        </div>
+        <div className="divider"></div>
+        <div className="status-item">
+          <div className="status-count">€{revenue.toFixed(2)}</div>
+          <div className="status-label">Hoje</div>
+        </div>
+        <div className="divider"></div>
+        <div className="status-item">
+          <div className="status-count">{percentagemOcupacao.toFixed(0)}%</div>
+          <div className="status-label">Ocupação</div>
         </div>
       </div>
     </div>

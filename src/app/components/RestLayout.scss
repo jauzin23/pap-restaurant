@@ -1,0 +1,579 @@
+$primary-blue: #3b82f6;
+$primary-blue-dark: #1d4ed8;
+$amber: #f59e0b;
+$green: #10b981;
+$red: #ef4444;
+$indigo: #6366f1;
+$purple: #8b5cf6;
+
+$gray-50: #f8fafc;
+$gray-100: #f1f5f9;
+$gray-200: #e2e8f0;
+$gray-300: #cbd5e1;
+$gray-400: #94a3b8;
+$gray-600: #64748b;
+$gray-700: #374151;
+$gray-800: #1e293b;
+
+$white: #ffffff;
+$font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+.rest-layout-container {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: $font-family;
+  color: $gray-800;
+  background: $white;
+
+  // Header section with statistics and edit button
+  .rest-layout-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid $gray-200;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: $white;
+    flex-shrink: 0;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .header-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: $gray-800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .header-icon {
+          width: 24px;
+          height: 24px;
+          color: $primary-blue;
+        }
+      }
+    }
+
+    .header-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 12px;
+        background: $gray-50;
+        border: 1px solid $gray-200;
+        border-radius: 8px;
+        min-width: 60px;
+
+        .stat-value {
+          font-size: 18px;
+          font-weight: 700;
+          color: $gray-800;
+          line-height: 1;
+        }
+
+        .stat-label {
+          font-size: 11px;
+          font-weight: 500;
+          color: $gray-600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-top: 2px;
+        }
+
+        &.occupied {
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.2);
+          .stat-value {
+            color: $red;
+          }
+        }
+
+        &.free {
+          background: rgba(16, 185, 129, 0.1);
+          border-color: rgba(16, 185, 129, 0.2);
+          .stat-value {
+            color: $green;
+          }
+        }
+
+        &.percentage {
+          background: rgba(59, 130, 246, 0.1);
+          border-color: rgba(59, 130, 246, 0.2);
+          .stat-value {
+            color: $primary-blue;
+          }
+        }
+      }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .edit-button {
+        background: $primary-blue;
+        color: $white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        &:hover {
+          background: $primary-blue-dark;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+      }
+    }
+  }
+
+  // Main content area - takes full height
+  .rest-layout-content {
+    flex: 1;
+    position: relative;
+    background: $gray-50;
+    overflow: hidden; // Prevent scrolling
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    min-height: 0; // Allow flex shrinking
+
+    .table-grid {
+      position: relative;
+      background: $white;
+      border: 2px solid $gray-200;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      flex-shrink: 0; // Prevent shrinking below content size
+
+      // Grid background pattern
+      background-image: linear-gradient(
+          rgba(203, 213, 225, 0.3) 1px,
+          transparent 1px
+        ),
+        linear-gradient(90deg, rgba(203, 213, 225, 0.3) 1px, transparent 1px);
+      background-size: 20px 20px;
+
+      .table-item {
+        position: absolute;
+        background: $white;
+        border: 2px solid $gray-200;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 14px;
+        color: $gray-800;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+        &:hover {
+          border-color: $primary-blue;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-number {
+          font-size: 16px;
+          font-weight: 700;
+          margin-bottom: 4px;
+        }
+
+        .table-status {
+          font-size: 12px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .table-amount {
+          font-size: 12px;
+          margin-top: 2px;
+          font-weight: 600;
+        }
+
+        // Status-based styling
+        &.occupied {
+          border-color: $red;
+          background: rgba(239, 68, 68, 0.05);
+
+          .table-status {
+            color: $red;
+          }
+
+          .table-amount {
+            color: $red;
+          }
+
+          .status-indicator {
+            background: $red;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+          }
+        }
+
+        &.reserved {
+          border-color: $amber;
+          background: rgba(245, 158, 11, 0.05);
+
+          .table-status {
+            color: $amber;
+          }
+
+          .table-amount {
+            color: $amber;
+          }
+
+          .status-indicator {
+            background: $amber;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+          }
+        }
+
+        &.available,
+        &.free {
+          border-color: $green;
+          background: rgba(16, 185, 129, 0.05);
+
+          .table-status {
+            color: $green;
+          }
+
+          .table-amount {
+            color: $green;
+          }
+
+          .status-indicator {
+            background: $green;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+          }
+        }
+
+        .status-indicator {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          border: 2px solid white;
+          transition: all 0.2s ease;
+        }
+      }
+    }
+
+    // Empty state
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: $gray-600;
+      text-align: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+
+      .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: $gray-100;
+        border: 1px solid $gray-200;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        color: $gray-400;
+      }
+
+      .empty-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: $gray-800;
+      }
+
+      .empty-description {
+        font-size: 14px;
+        color: $gray-600;
+        margin-bottom: 32px;
+        max-width: 400px;
+        line-height: 1.6;
+      }
+
+      .empty-action {
+        background: $primary-blue;
+        color: $white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: inherit;
+
+        &:hover {
+          background: $primary-blue-dark;
+          transform: translateY(-1px);
+        }
+      }
+    }
+
+    // Loading state
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background: $white;
+      color: $gray-800;
+
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 20px;
+        position: relative;
+
+        .spinner-base {
+          width: 100%;
+          height: 100%;
+          border: 3px solid $gray-200;
+          border-radius: 50%;
+        }
+
+        .spinner-active {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border: 3px solid transparent;
+          border-top: 3px solid $primary-blue;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+      }
+
+      .loading-text {
+        font-size: 16px;
+        color: $gray-600;
+        text-align: center;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Stats summary at bottom
+  .rest-layout-stats {
+    padding: 24px;
+    border-top: 1px solid $gray-200;
+    background: $white;
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 24px;
+
+      .stat-item {
+        text-align: center;
+        padding: 16px;
+        background: $gray-50;
+        border: 1px solid $gray-200;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+          font-size: 28px;
+          font-weight: 800;
+          margin-bottom: 8px;
+          color: $gray-800;
+        }
+
+        .stat-label {
+          font-size: 12px;
+          color: $gray-600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 600;
+        }
+
+        .stat-change {
+          font-size: 12px;
+          font-weight: 600;
+          margin-top: 4px;
+
+          &.positive {
+            color: $green;
+          }
+
+          &.negative {
+            color: $red;
+          }
+
+          &.neutral {
+            color: $gray-600;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Animations
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Responsive Design
+@media (max-width: 1024px) {
+  .rest-layout-container {
+    .rest-layout-header {
+      gap: 16px;
+      align-items: stretch;
+
+      .header-left {
+        justify-content: center;
+      }
+
+      .header-stats {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .header-actions {
+        justify-content: center;
+      }
+    }
+
+    .rest-layout-content {
+      padding: 16px;
+
+      .table-grid {
+        min-height: 350px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .rest-layout-container {
+    .rest-layout-header {
+      padding: 16px;
+
+      .header-title {
+        font-size: 16px;
+        justify-content: center;
+      }
+
+      .header-stats {
+        .stat-item {
+          min-width: 50px;
+          padding: 6px 8px;
+
+          .stat-value {
+            font-size: 16px;
+          }
+
+          .stat-label {
+            font-size: 10px;
+          }
+        }
+      }
+
+      .edit-button {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+    }
+
+    .rest-layout-content {
+      padding: 12px;
+
+      .table-grid {
+        min-height: 300px;
+      }
+    }
+  }
+}
+
+// Additional utility classes for light theme
+.table-status-indicator {
+  &.free {
+    background: $green;
+    color: $green;
+  }
+
+  &.occupied {
+    background: $red;
+    color: $red;
+  }
+
+  &.reserved {
+    background: $amber;
+    color: $amber;
+  }
+}
+
+// Card-style enhancements
+.card-style {
+  background: $white;
+  border: 1px solid $gray-200;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+}

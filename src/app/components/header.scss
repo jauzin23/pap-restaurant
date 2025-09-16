@@ -1,0 +1,296 @@
+// Header Component Styles - Restaurant Dashboard Redesign
+// Variables
+$primary-blue: #3b82f6;
+$primary-blue-dark: #1d4ed8;
+$amber: #f59e0b;
+$green: #10b981;
+$red: #ef4444;
+$indigo: #6366f1;
+$purple: #8b5cf6;
+
+$gray-50: #f8fafc;
+$gray-100: #f1f5f9;
+$gray-200: #e2e8f0;
+$gray-300: #cbd5e1;
+$gray-400: #94a3b8;
+$gray-600: #64748b;
+$gray-800: #1e293b;
+
+$font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+// Header styles
+.dashboard__header {
+  height: 80px;
+  background: #ffffff;
+  border-bottom: 1px solid $gray-200;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+
+  // Mobile responsiveness
+  @media (max-width: 768px) {
+    padding: 0 1rem;
+    height: 70px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0 0.75rem;
+    height: 65px;
+  }
+}
+
+.dashboard__header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.5rem;
+  }
+}
+
+.dashboard__search {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 2rem;
+  position: relative;
+
+  @media (max-width: 1024px) {
+    max-width: 300px;
+    margin: 0 1rem;
+  }
+
+  @media (max-width: 768px) {
+    max-width: 200px;
+    margin: 0 0.75rem;
+  }
+
+  @media (max-width: 480px) {
+    display: none; // Hide search on very small screens
+  }
+}
+
+.dashboard__search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: $gray-600;
+}
+
+.dashboard__search-input {
+  width: 100%;
+  height: 44px;
+  padding-left: 3rem;
+  padding-right: 1rem;
+  border-radius: 12px;
+  border: 1px solid $gray-200;
+  background: $gray-50;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: $primary-blue;
+    background: #ffffff;
+  }
+
+  &:blur {
+    border-color: $gray-200;
+    background: $gray-50;
+  }
+}
+
+.dashboard__header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.5rem;
+  }
+}
+
+// Logo
+.logo {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+  }
+}
+
+.logo-text {
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: $gray-800;
+    letter-spacing: -0.025em;
+
+    @media (max-width: 768px) {
+      font-size: 1.125rem;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 1rem;
+    }
+  }
+
+  &__subtitle {
+    font-size: 0.75rem;
+    color: $gray-600;
+    font-weight: 500;
+
+    @media (max-width: 768px) {
+      font-size: 0.6875rem;
+    }
+
+    @media (max-width: 480px) {
+      display: none; // Hide subtitle on very small screens
+    }
+  }
+}
+
+// Notification button
+.notification-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: $gray-100;
+  border: 1px solid $gray-200;
+  color: $gray-600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $gray-200;
+  }
+}
+
+.notification-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: $red;
+  border-radius: 50%;
+}
+
+// User section
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 12px;
+  background: $gray-50;
+  border: 1px solid $gray-200;
+
+  .user-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $gray-800;
+  }
+
+  .role-badge-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid;
+    transition: all 0.2s ease;
+    cursor: help;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $indigo, $purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $gray-800;
+}
+
+.logout-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: $red;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $red;
+    color: #ffffff;
+  }
+}
+
+// Mobile menu toggle button
+.mobile-menu-toggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: $gray-100;
+  border: 1px solid $gray-200;
+  color: $gray-600;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $gray-200;
+  }
+
+  @media (max-width: 1024px) {
+    display: flex;
+  }
+}
