@@ -6,3 +6,5 @@ meter aquela calculadora de troco e etc...
 vários layouts
 sys de noti e msg
 relatorios
+login atualizar para white
+pagina 404
