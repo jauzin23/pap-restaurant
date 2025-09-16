@@ -26,11 +26,5 @@
           fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
     <!-- Subtle highlight on hat -->
     <ellipse cx="45" cy="42" rx="3" ry="2" fill="#ffffff" opacity="0.7"/>
-    <!-- Code symbol -->
-    <text x="50" y="54" text-anchor="middle"
-          font-family="JetBrains Mono, Menlo, Consolas, monospace"
-          font-size="14" font-weight="700" fill="url(#brandGradient)">
-      &lt;/&gt;
-    </text>
   </g>
 </svg>
