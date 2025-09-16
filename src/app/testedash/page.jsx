@@ -18,9 +18,20 @@ import {
   ChefHat,
   X,
   MenuIcon,
+  Loader2,
+  Edit,
+  Trash2,
+  MessageSquare,
+  UtensilsCrossed,
+  Clock,
+  CheckCircle,
+  CreditCard,
+  ArrowLeft,
+  Plus,
 } from "lucide-react";
 import "./page.scss";
 import RestLayout from "../components/RestLayout";
+import Header from "../components/Header";
 import { useApp } from "@/contexts/AppContext";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -29,6 +40,7 @@ import {
   DBRESTAURANTE,
   COL_ORDERS,
   COL_TABLES,
+  COL_MENU,
 } from "@/lib/appwrite";
 import { Query } from "appwrite";
 
@@ -45,6 +57,18 @@ export default function RestaurantDashboard() {
     reservations: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Order management state
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [tableOrders, setTableOrders] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [tempNote, setTempNote] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(null);
+
+  // Timer state to update elapsed times every minute
+  const [timeUpdateTrigger, setTimeUpdateTrigger] = useState(0);
 
   // Simple height matching effect
   useEffect(() => {
@@ -84,6 +108,7 @@ export default function RestaurantDashboard() {
   useEffect(() => {
     if (user && !loading) {
       fetchDailyStats();
+      fetchMenuItems(); // Also fetch menu items
     }
   }, [user, loading]);
 
@@ -104,6 +129,11 @@ export default function RestaurantDashboard() {
           )
         ) {
           fetchDailyStats();
+
+          // If we have a selected table, also refresh its orders
+          if (selectedTable) {
+            fetchTableOrders(selectedTable);
+          }
         }
       }
     );
@@ -113,7 +143,16 @@ export default function RestaurantDashboard() {
         unsubscribe();
       }
     };
-  }, [user, loading, client]);
+  }, [user, loading, client, selectedTable]);
+
+  // Set up timer to update elapsed times every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeUpdateTrigger((prev) => prev + 1);
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
 
   const navItems = [
     { name: "MENU", count: 12, color: "#3b82f6", icon: Menu },
@@ -121,35 +160,6 @@ export default function RestaurantDashboard() {
     { name: "STOCK", count: 8, color: "#10b981", icon: Package },
     { name: "RESERVAS", count: 3, color: "#ef4444", icon: Calendar },
   ];
-
-  // Function to get role styling
-  const getRoleInfo = (userLabels) => {
-    // Get the first label as the primary role
-    const primaryRole = userLabels?.[0]?.toLowerCase();
-
-    switch (primaryRole) {
-      case "manager":
-        return { icon: Crown, label: "Manager", color: "#f59e0b" };
-      case "chef":
-        return { icon: ChefHat, label: "Chef", color: "#10b981" };
-      case "garcom":
-      case "waiter":
-        return { icon: User, label: "Garçom", color: "#3b82f6" };
-      case "staff":
-      default:
-        return { icon: Shield, label: "Staff", color: "#64748b" };
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await account.deleteSession("current");
-      router.push("/login");
-      console.log("Logged out successfully");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
 
   // Function to get today's date in ISO format for Appwrite query
   const getTodayDateRange = () => {
@@ -227,19 +237,258 @@ export default function RestaurantDashboard() {
     }).format(amount);
   };
 
-  // Show loading state
+  // Fetch all menu items for order display
+  const fetchMenuItems = async () => {
+    try {
+      const menuResponse = await databases.listDocuments(
+        DBRESTAURANTE,
+        COL_MENU,
+        [Query.limit(1000), Query.orderAsc("category"), Query.orderAsc("nome")]
+      );
+      setMenuItems(menuResponse.documents);
+    } catch (error) {
+      console.error("Error fetching menu items:", error);
+    }
+  };
+
+  // Fetch orders for specific table
+  const fetchTableOrders = async (tableNumber) => {
+    try {
+      setOrdersLoading(true);
+
+      const ordersResponse = await databases.listDocuments(
+        DBRESTAURANTE,
+        COL_ORDERS,
+        [
+          Query.contains("numeroMesa", [tableNumber]),
+          Query.orderDesc("$createdAt"),
+          Query.limit(100),
+        ]
+      );
+
+      setTableOrders(ordersResponse.documents);
+    } catch (error) {
+      console.error("Error fetching table orders:", error);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  // Get menu item details for an order
+  const getMenuItemForOrder = (menuId) => {
+    return menuItems.find((item) => item.$id === menuId);
+  };
+
+  // Toggle order status: pendente -> preparando -> concluido (final)
+  const toggleOrderStatus = async (orderId, currentStatus) => {
+    try {
+      setUpdatingStatus(orderId);
+
+      // If already completed, don't allow changes
+      if (currentStatus === "concluido") {
+        setUpdatingStatus(null);
+        return;
+      }
+
+      let newStatus;
+      let updateData = {};
+
+      switch (currentStatus) {
+        case "pendente":
+          newStatus = "preparando";
+          updateData = {
+            status: newStatus,
+            chef_id: user?.$id,
+          };
+          break;
+        case "preparando":
+          newStatus = "concluido";
+          updateData = {
+            status: newStatus,
+            concluidoEm: new Date().toLocaleString("pt-PT", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false,
+            }),
+          };
+          break;
+        default:
+          newStatus = "pendente";
+          updateData = { status: newStatus };
+      }
+
+      await databases.updateDocument(
+        DBRESTAURANTE,
+        COL_ORDERS,
+        orderId,
+        updateData
+      );
+
+      // Refresh orders for the selected table
+      if (selectedTable) {
+        fetchTableOrders(selectedTable);
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  // Update order notes
+  const updateOrderNotes = async (orderId, notes) => {
+    try {
+      await databases.updateDocument(DBRESTAURANTE, COL_ORDERS, orderId, {
+        notes,
+      });
+
+      // Refresh orders for the selected table
+      if (selectedTable) {
+        fetchTableOrders(selectedTable);
+      }
+    } catch (error) {
+      console.error("Error updating order notes:", error);
+    }
+  };
+
+  // Delete order item
+  const deleteOrderItem = async (orderId) => {
+    try {
+      await databases.deleteDocument(DBRESTAURANTE, COL_ORDERS, orderId);
+
+      // Refresh orders for the selected table
+      if (selectedTable) {
+        fetchTableOrders(selectedTable);
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+    }
+  };
+
+  // Handle table selection for order management
+  const selectTableForOrders = (tableNumber) => {
+    setSelectedTable(tableNumber);
+    fetchTableOrders(tableNumber);
+  };
+
+  // Handle checkout redirect
+  const handleCheckout = () => {
+    // TODO: Redirect to checkout page with selected table
+    router.push(`/checkout/${selectedTable}`);
+  };
+
+  // Handle add new order redirect
+  const handleAddOrder = () => {
+    router.push(`/order/${selectedTable}`);
+  };
+
+  // Calculate time elapsed since order creation
+  const getTimeElapsed = (createdAt) => {
+    if (!createdAt) return "Sem data";
+
+    const now = new Date();
+    const orderTime = new Date(createdAt);
+    const diffMs = now - orderTime;
+
+    // Convert to minutes
+    const minutes = Math.floor(diffMs / (1000 * 60));
+
+    if (minutes < 1) {
+      return "Agora mesmo";
+    } else if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      if (remainingMinutes === 0) {
+        return `${hours}h`;
+      } else {
+        return `${hours}h ${remainingMinutes}min`;
+      }
+    }
+  };
+
+  // Get display time based on order status
+  const getOrderTime = (order) => {
+    if (order.status === "concluido" && order.concluidoEm) {
+      return `Concluído: ${order.concluidoEm}`;
+    } else {
+      return getTimeElapsed(order.$createdAt);
+    }
+  };
+
+  // Get time class for styling based on elapsed time and status
+  const getTimeClass = (order) => {
+    if (order.status === "concluido") {
+      return "time-completed";
+    }
+
+    if (!order.$createdAt) return "";
+
+    const now = new Date();
+    const orderTime = new Date(order.$createdAt);
+    const diffMs = now - orderTime;
+    const minutes = Math.floor(diffMs / (1000 * 60));
+
+    if (minutes < 15) {
+      return "time-recent"; // Green - less than 15 minutes
+    } else if (minutes < 30) {
+      return "time-medium"; // Amber - 15-30 minutes
+    } else {
+      return "time-urgent"; // Red - more than 30 minutes
+    }
+  };
+
+  // Loading spinner component
+  const LoadingSpinner = ({ size = 24 }) => (
+    <Loader2 size={size} className="loading-spinner" />
+  );
+
+  // Skeleton component for navigation items
+  const NavItemSkeleton = () => (
+    <div className="nav-item-skeleton">
+      <div className="skeleton-icon"></div>
+      <div className="skeleton-text"></div>
+      <div className="skeleton-count"></div>
+    </div>
+  );
+
+  // Show enhanced loading state
   if (loading) {
     return (
       <div className="dashboard">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100vh",
-          }}
-        >
-          <div>Carregando...</div>
+        <Header />
+
+        <div className="dashboard__main">
+          <aside className="dashboard__sidebar dashboard__sidebar--open">
+            <nav className="dashboard__nav">
+              <h3 className="dashboard__nav-title">Menu Principal</h3>
+
+              {Array.from({ length: 4 }).map((_, index) => (
+                <NavItemSkeleton key={index} />
+              ))}
+            </nav>
+
+            <div className="dashboard__sidebar-footer">
+              <div className="version-text">Desenvolvido por João Monteiro</div>
+            </div>
+          </aside>
+
+          <main className="dashboard__content">
+            <div className="dashboard__layout">
+              <div className="dashboard__layout-left">
+                <div className="loading-content">
+                  <LoadingSpinner size={48} />
+                  <h3>A carregar painel...</h3>
+                  <p>Por favor aguarde</p>
+                </div>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );
@@ -248,76 +497,11 @@ export default function RestaurantDashboard() {
   return (
     <div className="dashboard">
       {/* Fixed Header */}
-      <header className="dashboard__header">
-        {/* Left Section - Logo */}
-        <div className="dashboard__header-left">
-          {/* Mobile menu toggle */}
-          <button
-            className="mobile-menu-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            {sidebarOpen ? <X size={20} /> : <MenuIcon size={20} />}
-          </button>
-
-          <div className="logo">
-            <img src="/logo-icon.svg" alt="Logo" />
-          </div>
-          <div className="logo-text">
-            <div className="logo-text__title">Mesa+</div>
-            <div className="logo-text__subtitle">Gestão De Restaurante</div>
-          </div>
-        </div>
-
-        {/* Center Section - Search */}
-        <div className="dashboard__search">
-          <Search size={20} className="dashboard__search-icon" />
-          <input
-            type="text"
-            placeholder="Pesquisar..."
-            className="dashboard__search-input"
-          />
-        </div>
-
-        {/* Right Section - User Actions */}
-        <div className="dashboard__header-right">
-          <button className="notification-btn">
-            <Bell size={20} />
-            <div className="notification-badge" />
-          </button>
-
-          <div className="user-section">
-            <div className="user-avatar">
-              <User size={18} />
-            </div>
-
-            {/* User Name */}
-            <div className="user-name">{user?.name || "Utilizador"}</div>
-
-            {/* Role Badge with tooltip - only icon */}
-            {(() => {
-              const roleInfo = getRoleInfo(user?.labels);
-              const IconComponent = roleInfo.icon;
-              return (
-                <div
-                  className="role-badge-icon"
-                  style={{
-                    backgroundColor: `${roleInfo.color}15`,
-                    borderColor: `${roleInfo.color}30`,
-                    color: roleInfo.color,
-                  }}
-                  title={roleInfo.label} // Tooltip
-                >
-                  <IconComponent size={14} />
-                </div>
-              );
-            })()}
-
-            <button className="logout-btn" onClick={handleLogout}>
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        showMobileToggle={true}
+      />
 
       {/* Main Container */}
       <div className="dashboard__main">
@@ -400,12 +584,189 @@ export default function RestaurantDashboard() {
         {/* Main Content Area - Scrollable */}
         <main className="dashboard__content">
           <div className="dashboard__layout">
-            {/* Left side - RestLayout */}
+            {/* Left side - RestLayout or Order Management */}
             <div className="dashboard__layout-left">
-              <RestLayout
-                user={user}
-                onEditRedirect={() => router.push("/RestLayout")}
-              />
+              {selectedTable ? (
+                // Order Management Interface
+                <div className="order-management">
+                  <div className="order-header">
+                    <button
+                      onClick={() => setSelectedTable(null)}
+                      className="back-button"
+                    >
+                      <ArrowLeft size={20} />
+                    </button>
+                    <h2>Pedidos - Mesa {selectedTable}</h2>
+                    <div className="order-header-actions">
+                      <button
+                        onClick={handleAddOrder}
+                        className="add-order-button"
+                        title="Adicionar novo pedido"
+                      >
+                        <Plus size={20} />
+                        Novo Pedido
+                      </button>
+                      <button
+                        onClick={handleCheckout}
+                        className="checkout-button"
+                        disabled={tableOrders.length === 0}
+                      >
+                        <CreditCard size={20} />
+                        Checkout
+                      </button>
+                    </div>
+                  </div>
+
+                  {ordersLoading ? (
+                    <div className="orders-loading">
+                      <LoadingSpinner size={48} />
+                      <p>A carregar pedidos...</p>
+                    </div>
+                  ) : tableOrders.length === 0 ? (
+                    <div className="no-orders">
+                      <UtensilsCrossed size={48} />
+                      <h3>Nenhum pedido encontrado</h3>
+                      <p>Esta mesa não tem pedidos ativos</p>
+                    </div>
+                  ) : (
+                    <div className="orders-list">
+                      {tableOrders.map((order) => {
+                        const menuItem = getMenuItemForOrder(order.menu_id);
+                        const isEditing = editingNote === order.$id;
+
+                        return (
+                          <div key={order.$id} className="order-item">
+                            <div className="order-item-image">
+                              <UtensilsCrossed size={40} />
+                            </div>
+
+                            <div className="order-item-info">
+                              <h4>{menuItem?.nome || "Item não encontrado"}</h4>
+                              <div className="order-item-price">
+                                €{(order.total || 0).toFixed(2)}
+                              </div>
+                              <div
+                                className={`order-item-time ${getTimeClass(
+                                  order
+                                )}`}
+                              >
+                                <Clock size={12} />
+                                {getOrderTime(order)}
+                              </div>
+
+                              {/* Notes section */}
+                              {isEditing ? (
+                                <div className="note-editor">
+                                  <textarea
+                                    value={tempNote}
+                                    onChange={(e) =>
+                                      setTempNote(e.target.value)
+                                    }
+                                    placeholder="Adicionar nota..."
+                                    rows={2}
+                                  />
+                                  <div className="note-actions">
+                                    <button
+                                      onClick={() => {
+                                        updateOrderNotes(order.$id, tempNote);
+                                        setEditingNote(null);
+                                        setTempNote("");
+                                      }}
+                                      className="save-note"
+                                    >
+                                      <CheckCircle size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setEditingNote(null);
+                                        setTempNote("");
+                                      }}
+                                      className="cancel-note"
+                                    >
+                                      <X size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                order.notes && (
+                                  <div className="order-notes">
+                                    <MessageSquare size={12} />
+                                    {order.notes}
+                                  </div>
+                                )
+                              )}
+                            </div>
+
+                            <div className="order-item-actions">
+                              {/* Status toggle button */}
+                              <button
+                                onClick={() =>
+                                  toggleOrderStatus(order.$id, order.status)
+                                }
+                                disabled={
+                                  updatingStatus === order.$id ||
+                                  order.status === "concluido"
+                                }
+                                className={`status-toggle status-${order.status}`}
+                                title={
+                                  order.status === "concluido"
+                                    ? "Pedido concluído"
+                                    : `Status: ${order.status}`
+                                }
+                              >
+                                {updatingStatus === order.$id ? (
+                                  <LoadingSpinner size={16} />
+                                ) : (
+                                  <>
+                                    {order.status === "pendente" && (
+                                      <Clock size={16} />
+                                    )}
+                                    {order.status === "preparando" && (
+                                      <ChefHat size={16} />
+                                    )}
+                                    {order.status === "concluido" && (
+                                      <CheckCircle size={16} />
+                                    )}
+                                    <span>{order.status}</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {/* Edit note button */}
+                              <button
+                                onClick={() => {
+                                  setEditingNote(order.$id);
+                                  setTempNote(order.notes || "");
+                                }}
+                                className="edit-note"
+                                title="Editar nota"
+                              >
+                                <MessageSquare size={16} />
+                              </button>
+
+                              {/* Delete button */}
+                              <button
+                                onClick={() => deleteOrderItem(order.$id)}
+                                className="delete-order"
+                                title="Eliminar item"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Default RestLayout
+                <RestLayout
+                  user={user}
+                  onEditRedirect={() => router.push("/RestLayout")}
+                  onTableSelect={selectTableForOrders}
+                />
+              )}
             </div>
           </div>
         </main>

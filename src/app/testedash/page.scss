@@ -12,10 +12,41 @@ $gray-100: #f1f5f9;
 $gray-200: #e2e8f0;
 $gray-300: #cbd5e1;
 $gray-400: #94a3b8;
+$gray-500: #6b7280;
 $gray-600: #64748b;
+$gray-700: #374151;
 $gray-800: #1e293b;
 
 $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+// Loading animations
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
 
 // Base styles
 .dashboard {
@@ -25,124 +56,6 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   background: $gray-50;
   font-family: $font-family;
   overflow: hidden;
-
-  // Header
-  &__header {
-    height: 80px;
-    background: #ffffff;
-    border-bottom: 1px solid $gray-200;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2rem;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 50;
-
-    // Mobile responsiveness
-    @media (max-width: 768px) {
-      padding: 0 1rem;
-      height: 70px;
-    }
-
-    @media (max-width: 480px) {
-      padding: 0 0.75rem;
-      height: 65px;
-    }
-  }
-
-  &__header-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-
-    @media (max-width: 768px) {
-      gap: 0.75rem;
-    }
-
-    @media (max-width: 480px) {
-      gap: 0.5rem;
-    }
-  }
-
-  &__search {
-    flex: 1;
-    max-width: 400px;
-    margin: 0 2rem;
-    position: relative;
-
-    @media (max-width: 1024px) {
-      max-width: 300px;
-      margin: 0 1rem;
-    }
-
-    @media (max-width: 768px) {
-      max-width: 200px;
-      margin: 0 0.75rem;
-    }
-
-    @media (max-width: 480px) {
-      display: none; // Hide search on very small screens
-    }
-  }
-
-  &__search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: $gray-600;
-  }
-
-  &__search-input {
-    width: 100%;
-    height: 44px;
-    padding-left: 3rem;
-    padding-right: 1rem;
-    border-radius: 12px;
-    border: 1px solid $gray-200;
-    background: $gray-50;
-    font-size: 0.875rem;
-    outline: none;
-    transition: all 0.2s ease;
-
-    &:focus {
-      border-color: $primary-blue;
-      background: #ffffff;
-    }
-
-    &:blur {
-      border-color: $gray-200;
-      background: $gray-50;
-    }
-  }
-
-  &__header-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-
-    @media (max-width: 768px) {
-      gap: 0.75rem;
-    }
-
-    @media (max-width: 480px) {
-      gap: 0.5rem;
-    }
-  }
-
-  .user-name-display {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: $gray-800;
-    padding: 0.5rem 0.75rem;
-    background: $gray-50;
-    border: 1px solid $gray-200;
-    border-radius: 8px;
-  }
 
   // Main container
   &__main {
@@ -155,7 +68,7 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   // Sidebar
   &__sidebar {
     width: 320px;
-    background: #fefefe;
+    background: white;
     border-right: 1px solid $gray-200;
     box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.1);
     padding: 2rem;
@@ -174,8 +87,10 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     @media (max-width: 1024px) {
       transform: translateX(-100%);
       z-index: 150;
-      background: #ffffff;
-      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+      background: white;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+      border-right: none;
+      padding-top: 4rem; // Extra space for close button
 
       &--open {
         transform: translateX(0);
@@ -187,6 +102,34 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     padding-top: 1rem;
     border-top: 1px solid $gray-200;
     text-align: center;
+  }
+
+  // Mobile close button for sidebar
+  .mobile-sidebar-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: $gray-600;
+    transition: all 0.2s ease;
+    display: none;
+    z-index: 10;
+
+    &:hover {
+      background: $gray-100;
+      color: $gray-800;
+    }
+
+    // Show on mobile and tablet
+    @media (max-width: 1024px) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
   // Navigation
@@ -224,149 +167,6 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   &__content-inner {
     padding: 2rem;
     min-height: 100%;
-  }
-}
-
-// Logo
-.logo {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 1.25rem;
-  font-weight: 800;
-}
-
-.logo-text {
-  &__title {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: $gray-800;
-    letter-spacing: -0.025em;
-
-    @media (max-width: 768px) {
-      font-size: 1.125rem;
-    }
-
-    @media (max-width: 480px) {
-      font-size: 1rem;
-    }
-  }
-
-  &__subtitle {
-    font-size: 0.75rem;
-    color: $gray-600;
-    font-weight: 500;
-
-    @media (max-width: 768px) {
-      font-size: 0.6875rem;
-    }
-
-    @media (max-width: 480px) {
-      display: none; // Hide subtitle on very small screens
-    }
-  }
-}
-
-// Notification button
-.notification-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: $gray-100;
-  border: 1px solid $gray-200;
-  color: $gray-600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: $gray-200;
-  }
-}
-
-.notification-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  background: $red;
-  border-radius: 50%;
-}
-
-// User section
-.user-section {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem;
-  border-radius: 12px;
-  background: $gray-50;
-  border: 1px solid $gray-200;
-
-  .user-name {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: $gray-800;
-  }
-
-  .role-badge-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid;
-    transition: all 0.2s ease;
-    cursor: help;
-
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-  }
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, $indigo, $purple);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.user-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: $gray-800;
-}
-
-.logout-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: $red;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: $red;
-    color: #ffffff;
   }
 }
 
@@ -465,6 +265,7 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 56px;
+  background: white;
 
   &:not(&--active):hover {
     background: $gray-50 !important;
@@ -715,55 +516,6 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
-// Mobile menu toggle button
-.mobile-menu-toggle {
-  display: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: $gray-100;
-  border: 1px solid $gray-200;
-  color: $gray-600;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: $gray-200;
-  }
-
-  @media (max-width: 1024px) {
-    display: flex;
-  }
-}
-
-// Mobile sidebar close button
-.mobile-sidebar-close {
-  display: none;
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: $gray-100;
-  border: 1px solid $gray-200;
-  color: $gray-600;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: $gray-200;
-  }
-
-  @media (max-width: 1024px) {
-    display: flex;
-  }
-}
-
 // Mobile overlay for sidebar
 .mobile-overlay {
   position: fixed;
@@ -781,16 +533,473 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
 
-// Overlay for mobile sidebar
-@media (max-width: 1024px) {
-  .dashboard__sidebar--open::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: -1;
+// Loading components
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  padding: 40px;
+  color: $gray-600;
+  gap: 16px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: $gray-800;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .loading-spinner {
+    color: $primary-blue;
+  }
+}
+
+// Navigation item skeleton
+.nav-item-skeleton {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid $gray-200;
+  gap: 12px;
+
+  .skeleton-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    @extend .skeleton;
+  }
+
+  .skeleton-text {
+    flex: 1;
+    height: 16px;
+    border-radius: 4px;
+    @extend .skeleton;
+  }
+
+  .skeleton-count {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    @extend .skeleton;
+  }
+}
+
+// Order Management Styles
+.order-management {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid $gray-200;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .order-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid $gray-200;
+    background: $gray-50;
+
+    .back-button {
+      background: transparent;
+      border: none;
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: $gray-600;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $gray-200;
+        color: $gray-800;
+      }
+    }
+
+    h2 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.125rem; // Reduzido de 1.25rem para 1.125rem
+      font-weight: 600;
+      color: $gray-800;
+    }
+
+    .order-header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .add-order-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: $primary-blue;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $primary-blue-dark;
+        transform: translateY(-1px);
+      }
+    }
+
+    .checkout-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: $green;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: #059669;
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        background: $gray-300;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .orders-loading,
+  .no-orders {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 3rem;
+    color: $gray-600;
+    gap: 1rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: $gray-800;
+    }
+
+    p {
+      margin: 0;
+      text-align: center;
+    }
+
+    .loading-spinner {
+      color: $primary-blue;
+    }
+  }
+
+  .orders-list {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .order-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: white;
+    border: 1px solid $gray-200;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: $gray-300;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-item-image {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      background: $gray-100;
+      color: $gray-600;
+      flex-shrink: 0;
+    }
+
+    .order-item-info {
+      flex: 1;
+      min-width: 0;
+
+      h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: $gray-800;
+      }
+
+      .order-item-price {
+        font-size: 0.75rem; // Reduzido para 0.75rem (12px)
+        font-weight: 400; // Reduzido para 400 (normal)
+        color: $green;
+        margin-bottom: 0.5rem;
+      }
+
+      .order-item-time {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        color: $gray-500;
+        margin-bottom: 0.5rem;
+
+        // Different colors based on urgency/status
+        &.time-recent {
+          color: $green; // Green for recent orders
+        }
+
+        &.time-medium {
+          color: $amber; // Amber for medium time
+        }
+
+        &.time-urgent {
+          color: $red; // Red for urgent orders
+        }
+
+        &.time-completed {
+          color: $gray-400; // Gray for completed orders
+        }
+      }
+
+      .order-notes {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        background: $gray-50;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: $gray-700;
+        margin-top: 0.5rem;
+      }
+
+      .note-editor {
+        margin-top: 0.5rem;
+
+        textarea {
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid $gray-300;
+          border-radius: 6px;
+          font-size: 0.875rem;
+          resize: vertical;
+          min-height: 60px;
+
+          &:focus {
+            outline: none;
+            border-color: $primary-blue;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+        }
+
+        .note-actions {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+
+          button {
+            display: flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+
+            &.save-note {
+              background: $green;
+              color: white;
+
+              &:hover {
+                background: #059669;
+              }
+            }
+
+            &.cancel-note {
+              background: $gray-200;
+              color: $gray-700;
+
+              &:hover {
+                background: $gray-300;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .order-item-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex-shrink: 0;
+
+      button {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 100px;
+        justify-content: center;
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      }
+
+      .status-toggle {
+        &.status-pendente {
+          background: $amber;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #d97706;
+          }
+        }
+
+        &.status-preparando {
+          background: $primary-blue;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: $primary-blue-dark;
+          }
+        }
+
+        &.status-concluido {
+          background: $green;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #059669;
+          }
+
+          &:disabled {
+            background: $green;
+            opacity: 0.8;
+            cursor: not-allowed;
+
+            &:hover {
+              background: $green;
+            }
+          }
+        }
+      }
+
+      .edit-note {
+        background: $gray-200;
+        color: $gray-700;
+
+        &:hover {
+          background: $gray-300;
+        }
+      }
+
+      .delete-order {
+        background: $red;
+        color: white;
+
+        &:hover {
+          background: #dc2626;
+        }
+      }
+    }
+  }
+}
+
+// Responsive design for order management
+@media (max-width: 768px) {
+  .order-management {
+    .order-header {
+      padding: 1rem;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+
+      .back-button {
+        align-self: flex-start;
+      }
+
+      h2 {
+        font-size: 1rem; // Reduzido de 1.125rem para 1rem no mobile
+        text-align: center;
+      }
+
+      .order-header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .add-order-button,
+        .checkout-button {
+          padding: 0.75rem 1rem;
+          font-size: 0.875rem;
+          justify-content: center;
+        }
+      }
+    }
+
+    .orders-list {
+      padding: 1rem;
+    }
+
+    .order-item {
+      flex-direction: column;
+      gap: 1rem;
+
+      .order-item-image {
+        align-self: center;
+      }
+
+      .order-item-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: 100%;
+
+        button {
+          flex: 1;
+          min-width: auto;
+        }
+      }
+    }
   }
 }

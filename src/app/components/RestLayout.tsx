@@ -135,7 +135,101 @@ interface User {
 interface RestaurantDashboardLayoutProps {
   user: User | null;
   onEditRedirect?: () => void;
+  onTableSelect?: (tableNumber: number) => void;
 }
+
+// Helper function to calculate responsive font sizes based on screen size
+const getResponsiveFontSize = (
+  screenWidth: number,
+  baseSize: number,
+  scaleFactor: number,
+  minSize: number
+) => {
+  let responsiveMultiplier = 1;
+
+  // Apply responsive scaling based on screen width - LESS aggressive reduction for better readability
+  if (screenWidth <= 480) {
+    responsiveMultiplier = 0.9; // Increased from 0.7 to 0.9 (only 10% smaller)
+  } else if (screenWidth <= 768) {
+    responsiveMultiplier = 0.95; // Increased from 0.8 to 0.95 (only 5% smaller)
+  } else if (screenWidth <= 1024) {
+    responsiveMultiplier = 0.98; // Increased from 0.9 to 0.98 (only 2% smaller)
+  }
+
+  const calculatedSize = Math.max(
+    minSize,
+    baseSize * scaleFactor * responsiveMultiplier
+  );
+  return `${calculatedSize}px`;
+};
+
+// Helper function to get unique color for each multi-table group
+const getMultiTableColor = (relatedTables: number[]) => {
+  const sortedTables = [...relatedTables].sort((a, b) => a - b);
+  const tableKey = sortedTables.join(",");
+
+  // Hash function to convert table key to a consistent color index
+  let hash = 0;
+  for (let i = 0; i < tableKey.length; i++) {
+    const char = tableKey.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+
+  // Array of distinct colors for multi-table groups
+  const colors = [
+    {
+      bg: "bg-purple-600",
+      border: "border-purple-400/80",
+      bgHover: "bg-purple-500/20",
+      hoverBg: "hover:bg-purple-500/30",
+    },
+    {
+      bg: "bg-blue-600",
+      border: "border-blue-400/80",
+      bgHover: "bg-blue-500/20",
+      hoverBg: "hover:bg-blue-500/30",
+    },
+    {
+      bg: "bg-indigo-600",
+      border: "border-indigo-400/80",
+      bgHover: "bg-indigo-500/20",
+      hoverBg: "hover:bg-indigo-500/30",
+    },
+    {
+      bg: "bg-cyan-600",
+      border: "border-cyan-400/80",
+      bgHover: "bg-cyan-500/20",
+      hoverBg: "hover:bg-cyan-500/30",
+    },
+    {
+      bg: "bg-teal-600",
+      border: "border-teal-400/80",
+      bgHover: "bg-teal-500/20",
+      hoverBg: "hover:bg-teal-500/30",
+    },
+    {
+      bg: "bg-emerald-600",
+      border: "border-emerald-400/80",
+      bgHover: "bg-emerald-500/20",
+      hoverBg: "hover:bg-emerald-500/30",
+    },
+    {
+      bg: "bg-orange-600",
+      border: "border-orange-400/80",
+      bgHover: "bg-orange-500/20",
+      hoverBg: "hover:bg-orange-500/30",
+    },
+    {
+      bg: "bg-rose-600",
+      border: "border-rose-400/80",
+      bgHover: "bg-rose-500/20",
+      hoverBg: "hover:bg-rose-500/30",
+    },
+  ];
+
+  return colors[Math.abs(hash) % colors.length];
+};
 
 // Memoized Table Component for better performance - Simplified for tablets
 const TableComponent = React.memo(
@@ -149,6 +243,7 @@ const TableComponent = React.memo(
     isSelected,
     isSelectionMode,
     multiTableInfo,
+    screenWidth,
   }: {
     table: Table;
     tableScale: number;
@@ -163,6 +258,7 @@ const TableComponent = React.memo(
       relatedTables: number[];
       order: Order | null;
     };
+    screenWidth?: number;
   }) => {
     // Pre-calculate transform to avoid recalculation
     const tableTransform = useMemo(
@@ -239,9 +335,12 @@ const TableComponent = React.memo(
           className={`table-${
             table.id
           } absolute transition-all duration-200 group ${
-            onClick && (!isSelectionMode || !multiTableInfo?.isMultiTable)
+            onClick &&
+            (!isSelectionMode ||
+              (!multiTableInfo?.isMultiTable && table.status !== "occupied"))
               ? "cursor-pointer hover:scale-105 hover:shadow-xl"
-              : isSelectionMode && multiTableInfo?.isMultiTable
+              : isSelectionMode &&
+                (multiTableInfo?.isMultiTable || table.status === "occupied")
               ? "cursor-not-allowed opacity-60"
               : "cursor-default"
           }`}
@@ -305,24 +404,53 @@ const TableComponent = React.memo(
             )}
 
             {/* Multi-table indicator */}
-            {multiTableInfo?.isMultiTable && tableScale > 0.3 && (
-              <div
-                className="absolute bg-purple-600 text-white text-xs font-bold px-1 py-0.5 rounded border border-white shadow-lg"
-                style={{
-                  fontSize: `${Math.max(8, 10 * tableScale)}px`,
-                  top: `${Math.max(4, 6 * tableScale)}px`,
-                  left: `${Math.max(4, 6 * tableScale)}px`,
-                }}
-              >
-                {multiTableInfo.relatedTables.join("+")}
-              </div>
-            )}
+            {multiTableInfo?.isMultiTable &&
+              tableScale > 0.2 &&
+              (() => {
+                const groupColor = getMultiTableColor(
+                  multiTableInfo.relatedTables
+                );
+                return (
+                  <div
+                    className={`absolute ${groupColor.bg} text-white font-bold rounded border border-white shadow-lg overflow-hidden`}
+                    style={{
+                      fontSize: getResponsiveFontSize(
+                        screenWidth || 1200,
+                        12, // Increased from 6 to 12 (doubled!)
+                        tableScale,
+                        8 // Increased from 4 to 8 (doubled!)
+                      ),
+                      top: `${Math.max(2, 4 * tableScale)}px`,
+                      right: `${Math.max(2, 4 * tableScale)}px`, // Changed from left to right to avoid overlap
+                      padding: `${Math.max(2, 3 * tableScale)}px ${Math.max(
+                        3,
+                        6 * tableScale
+                      )}px`,
+                      maxWidth: `${
+                        table.width * tableScale - Math.max(8, 16 * tableScale)
+                      }px`,
+                      maxHeight: `${Math.max(16, 24 * tableScale)}px`, // Increased height
+                      lineHeight: "1.1",
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      zIndex: 10, // Ensure it's above other elements
+                    }}
+                  >
+                    {multiTableInfo.relatedTables.join("+")}
+                  </div>
+                );
+              })()}
 
             {/* Table Number */}
             <span
               className={`font-bold select-none ${
                 multiTableInfo?.isMultiTable
-                  ? "text-purple-300"
+                  ? (() => {
+                      const groupColor = getMultiTableColor(
+                        multiTableInfo.relatedTables
+                      );
+                      return groupColor.bg.replace("bg-", "text-"); // Convert bg-purple-600 to text-purple-600
+                    })()
                   : table.status === "occupied"
                   ? "text-red-300"
                   : "text-green-300"
@@ -343,7 +471,12 @@ const TableComponent = React.memo(
                     : "bg-green-50 text-green-900 border-2 border-green-300"
                 }`}
                 style={{
-                  fontSize: `${Math.max(10, 14 * tableScale)}px`,
+                  fontSize: getResponsiveFontSize(
+                    screenWidth || 1200,
+                    11,
+                    tableScale,
+                    6
+                  ),
                   marginTop: `${Math.max(3, 5 * tableScale)}px`,
                   minWidth: `${Math.max(50, 70 * tableScale)}px`,
                   boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
@@ -862,6 +995,7 @@ BulkPaymentModal.displayName = "BulkPaymentModal";
 const RestLayout = React.memo(function RestLayout({
   user,
   onEditRedirect = () => console.log("Navigate to edit page"),
+  onTableSelect,
 }: RestaurantDashboardLayoutProps) {
   const router = useRouter();
 
@@ -928,11 +1062,13 @@ const RestLayout = React.memo(function RestLayout({
     } else {
       // Fallback calculations when container not available yet
       if (windowSize.width < 640) {
+        // Mobile: Remove vertical padding for maximum space
         availableWidth = windowSize.width - 48;
-        availableHeight = windowSize.height - 200; // Account for header
+        availableHeight = windowSize.height - 120; // Reduced from 200 to 120 (only header)
       } else if (windowSize.width < 1024) {
+        // Tablet: Minimal vertical padding
         availableWidth = windowSize.width - 48;
-        availableHeight = windowSize.height - 180;
+        availableHeight = windowSize.height - 140; // Reduced from 180 to 140
       } else {
         // Desktop - account for sidebar in dashboard
         availableWidth = windowSize.width - 320 - 48; // sidebar width + padding
@@ -954,11 +1090,23 @@ const RestLayout = React.memo(function RestLayout({
     // Use the smaller scale to ensure it NEVER exceeds container bounds
     let optimalScale = Math.min(heightBasedScale, widthBasedScale);
 
-    // Add a safety margin to ensure no scrolling (use 90% of optimal scale)
-    optimalScale = optimalScale * 0.9;
+    // Apply different safety margins based on screen size
+    if (windowSize.width <= 480) {
+      // Mobile: Use 98% for maximum space (increased from 85%)
+      optimalScale = optimalScale * 0.98;
+    } else if (windowSize.width <= 768) {
+      // Tablet: Use 98% for better visibility (increased from 95%)
+      optimalScale = optimalScale * 0.98;
+    } else if (windowSize.width <= 1024) {
+      // Small desktop: Use 95% (increased from 92%)
+      optimalScale = optimalScale * 0.95;
+    } else {
+      // Large desktop: Use 90% as before
+      optimalScale = optimalScale * 0.9;
+    }
 
     // Apply reasonable limits but prioritize fitting in container
-    const clampedScale = Math.max(0.2, Math.min(2.5, optimalScale));
+    const clampedScale = Math.max(0.4, Math.min(3.0, optimalScale)); // Increased minimum from 0.3 to 0.4, max from 2.5 to 3.0
 
     const finalSize = baseCanvasSize * clampedScale;
 
@@ -2056,11 +2204,20 @@ const RestLayout = React.memo(function RestLayout({
         if (multiTableInfo.isMultiTable) {
           // Don't allow selection of tables that are already part of multi-table orders
           alert(
-            `Table ${tableNumber} is already part of a multi-table order and cannot be selected.`
+            `Mesa ${tableNumber} já faz parte de um pedido multi-mesa e não pode ser selecionada.`
           );
           return;
         }
 
+        // Check if table is occupied (has any orders)
+        const tableOrders = getTableOrders(tableNumber);
+        if (tableOrders.length > 0) {
+          // Don't allow selection of occupied tables (red tables)
+          alert(`Mesa ${tableNumber} está ocupada e não pode ser selecionada.`);
+          return;
+        }
+
+        // Only allow selection of free tables (green tables)
         // Toggle selection
         setSelectedTables((prev) => {
           const newSet = new Set(prev);
@@ -2071,31 +2228,36 @@ const RestLayout = React.memo(function RestLayout({
           }
           return newSet;
         });
-      } else {
-        // Open table details for both single and multi-table orders
-        const multiTableInfo = getMultiTableInfo(tableNumber);
-        const tableOrders = getTableOrders(tableNumber);
+        return;
+      }
 
-        if (tableOrders.length > 0) {
-          // Show table details sidebar for any table with orders (single or multi-table)
-          toggleTableDetails(tableNumber);
-        } else if (multiTableInfo.isMultiTable) {
-          // Table is part of a multi-table order but no orders found - fallback to modal
-          openOrderModal(
-            multiTableInfo.relatedTables,
-            multiTableInfo.order || undefined
-          );
-        } else {
-          // Create new order for empty single table
-          openOrderModal([tableNumber]);
-        }
+      // If onTableSelect is provided, use it for table selection (testedash mode)
+      if (onTableSelect) {
+        onTableSelect(tableNumber);
+        return;
+      }
+
+      // Open table details for both single and multi-table orders
+      const multiTableInfo = getMultiTableInfo(tableNumber);
+      const tableOrders = getTableOrders(tableNumber);
+
+      if (tableOrders.length > 0) {
+        // Show table details sidebar for any table with orders (single or multi-table)
+        toggleTableDetails(tableNumber);
+      } else if (multiTableInfo.isMultiTable) {
+        // Redirect to order page for multi-table orders
+        router.push(`/order/${multiTableInfo.relatedTables.join(",")}`);
+      } else {
+        // Redirect to order page for empty single table
+        router.push(`/order/${tableNumber}`);
       }
     },
     [
+      onTableSelect,
       isSelectionMode,
       getMultiTableInfo,
       getTableOrders,
-      openOrderModal,
+      router,
       toggleTableDetails,
     ]
   );
@@ -2128,9 +2290,9 @@ const RestLayout = React.memo(function RestLayout({
 
       setIsSelectionMode(false);
       setSelectedTables(new Set());
-      openOrderModal(tableNumbers);
+      router.push(`/order/${tableNumbers.join(",")}`);
     }
-  }, [selectedTables, openOrderModal, getMultiTableInfo]);
+  }, [selectedTables, router, getMultiTableInfo]);
 
   // Clear all selections
   const clearSelections = useCallback(() => {
@@ -2413,8 +2575,15 @@ const RestLayout = React.memo(function RestLayout({
                           <button
                             onClick={() => {
                               const orderTableNumbers = order.numeroMesa;
-                              // For paid orders, open in view-only mode
-                              openOrderModal(orderTableNumbers, order, true);
+                              // For paid orders, redirect to view-only order page
+                              const tablesParam = Array.isArray(
+                                orderTableNumbers
+                              )
+                                ? orderTableNumbers.join(",")
+                                : orderTableNumbers;
+                              router.push(
+                                `/order/${tablesParam}?orderId=${order.$id}&viewOnly=true`
+                              );
                             }}
                             className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
                           >
@@ -2453,6 +2622,7 @@ const RestLayout = React.memo(function RestLayout({
                 isSelected={selectedTables.has(table.tableNumber)}
                 isSelectionMode={isSelectionMode}
                 multiTableInfo={getMultiTableInfo(table.tableNumber)}
+                screenWidth={windowSize.width}
               />
             ))}
 
@@ -2650,7 +2820,14 @@ const RestLayout = React.memo(function RestLayout({
                             onClick={() => {
                               // Check if this order spans multiple tables
                               const orderTableNumbers = order.numeroMesa;
-                              openOrderModal(orderTableNumbers, order);
+                              const tablesParam = Array.isArray(
+                                orderTableNumbers
+                              )
+                                ? orderTableNumbers.join(",")
+                                : orderTableNumbers;
+                              router.push(
+                                `/order/${tablesParam}?orderId=${order.$id}`
+                              );
                             }}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2"
                           >
@@ -2691,11 +2868,13 @@ const RestLayout = React.memo(function RestLayout({
                     {/* Add New Order Button */}
                     <button
                       onClick={() => {
-                        // Create new order for this table/tables
+                        // Navigate to new order page for this table/tables
                         if (multiTableInfo.isMultiTable) {
-                          openOrderModal(multiTableInfo.relatedTables);
+                          router.push(
+                            `/order/${multiTableInfo.relatedTables.join(",")}`
+                          );
                         } else {
-                          openOrderModal([tableNumber]);
+                          router.push(`/order/${tableNumber}`);
                         }
                       }}
                       className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors"

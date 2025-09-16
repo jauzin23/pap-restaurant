@@ -477,7 +477,6 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 @media (max-width: 1024px) {
   .rest-layout-container {
     .rest-layout-header {
-      flex-direction: column;
       gap: 16px;
       align-items: stretch;
 
