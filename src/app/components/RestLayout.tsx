@@ -1050,63 +1050,51 @@ const RestLayout = React.memo(function RestLayout({
     let availableWidth = windowSize.width;
     let availableHeight = windowSize.height;
 
-    // Use container dimensions if available (from ResizeObserver)
     if (windowSize.containerWidth > 0 && windowSize.containerHeight > 0) {
-      availableWidth = windowSize.containerWidth - 48; // 24px padding on each side
-      availableHeight = windowSize.containerHeight - 48; // 24px padding on each side
+      const padding =
+        windowSize.width < 640 ? 16 : windowSize.width < 1024 ? 24 : 48;
+      availableWidth = windowSize.containerWidth - padding;
+      availableHeight = windowSize.containerHeight - padding;
     } else if (typeof window !== "undefined" && containerRef.current) {
-      // Fallback to direct measurement
       const container = containerRef.current;
-      availableWidth = container.clientWidth - 48; // 24px padding on each side
-      availableHeight = container.clientHeight - 48; // 24px padding on each side
+      const padding =
+        windowSize.width < 640 ? 16 : windowSize.width < 1024 ? 24 : 48;
+      availableWidth = container.clientWidth - padding;
+      availableHeight = container.clientHeight - padding;
     } else {
-      // Fallback calculations when container not available yet
       if (windowSize.width < 640) {
-        // Mobile: Remove vertical padding for maximum space
-        availableWidth = windowSize.width - 48;
-        availableHeight = windowSize.height - 120; // Reduced from 200 to 120 (only header)
+        availableWidth = windowSize.width - 24;
+        availableHeight = windowSize.height - 100;
       } else if (windowSize.width < 1024) {
-        // Tablet: Minimal vertical padding
-        availableWidth = windowSize.width - 48;
-        availableHeight = windowSize.height - 140; // Reduced from 180 to 140
+        availableWidth = windowSize.width - 32;
+        availableHeight = windowSize.height - 120;
       } else {
-        // Desktop - account for sidebar in dashboard
-        availableWidth = windowSize.width - 320 - 48; // sidebar width + padding
-        availableHeight = windowSize.height - 160; // header + some margin
+        availableWidth = windowSize.width - 320 - 48;
+        availableHeight = windowSize.height - 160;
       }
     }
 
-    // Ensure minimum available space but keep it smaller to fit without scrolling
-    availableWidth = Math.max(300, availableWidth);
-    availableHeight = Math.max(300, availableHeight);
+    availableWidth = Math.max(700, availableWidth);
+    availableHeight = Math.max(700, availableHeight);
 
-    // Calculate base canvas size (square aspect ratio)
     const baseCanvasSize = baseSize * 1.2;
 
-    // Scale to fit within the available space (never exceed container bounds)
     const heightBasedScale = availableHeight / baseCanvasSize;
     const widthBasedScale = availableWidth / baseCanvasSize;
 
-    // Use the smaller scale to ensure it NEVER exceeds container bounds
     let optimalScale = Math.min(heightBasedScale, widthBasedScale);
 
-    // Apply different safety margins based on screen size
     if (windowSize.width <= 480) {
-      // Mobile: Use 98% for maximum space (increased from 85%)
-      optimalScale = optimalScale * 0.98;
+      optimalScale = optimalScale * 0.99;
     } else if (windowSize.width <= 768) {
-      // Tablet: Use 98% for better visibility (increased from 95%)
       optimalScale = optimalScale * 0.98;
     } else if (windowSize.width <= 1024) {
-      // Small desktop: Use 95% (increased from 92%)
       optimalScale = optimalScale * 0.95;
     } else {
-      // Large desktop: Use 90% as before
       optimalScale = optimalScale * 0.9;
     }
 
-    // Apply reasonable limits but prioritize fitting in container
-    const clampedScale = Math.max(0.4, Math.min(3.0, optimalScale)); // Increased minimum from 0.3 to 0.4, max from 2.5 to 3.0
+    const clampedScale = Math.max(0.6, Math.min(3.5, optimalScale));
 
     const finalSize = baseCanvasSize * clampedScale;
 

@@ -724,34 +724,34 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 
   .order-item {
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.5rem;
+    align-items: stretch; // Changed from flex-start to stretch
+    gap: 0; // Removed gap for seamless image integration
+    padding: 0; // Removed padding for full image coverage
     background: white;
-    border: 1px solid $gray-200;
     border-radius: 12px;
     transition: all 0.2s ease;
+    overflow: hidden; // Ensure content doesn't overflow rounded corners
+    min-height: 100px; // Ensure minimum height
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Add subtle shadow by default
 
     &:hover {
-      border-color: $gray-300;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px); // Subtle lift effect
     }
 
     .order-item-image {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 60px;
-      height: 60px;
-      border-radius: 8px;
-      background: $gray-100;
-      color: $gray-600;
+      width: 120px; // Increased from 60px to 120px
       flex-shrink: 0;
+      // Removed fixed height, background, color, and border-radius - handled inline
     }
 
     .order-item-info {
       flex: 1;
       min-width: 0;
+      padding: 1.5rem; // Moved padding here from container
 
       h4 {
         margin: 0 0 0.5rem 0;

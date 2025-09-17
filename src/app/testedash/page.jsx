@@ -28,10 +28,13 @@ import {
   CreditCard,
   ArrowLeft,
   Plus,
+  TableProperties,
 } from "lucide-react";
 import "./page.scss";
 import RestLayout from "../components/RestLayout";
 import Header from "../components/Header";
+import MenuComponent from "../components/MenuComponent";
+import StockComponent from "../components/StockComponent";
 import { useApp } from "@/contexts/AppContext";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -41,11 +44,13 @@ import {
   COL_ORDERS,
   COL_TABLES,
   COL_MENU,
+  storage,
+  BUCKET_MENU_IMG,
 } from "@/lib/appwrite";
 import { Query } from "appwrite";
 
 export default function RestaurantDashboard() {
-  const [activeNav, setActiveNav] = useState("MENU");
+  const [activeNav, setActiveNav] = useState("MESAS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, loading, account, client } = useApp();
   const router = useRouter();
@@ -97,6 +102,12 @@ export default function RestaurantDashboard() {
       window.removeEventListener("resize", matchHeight);
     };
   }, [user, loading]); // Re-run when user/loading changes
+
+  // Clear table selection when navigation changes
+  useEffect(() => {
+    setSelectedTable(null);
+    setTableOrders([]);
+  }, [activeNav]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -155,10 +166,10 @@ export default function RestaurantDashboard() {
   }, []);
 
   const navItems = [
-    { name: "MENU", count: 12, color: "#3b82f6", icon: Menu },
-    { name: "PEDIDOS", count: 5, color: "#f59e0b", icon: ShoppingCart },
-    { name: "STOCK", count: 8, color: "#10b981", icon: Package },
-    { name: "RESERVAS", count: 3, color: "#ef4444", icon: Calendar },
+    { name: "MESAS", count: 12, color: "#10b981", icon: TableProperties },
+    { name: "MENU", count: 8, color: "#3b82f6", icon: Menu },
+    { name: "STOCK", count: 3, color: "#8b5cf6", icon: Package },
+    { name: "RESERVAS", count: 2, color: "#ef4444", icon: Calendar },
   ];
 
   // Function to get today's date in ISO format for Appwrite query
@@ -277,6 +288,25 @@ export default function RestaurantDashboard() {
   // Get menu item details for an order
   const getMenuItemForOrder = (menuId) => {
     return menuItems.find((item) => item.$id === menuId);
+  };
+
+  // Function to get image URL for menu item
+  const getImageUrl = (imageId) => {
+    if (!imageId || imageId === "undefined" || imageId === "null") return null;
+    try {
+      const imageUrl = storage.getFilePreview(
+        BUCKET_MENU_IMG,
+        imageId,
+        100, // Smaller size for order items
+        100,
+        "center",
+        90
+      );
+      return imageUrl;
+    } catch (error) {
+      console.error("Error getting image URL for", imageId, ":", error);
+      return null;
+    }
   };
 
   // Toggle order status: pendente -> preparando -> concluido (final)
@@ -537,12 +567,20 @@ export default function RestaurantDashboard() {
               return (
                 <div
                   key={item.name}
-                  onClick={() => setActiveNav(item.name)}
+                  onClick={() => {
+                    setActiveNav(item.name);
+                    // Clear selected table when switching navigation tabs
+                    setSelectedTable(null);
+                    setTableOrders([]);
+                  }}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       setActiveNav(item.name);
+                      // Clear selected table when switching navigation tabs
+                      setSelectedTable(null);
+                      setTableOrders([]);
                     }
                   }}
                   className={`nav-item ${isActive ? "nav-item--active" : ""}`}
@@ -584,7 +622,7 @@ export default function RestaurantDashboard() {
         {/* Main Content Area - Scrollable */}
         <main className="dashboard__content">
           <div className="dashboard__layout">
-            {/* Left side - RestLayout or Order Management */}
+            {/* Left side - RestLayout, Order Management, or Menu Component */}
             <div className="dashboard__layout-left">
               {selectedTable ? (
                 // Order Management Interface
@@ -633,11 +671,60 @@ export default function RestaurantDashboard() {
                       {tableOrders.map((order) => {
                         const menuItem = getMenuItemForOrder(order.menu_id);
                         const isEditing = editingNote === order.$id;
+                        const imageUrl = menuItem?.image_id
+                          ? getImageUrl(menuItem.image_id)
+                          : null;
 
                         return (
-                          <div key={order.$id} className="order-item">
+                          <div
+                            key={order.$id}
+                            className="order-item"
+                            style={{
+                              border: imageUrl ? "none" : "1px solid #e2e8f0",
+                            }}
+                          >
                             <div className="order-item-image">
-                              <UtensilsCrossed size={40} />
+                              {imageUrl ? (
+                                <div
+                                  style={{
+                                    width: "120px",
+                                    height: "100%",
+                                    minHeight: "100px",
+                                    backgroundImage: `url(${imageUrl})`,
+                                    backgroundSize: "cover",
+                                    backgroundPosition: "center",
+                                    backgroundColor: "#ffffff",
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: "120px",
+                                    height: "100%",
+                                    minHeight: "100px",
+                                    backgroundColor: "#f8fafc",
+                                    border: "none", // Remove border from the image area
+                                    borderRight: "2px dashed #d1d5db", // Add dashed border only on the right
+                                    borderRadius: "0", // Remove border radius to align with container
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#9ca3af",
+                                    flexDirection: "column",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  <UtensilsCrossed size={32} />
+                                  <span
+                                    style={{
+                                      fontSize: "12px",
+                                      textAlign: "center",
+                                    }}
+                                  >
+                                    Sem imagem
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             <div className="order-item-info">
@@ -759,13 +846,43 @@ export default function RestaurantDashboard() {
                     </div>
                   )}
                 </div>
-              ) : (
-                // Default RestLayout
+              ) : activeNav === "MENU" ? (
+                // Menu Management Interface
+                <MenuComponent />
+              ) : activeNav === "STOCK" ? (
+                // Stock Management Interface
+                <StockComponent />
+              ) : activeNav === "MESAS" ? (
+                // Default RestLayout for Tables
                 <RestLayout
                   user={user}
                   onEditRedirect={() => router.push("/RestLayout")}
                   onTableSelect={selectTableForOrders}
                 />
+              ) : (
+                // Placeholder for other tabs (RESERVAS)
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                    backgroundColor: "white",
+                    borderRadius: "8px",
+                    margin: "24px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div style={{ textAlign: "center", color: "#64748b" }}>
+                    <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                      🚧
+                    </div>
+                    <h3 style={{ fontSize: "18px", marginBottom: "8px" }}>
+                      Em desenvolvimento
+                    </h3>
+                    <p>Esta secção estará disponível em breve</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>

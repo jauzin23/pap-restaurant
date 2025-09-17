@@ -160,22 +160,21 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     flex: 1;
     position: relative;
     background: $gray-50;
-    overflow: hidden; // Prevent scrolling
+    overflow: auto;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 24px;
-    min-height: 0; // Allow flex shrinking
+    min-height: 0;
 
     .table-grid {
       position: relative;
       background: $white;
       border: 2px solid $gray-200;
       border-radius: 16px;
-      overflow: hidden;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
         0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      flex-shrink: 0; // Prevent shrinking below content size
+      flex-shrink: 0;
 
       // Grid background pattern
       background-image: linear-gradient(
@@ -541,6 +540,27 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 
       .table-grid {
         min-height: 300px;
+      }
+    }
+  }
+}
+
+// Very small devices (mobile phones in portrait)
+@media (max-width: 480px) {
+  .rest-layout-container {
+    .rest-layout-header {
+      padding: 12px 8px; // Further reduced padding
+
+      .header-title {
+        font-size: 14px;
+      }
+    }
+
+    .rest-layout-content {
+      padding: 8px; // Minimal padding for maximum table space
+
+      .table-grid {
+        min-height: 280px; // Slightly smaller to fit better
       }
     }
   }
