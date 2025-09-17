@@ -13,34 +13,54 @@ export default function ImageCropper({ imagePreview, onCropApply, onCancel }) {
   const cropperRef = useRef(null);
   const [shape, setShape] = useState("rectangle"); // "rectangle" | "circle"
 
-  const applyCrop = useCallback(() => {
-    const cropper = cropperRef.current;
-    if (!cropper) return;
+  const applyCrop = useCallback(async () => {
+    if (!cropperRef.current) return;
 
     try {
-      // Exportar imagem já cortada do cropper
-      const canvas = cropper.getCanvas();
+      // Obter o canvas com a área cortada
+      const canvas = cropperRef.current.getCanvas();
+      if (!canvas) return;
 
-      if (!canvas) {
-        console.error("Falha ao gerar canvas");
-        return;
+      // Definir tamanho máximo para a imagem final (evita imagens muito grandes)
+      const MAX_WIDTH = 800;
+      const MAX_HEIGHT = 600;
+      
+      let { width, height } = canvas;
+      
+      // Redimensionar se necessário mantendo proporção
+      if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
       }
 
-      canvas.toBlob(
+      // Criar novo canvas com dimensões otimizadas
+      const outputCanvas = document.createElement('canvas');
+      const ctx = outputCanvas.getContext('2d');
+      
+      outputCanvas.width = width;
+      outputCanvas.height = height;
+      
+      // Desenhar a imagem redimensionada
+      ctx.drawImage(canvas, 0, 0, width, height);
+
+      // Converter para blob com qualidade otimizada
+      outputCanvas.toBlob(
         (blob) => {
           if (blob) {
-            const file = new File([blob], `cropped_${Date.now()}.jpg`, {
+            const file = new File([blob], `cropped_image_${Date.now()}.jpg`, {
               type: "image/jpeg",
               lastModified: Date.now(),
             });
+
             onCropApply(file);
           }
         },
         "image/jpeg",
-        0.9
+        0.85 // Qualidade boa mas não excessiva
       );
-    } catch (err) {
-      console.error("Erro ao aplicar crop:", err);
+    } catch (error) {
+      console.error("Error cropping image:", error);
     }
   }, [onCropApply]);
 
@@ -57,6 +77,7 @@ export default function ImageCropper({ imagePreview, onCropApply, onCancel }) {
         }}
         stencilComponent={shape === "circle" ? CircleStencil : RectangleStencil}
         stencilProps={{
+          aspectRatio: undefined,
           movable: true,
           resizable: true,
           lines: true,
@@ -64,7 +85,29 @@ export default function ImageCropper({ imagePreview, onCropApply, onCancel }) {
           minWidth: 50,
           minHeight: 50,
         }}
-        imageRestriction="stencil"
+        imageRestriction="none"
+        transformImage={{
+          adjustStencil: false,
+        }}
+        adjustStencil={false}
+        checkOrientation={false}
+        priority="visibleArea"
+        defaultSize={({ visibleArea }) => {
+          // Use visible area to calculate default crop size to prevent zoom
+          const minDimension = Math.min(visibleArea.width, visibleArea.height);
+          const size = Math.min(minDimension * 0.7, 250);
+          return {
+            width: size,
+            height: size,
+          };
+        }}
+        defaultPosition={({ visibleArea }) => {
+          // Center the initial crop area
+          return {
+            left: (visibleArea.width - Math.min(visibleArea.width, visibleArea.height) * 0.7) / 2,
+            top: (visibleArea.height - Math.min(visibleArea.width, visibleArea.height) * 0.7) / 2,
+          };
+        }}
       />
 
       {/* Switch Shape */}
@@ -170,10 +213,18 @@ export default function ImageCropper({ imagePreview, onCropApply, onCancel }) {
           max-width: 100% !important;
           max-height: 100% !important;
           object-fit: contain !important;
+          width: auto !important;
+          height: auto !important;
         }
 
-        .cropper-background {
+        .cropper :global(.advanced-cropper-background) {
           background-color: #f8fafc !important;
+        }
+
+        .cropper :global(.advanced-cropper-wrapper) {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
         }
       `}</style>
     </div>

@@ -519,7 +519,7 @@ export default function MenuComponent() {
               Nenhum item no menu
             </p>
             <p style={{ fontSize: "14px" }}>
-              Clique em "Adicionar Item" para começar
+              Clique em &quot;Adicionar Item&quot; para começar
             </p>
           </div>
         ) : (
