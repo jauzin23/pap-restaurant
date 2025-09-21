@@ -166,10 +166,11 @@ export default function RestaurantDashboard() {
   }, []);
 
   const navItems = [
-    { name: "MESAS", count: 12, color: "#10b981", icon: TableProperties },
-    { name: "MENU", count: 8, color: "#3b82f6", icon: Menu },
-    { name: "STOCK", count: 3, color: "#8b5cf6", icon: Package },
-    { name: "RESERVAS", count: 2, color: "#ef4444", icon: Calendar },
+    { name: "MESAS", color: "#10b981", icon: TableProperties },
+    { name: "MENU", color: "#3b82f6", icon: Menu },
+    { name: "STOCK", color: "#8b5cf6", icon: Package },
+    { name: "RESERVAS", color: "#ef4444", icon: Calendar },
+    { name: "CHAT", color: "#f59e0b", icon: MessageSquare },
   ];
 
   // Function to get today's date in ISO format for Appwrite query
@@ -496,8 +497,6 @@ export default function RestaurantDashboard() {
         <div className="dashboard__main">
           <aside className="dashboard__sidebar dashboard__sidebar--open">
             <nav className="dashboard__nav">
-              <h3 className="dashboard__nav-title">Menu Principal</h3>
-
               {Array.from({ length: 4 }).map((_, index) => (
                 <NavItemSkeleton key={index} />
               ))}
@@ -559,8 +558,6 @@ export default function RestaurantDashboard() {
 
           {/* Navigation Section */}
           <nav className="dashboard__nav">
-            <h3 className="dashboard__nav-title">Menu Principal</h3>
-
             {navItems.map((item) => {
               const IconComponent = item.icon;
               const isActive = activeNav === item.name;
@@ -678,53 +675,61 @@ export default function RestaurantDashboard() {
                         return (
                           <div
                             key={order.$id}
-                            className="order-item"
+                            className={`order-item ${
+                              isEditing ? "editing-notes" : ""
+                            }`}
                             style={{
                               border: imageUrl ? "none" : "1px solid #e2e8f0",
                             }}
                           >
                             <div className="order-item-image">
                               {imageUrl ? (
-                                <div
+                                <img
+                                  src={imageUrl}
+                                  alt={menuItem?.nome || "Menu item"}
+                                  className="order-image"
                                   style={{
-                                    width: "120px",
+                                    width: "fit-content",
                                     height: "100%",
                                     minHeight: "100px",
-                                    backgroundImage: `url(${imageUrl})`,
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
+                                    objectFit: "cover",
                                     backgroundColor: "#ffffff",
+                                    borderRadius: "12px 0 0 12px",
+                                  }}
+                                  onError={(e) => {
+                                    e.target.style.display = "none";
+                                    e.target.nextSibling.style.display = "flex";
                                   }}
                                 />
-                              ) : (
-                                <div
+                              ) : null}
+                              <div
+                                className="no-image-placeholder"
+                                style={{
+                                  display: imageUrl ? "none" : "flex",
+                                  width: "120px",
+                                  height: "100%",
+                                  minHeight: "100px",
+                                  backgroundColor: "#f8fafc",
+                                  border: "none",
+                                  borderRight: "2px dashed #d1d5db",
+                                  borderRadius: "12px 0 0 12px",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#9ca3af",
+                                  gap: "8px",
+                                }}
+                              >
+                                <UtensilsCrossed size={32} />
+                                <span
                                   style={{
-                                    width: "120px",
-                                    height: "100%",
-                                    minHeight: "100px",
-                                    backgroundColor: "#f8fafc",
-                                    border: "none", // Remove border from the image area
-                                    borderRight: "2px dashed #d1d5db", // Add dashed border only on the right
-                                    borderRadius: "0", // Remove border radius to align with container
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#9ca3af",
-                                    flexDirection: "column",
-                                    gap: "8px",
+                                    fontSize: "12px",
+                                    textAlign: "center",
                                   }}
                                 >
-                                  <UtensilsCrossed size={32} />
-                                  <span
-                                    style={{
-                                      fontSize: "12px",
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    Sem imagem
-                                  </span>
-                                </div>
-                              )}
+                                  Sem imagem
+                                </span>
+                              </div>
                             </div>
 
                             <div className="order-item-info">
@@ -742,46 +747,61 @@ export default function RestaurantDashboard() {
                               </div>
 
                               {/* Notes section */}
-                              {isEditing ? (
-                                <div className="note-editor">
-                                  <textarea
-                                    value={tempNote}
-                                    onChange={(e) =>
-                                      setTempNote(e.target.value)
-                                    }
-                                    placeholder="Adicionar nota..."
-                                    rows={2}
-                                  />
-                                  <div className="note-actions">
-                                    <button
-                                      onClick={() => {
-                                        updateOrderNotes(order.$id, tempNote);
-                                        setEditingNote(null);
-                                        setTempNote("");
-                                      }}
-                                      className="save-note"
-                                    >
-                                      <CheckCircle size={16} />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingNote(null);
-                                        setTempNote("");
-                                      }}
-                                      className="cancel-note"
-                                    >
-                                      <X size={16} />
-                                    </button>
+                              <div className="notes-section">
+                                {isEditing ? (
+                                  <div className="note-editor">
+                                    <textarea
+                                      value={tempNote}
+                                      onChange={(e) =>
+                                        setTempNote(e.target.value)
+                                      }
+                                      placeholder="Adicionar nota..."
+                                      rows={3}
+                                    />
+                                    <div className="note-actions">
+                                      <button
+                                        onClick={() => {
+                                          updateOrderNotes(order.$id, tempNote);
+                                          setEditingNote(null);
+                                          setTempNote("");
+                                        }}
+                                        className="save-note"
+                                      >
+                                        <CheckCircle size={16} />
+                                        Guardar
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingNote(null);
+                                          setTempNote("");
+                                        }}
+                                        className="cancel-note"
+                                      >
+                                        <X size={16} />
+                                        Cancelar
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                order.notes && (
-                                  <div className="order-notes">
-                                    <MessageSquare size={12} />
-                                    {order.notes}
+                                ) : (
+                                  <div className="order-notes-display">
+                                    <div className="notes-header">
+                                      <MessageSquare size={12} />
+                                      <span>Notas</span>
+                                    </div>
+                                    <div className="notes-content">
+                                      {order.notes ? (
+                                        <span className="note-text">
+                                          {order.notes}
+                                        </span>
+                                      ) : (
+                                        <span className="no-notes">
+                                          Sem notas
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                )
-                              )}
+                                )}
+                              </div>
                             </div>
 
                             <div className="order-item-actions">
@@ -826,9 +846,12 @@ export default function RestaurantDashboard() {
                                   setTempNote(order.notes || "");
                                 }}
                                 className="edit-note"
-                                title="Editar nota"
+                                title={
+                                  order.notes ? "Editar nota" : "Adicionar nota"
+                                }
                               >
                                 <MessageSquare size={16} />
+                                {order.notes ? "Editar" : "Nota"}
                               </button>
 
                               {/* Delete button */}
@@ -878,7 +901,7 @@ export default function RestaurantDashboard() {
                       🚧
                     </div>
                     <h3 style={{ fontSize: "18px", marginBottom: "8px" }}>
-                      Em desenvolvimento
+                      Coming sun
                     </h3>
                     <p>Esta secção estará disponível em breve</p>
                   </div>

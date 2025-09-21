@@ -10,11 +10,12 @@ import React, {
 import { useRouter } from "next/navigation";
 // Direct icon imports for bundle size
 import {
-  Grid,
   Edit,
   Shield,
   ShieldX,
   ExternalLink,
+  Eye,
+  Grid,
   X,
   Plus,
   Trash2,
@@ -28,8 +29,8 @@ import {
   ChevronDown,
   ChevronRight,
   ShoppingCart,
-  Eye,
-  EyeOff,
+  ListOrdered,
+  HandCoins,
   Check,
   RotateCcw,
   CheckCircle2,
@@ -37,6 +38,7 @@ import {
   DollarSign,
   Wallet,
   Package,
+  CopyCheck,
 } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
 import { Query } from "appwrite";
@@ -156,8 +158,10 @@ const getResponsiveFontSize = (
     responsiveMultiplier = 0.98; // Increased from 0.9 to 0.98 (only 2% smaller)
   }
 
+  // Increase minSize for better readability on mobile
+  const improvedMinSize = Math.max(minSize, 13); // was often 10-12, now at least 13px
   const calculatedSize = Math.max(
-    minSize,
+    improvedMinSize,
     baseSize * scaleFactor * responsiveMultiplier
   );
   return `${calculatedSize}px`;
@@ -452,8 +456,8 @@ const TableComponent = React.memo(
                       return groupColor.bg.replace("bg-", "text-"); // Convert bg-purple-600 to text-purple-600
                     })()
                   : table.status === "occupied"
-                  ? "text-red-300"
-                  : "text-green-300"
+                  ? "text-red-600"
+                  : "text-green-600"
               }`}
               style={{
                 fontSize: `${Math.max(12, 18 * tableScale)}px`,
@@ -2287,7 +2291,12 @@ const RestLayout = React.memo(function RestLayout({
     setSelectedTables(new Set());
   }, []);
 
-  // Calculate table statistics
+  // Calculate capacity percentage (0 to 1)
+  const capacityPercent = useMemo(() => {
+    if (!tables.length) return 0;
+    const occupied = tables.filter((t) => t.status === "occupied").length;
+    return occupied / tables.length;
+  }, [tables]);
   const tableStats = useMemo(() => {
     const freeTables = tables.filter((table) => table.status === "free").length;
     const occupiedTables = tables.filter(
@@ -2312,18 +2321,17 @@ const RestLayout = React.memo(function RestLayout({
     return (
       <div className="rest-layout-container">
         <div className="rest-layout-header">
-          <div className="header-stats">
-            <div className="stat-item">
-              <div className="stat-value">-</div>
-              <div className="stat-label">Livres</div>
+          <div className="header-left">
+            <div className="header-title">
+              <UtensilsCrossed className="header-icon" />
+              Layout do Restaurante
             </div>
-            <div className="stat-item">
-              <div className="stat-value">-</div>
-              <div className="stat-label">Ocupadas</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-value">-</div>
-              <div className="stat-label">Ocupação</div>
+            <div className="capacity-bar">
+              <div className="bar-bg" />
+              <div
+                className="bar-fill"
+                style={{ width: `0%`, background: "#10b981" }}
+              />
             </div>
           </div>
           <div className="header-actions">
@@ -2348,38 +2356,14 @@ const RestLayout = React.memo(function RestLayout({
 
   return (
     <div className="rest-layout-container">
-      {/* Header with Statistics and Edit Button */}
       <div className="rest-layout-header">
         <div className="header-left">
           <div className="header-title">
-            <Grid className="header-icon" size={20} />
+            <UtensilsCrossed
+              className="header-icon"
+              style={{ width: 32, height: 32 }}
+            />
             Layout do Restaurante
-          </div>
-        </div>
-
-        <div className="header-stats">
-          <div className="stat-item free">
-            <div className="stat-value">{tableStats.freeTables}</div>
-            <div className="stat-label">Livres</div>
-          </div>
-          <div className="stat-item occupied">
-            <div className="stat-value">{tableStats.occupiedTables}</div>
-            <div className="stat-label">Ocupadas</div>
-          </div>
-          <div className="stat-item percentage">
-            <div className="stat-value">
-              {tableStats.totalTables > 0
-                ? Math.round(
-                    (tableStats.occupiedTables / tableStats.totalTables) * 100
-                  )
-                : 0}
-              %
-            </div>
-            <div className="stat-label">Ocupação</div>
-          </div>
-          <div className="stat-item">
-            <div className="stat-value">{tableStats.totalOrders}</div>
-            <div className="stat-label">Pedidos</div>
           </div>
         </div>
 
@@ -2395,10 +2379,14 @@ const RestLayout = React.memo(function RestLayout({
               backgroundColor: showPaidOrders ? "#10b981" : "transparent",
               color: showPaidOrders ? "white" : "inherit",
               fontSize: "14px",
-              padding: "8px 12px",
+              padding: "12px 12px",
             }}
           >
-            {showPaidOrders ? <EyeOff size={14} /> : <Eye size={14} />}
+            {showPaidOrders ? (
+              <ListOrdered size={14} />
+            ) : (
+              <HandCoins size={14} />
+            )}
             {showPaidOrders ? "Ocultar Pagos" : "Ver Pagos"}
           </button>
 
@@ -2410,21 +2398,19 @@ const RestLayout = React.memo(function RestLayout({
               backgroundColor: isSelectionMode ? "#3b82f6" : "transparent",
               color: isSelectionMode ? "white" : "inherit",
               fontSize: "14px",
-              padding: "8px 12px",
+              padding: "12px 12px",
             }}
           >
-            <Grid size={14} />
-            Multi
+            <CopyCheck size={14} />
           </button>
 
           {isManager && (
             <button
               onClick={onEditRedirect}
               className="edit-button"
-              style={{ fontSize: "14px", padding: "8px 12px" }}
+              style={{ fontSize: "14px", padding: "12px 12px" }}
             >
               <Edit size={14} />
-              Edit
             </button>
           )}
         </div>
@@ -2586,18 +2572,26 @@ const RestLayout = React.memo(function RestLayout({
             </div>
           </div>
         ) : (
-          /* Restaurant Layout View */
           <div
             className="table-grid"
             style={{
               width: `${maxDimensions.width}px`,
-              height: `${maxDimensions.height}px`,
-              contain: "strict", // Strict containment for maximum performance
-              willChange: "transform", // Optimize for transforms
-              transform: "translateZ(0)", // Force layer
+              height: "100%",
+              maxHeight: "100vh",
+              aspectRatio: `${maxDimensions.width} / ${maxDimensions.height}`,
+              border: "2px solid #e2e8f0",
+              borderRadius: 32,
+              boxShadow:
+                "0 8px 32px -4px rgba(0,0,0,0.08), 0 2px 8px -2px rgba(0,0,0,0.04)",
+              contain: "strict",
+              willChange: "transform",
+              transform: "translateZ(0)",
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "stretch",
             }}
           >
-            {/* Render all tables with multi-table indicators */}
             {tables.map((table) => (
               <TableComponent
                 key={table.id}
@@ -2820,7 +2814,6 @@ const RestLayout = React.memo(function RestLayout({
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2"
                           >
                             <Edit size={16} />
-                            Editar
                           </button>
                           <button
                             onClick={() => openPaymentModal(order)}

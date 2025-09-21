@@ -14,6 +14,13 @@ import {
   X,
   Eye,
   Warehouse,
+  Edit,
+  Save,
+  ChevronUp,
+  ChevronDown,
+  TrendingUp,
+  TrendingDown,
+  ArrowLeft,
 } from "lucide-react";
 import {
   COL_STOCK,
@@ -22,20 +29,16 @@ import {
   COL_SUPPLIER,
   LOCATION_STOCK,
 } from "@/lib/appwrite";
+import "./StockComponent.scss";
 
 export default function StockComponent() {
   const [stockItems, setStockItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
-  const [movementMode, setMovementMode] = useState("add");
-  const [movementList, setMovementList] = useState([]);
+  const [movementCart, setMovementCart] = useState({});
   const [editingRows, setEditingRows] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartAnimation, setCartAnimation] = useState(false);
   const [isCartExpanded, setIsCartExpanded] = useState(false);
-  const [cartPulse, setCartPulse] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
@@ -56,7 +59,6 @@ export default function StockComponent() {
   const [dropdownsLoading, setDropdownsLoading] = useState(false);
 
   const ITEMS_PER_PAGE = 50;
-
   const { databases } = useApp();
 
   // Memoized computed values for performance
@@ -77,7 +79,7 @@ export default function StockComponent() {
     if (!searchTerm.trim()) return stockItems;
     return stockItems.filter(
       (item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.description &&
           item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.category &&
@@ -97,10 +99,10 @@ export default function StockComponent() {
     [filteredItems, currentPage]
   );
 
-  // Reset movement list when mode changes
+  // Reset to page 1 when search changes
   useEffect(() => {
-    setMovementList([]);
-  }, [movementMode]);
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Initial data fetch
   useEffect(() => {
@@ -109,6 +111,8 @@ export default function StockComponent() {
 
   // Fetch dropdown data for the add modal
   const fetchDropdownData = useCallback(async () => {
+    if (!databases) return;
+
     setDropdownsLoading(true);
     try {
       const [categoriesRes, suppliersRes, locationsRes] = await Promise.all([
@@ -117,9 +121,9 @@ export default function StockComponent() {
         databases.listDocuments(DBRESTAURANTE, LOCATION_STOCK),
       ]);
 
-      setCategories(categoriesRes.documents);
-      setSuppliers(suppliersRes.documents);
-      setLocations(locationsRes.documents);
+      setCategories(categoriesRes.documents || []);
+      setSuppliers(suppliersRes.documents || []);
+      setLocations(locationsRes.documents || []);
     } catch (err) {
       console.error("Error fetching dropdown data:", err);
       setCategories([]);
@@ -138,97 +142,103 @@ export default function StockComponent() {
   }, [isAddModalOpen, categories.length, fetchDropdownData]);
 
   const fetchStock = useCallback(async () => {
-    if (loading) return;
+    if (!databases || loading) return;
+
     setLoading(true);
     try {
       const res = await databases.listDocuments(DBRESTAURANTE, COL_STOCK);
-      setStockItems(res.documents);
+      setStockItems(res.documents || []);
     } catch (err) {
       console.error("Error fetching stock:", err);
+      setStockItems([]);
     } finally {
       setLoading(false);
     }
   }, [databases, loading]);
 
-  const handleTabSwitch = useCallback((tab) => {
-    setActiveTab(tab);
-    setMovementList([]);
-    setSearchTerm("");
-    setCurrentPage(1);
-    setIsCartOpen(false);
-    setIsCartExpanded(false);
-    setCurrentPage(1);
-  }, []);
+  const addToMovementCart = useCallback((itemId, quantity) => {
+    setMovementCart((prev) => {
+      const currentQty = prev[itemId] || 0;
+      const newQty = currentQty + quantity;
 
-  const handleItemClick = useCallback((item) => {
-    setMovementList((prev) => {
-      const existing = prev.find((i) => i.item.$id === item.$id);
-      if (existing) {
-        return prev.map((i) =>
-          i.item.$id === item.$id ? { ...i, qty: i.qty + 1 } : i
-        );
+      // Remove item if quantity becomes 0
+      if (newQty === 0) {
+        const { [itemId]: removed, ...rest } = prev;
+        return rest;
       }
-      return [...prev, { item, qty: 1 }];
+
+      return {
+        ...prev,
+        [itemId]: newQty,
+      };
     });
-
-    setCartPulse(true);
-    setTimeout(() => setCartPulse(false), 800);
-
-    setCartAnimation(true);
-    setTimeout(() => setCartAnimation(false), 300);
   }, []);
 
-  const handleQuantityChange = useCallback((id, delta) => {
-    setMovementList((prev) =>
-      prev
-        .map((i) =>
-          i.item.$id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i
-        )
-        .filter((i) => i.qty > 0)
-    );
+  const removeFromMovementCart = useCallback((itemId) => {
+    setMovementCart((prev) => {
+      const { [itemId]: removed, ...rest } = prev;
+      return rest;
+    });
   }, []);
 
-  const handleRemoveFromList = useCallback((id) => {
-    setMovementList((prev) => prev.filter((i) => i.item.$id !== id));
+  const clearMovementCart = useCallback(() => {
+    setMovementCart({});
   }, []);
 
-  const handleConfirmMovement = useCallback(async () => {
-    if (!movementList.length || loading) return;
+  const processMovements = useCallback(async () => {
+    if (!Object.keys(movementCart).length || loading || !databases) return;
 
     setLoading(true);
     try {
-      const updates = movementList.map(({ item, qty }) => {
-        const newQty =
-          movementMode === "remove" ? item.qty - qty : item.qty + qty;
-        return databases.updateDocument(DBRESTAURANTE, COL_STOCK, item.$id, {
-          qty: Math.max(0, newQty),
-        });
-      });
+      const updates = [];
 
-      await Promise.all(updates);
-      setMovementList([]);
-      await fetchStock();
+      for (const [itemId, qty] of Object.entries(movementCart)) {
+        const item = stockItems.find((i) => i.$id === itemId);
+        if (!item) continue;
+
+        const newQty = Math.max(0, item.qty + qty);
+        updates.push(
+          databases.updateDocument(DBRESTAURANTE, COL_STOCK, itemId, {
+            qty: newQty,
+          })
+        );
+      }
+
+      if (updates.length > 0) {
+        await Promise.all(updates);
+        setMovementCart({});
+        await fetchStock();
+      }
     } catch (err) {
       console.error("Error updating stock:", err);
-      alert("Erro ao atualizar stock");
+      alert("Erro ao atualizar stock. Tente novamente.");
     } finally {
       setLoading(false);
     }
-  }, [movementList, movementMode, databases, loading, fetchStock]);
+  }, [movementCart, databases, loading, fetchStock, stockItems]);
 
   const handleSaveEdit = useCallback(
     async (itemId) => {
       const edits = editingRows[itemId];
-      if (!edits || loading) return;
+      if (!edits || loading || !databases) return;
 
       setLoading(true);
       try {
-        await databases.updateDocument(DBRESTAURANTE, COL_STOCK, itemId, edits);
-        setEditingRows((prev) => ({ ...prev, [itemId]: undefined }));
+        await databases.updateDocument(DBRESTAURANTE, COL_STOCK, itemId, {
+          qty: Math.max(0, parseInt(edits.qty) || 0),
+          min_qty: Math.max(0, parseInt(edits.min_qty) || 0),
+          cost_price: Math.max(0, parseFloat(edits.cost_price) || 0),
+        });
+
+        setEditingRows((prev) => {
+          const { [itemId]: removed, ...rest } = prev;
+          return rest;
+        });
+
         await fetchStock();
       } catch (err) {
         console.error("Error updating item:", err);
-        alert("Erro ao atualizar item");
+        alert("Erro ao atualizar item. Tente novamente.");
       } finally {
         setLoading(false);
       }
@@ -237,9 +247,10 @@ export default function StockComponent() {
   );
 
   const handleAddNewItem = useCallback(async () => {
-    if (addItemLoading) return;
+    if (addItemLoading || !databases) return;
 
-    if (!newItem.name.trim()) {
+    const trimmedName = newItem.name?.trim();
+    if (!trimmedName) {
       alert("Nome do produto é obrigatório");
       return;
     }
@@ -247,14 +258,14 @@ export default function StockComponent() {
     setAddItemLoading(true);
     try {
       await databases.createDocument(DBRESTAURANTE, COL_STOCK, "unique()", {
-        name: newItem.name.trim(),
-        category: newItem.category.trim() || null,
-        description: newItem.description.trim() || null,
-        supplier: newItem.supplier.trim() || null,
-        location: newItem.location.trim() || null,
-        cost_price: parseFloat(newItem.cost_price) || 0,
-        qty: parseInt(newItem.qty) || 0,
-        min_qty: parseInt(newItem.min_qty) || 0,
+        name: trimmedName,
+        category: newItem.category?.trim() || null,
+        description: newItem.description?.trim() || null,
+        supplier: newItem.supplier?.trim() || null,
+        location: newItem.location?.trim() || null,
+        cost_price: Math.max(0, parseFloat(newItem.cost_price) || 0),
+        qty: Math.max(0, parseInt(newItem.qty) || 0),
+        min_qty: Math.max(0, parseInt(newItem.min_qty) || 0),
       });
 
       setNewItem({
@@ -291,1154 +302,460 @@ export default function StockComponent() {
     });
   }, []);
 
-  const ItemCard = ({ item, onClick, isMovementMode = false }) => (
-    <div
-      style={{
-        backgroundColor: "white",
-        border: "2px solid #e2e8f0",
-        borderRadius: "12px",
-        padding: "16px",
-        cursor: isMovementMode ? "pointer" : "default",
-        transition: "all 0.2s",
-        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-      }}
-      onMouseEnter={(e) => {
-        if (isMovementMode) {
-          e.target.style.borderColor = "#3b82f6";
-          e.target.style.transform = "translateY(-2px)";
-          e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (isMovementMode) {
-          e.target.style.borderColor = "#e2e8f0";
-          e.target.style.transform = "translateY(0)";
-          e.target.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
-        }
-      }}
-      onClick={onClick}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          marginBottom: "12px",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h4
-            style={{
-              fontWeight: "bold",
-              color: "#1e293b",
-              fontSize: "18px",
-              margin: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.name}
-          </h4>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "#64748b",
-              margin: "4px 0 0 0",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.category || item.description}
-          </p>
-        </div>
-        <div
-          style={{
-            padding: "4px 8px",
-            borderRadius: "6px",
-            fontSize: "12px",
-            fontWeight: "500",
-            backgroundColor: item.qty <= item.min_qty ? "#fef2f2" : "#f0fdf4",
-            color: item.qty <= item.min_qty ? "#dc2626" : "#16a34a",
-            border:
-              item.qty <= item.min_qty
-                ? "1px solid #fecaca"
-                : "1px solid #bbf7d0",
-          }}
-        >
-          {item.qty <= item.min_qty ? "Baixo" : "OK"}
-        </div>
-      </div>
+  const ItemCard = ({ item, onClick, isMovementMode = false }) => {
+    if (!item) return null;
 
-      <div style={{ marginBottom: "16px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "8px",
-          }}
-        >
-          <span style={{ fontSize: "14px", color: "#64748b" }}>
-            Stock atual
-          </span>
-          <span
-            style={{
-              fontFamily: "monospace",
-              fontWeight: "bold",
-              fontSize: "18px",
-              color: item.qty <= item.min_qty ? "#dc2626" : "#16a34a",
-            }}
-          >
-            {item.qty}
-          </span>
+    const isEditing = editingRows[item.$id];
+    const getStatusInfo = (current, minimum) => {
+      if (current <= minimum) return { status: "critical", label: "Crítico" };
+      if (current <= minimum + 5) return { status: "warning", label: "Baixo" };
+      return { status: "ok", label: "OK" };
+    };
+
+    const statusInfo = getStatusInfo(item.qty || 0, item.min_qty || 0);
+
+    return (
+      <div
+        className={`item-card ${isEditing ? "editable" : ""} ${
+          isMovementMode ? "movement-mode" : ""
+        }`}
+        onClick={
+          isMovementMode
+            ? onClick
+            : !isEditing
+            ? (e) => {
+                if (
+                  !e.target.closest(".edit-actions") &&
+                  !e.target.closest(".movement-controls")
+                ) {
+                  setEditingRows((prev) => ({
+                    ...prev,
+                    [item.$id]: {
+                      qty: item.qty || 0,
+                      min_qty: item.min_qty || 0,
+                      cost_price: item.cost_price || 0,
+                    },
+                  }));
+                }
+              }
+            : undefined
+        }
+      >
+        {/* Status badge at the top */}
+        <div className={`status-badge ${statusInfo.status}`}>
+          {statusInfo.label}
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "8px",
-          }}
-        >
-          <span style={{ fontSize: "14px", color: "#64748b" }}>Mínimo</span>
-          <span style={{ fontFamily: "monospace", color: "#f59e0b" }}>
-            {item.min_qty}
-          </span>
-        </div>
-        {item.cost_price && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: "14px", color: "#64748b" }}>Preço</span>
-            <span style={{ fontFamily: "monospace", color: "#3b82f6" }}>
-              €{item.cost_price.toFixed(2)}
-            </span>
+
+        {/* Edit overlay icon for hover effect */}
+        {!isMovementMode && !isEditing && (
+          <div className="edit-overlay">
+            <Edit className="edit-icon" />
           </div>
         )}
-      </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: "12px",
-          color: "#9ca3af",
-        }}
-      >
-        <span>{item.supplier || "N/A"}</span>
-        <span>{item.location || "N/A"}</span>
-      </div>
-    </div>
-  );
-
-  return (
-    <div
-      style={{ backgroundColor: "white", minHeight: "100%", padding: "24px" }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-          paddingBottom: "16px",
-          borderBottom: "1px solid #e2e8f0",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "24px",
-            fontWeight: "600",
-            color: "#1e293b",
-            margin: 0,
-          }}
-        >
-          Gestão de Stock
-        </h1>
-        <div style={{ display: "flex", gap: "12px" }}>
-          <Button
-            onClick={fetchStock}
-            disabled={loading}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 16px",
-              backgroundColor: "#f1f5f9",
-              color: "#475569",
-              border: "1px solid #cbd5e1",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </Button>
+        <div className="card-header">
+          <div className="item-info">
+            <h3 className="item-name">{item.name || "Nome não disponível"}</h3>
+            <p className="item-category">
+              {item.category || item.description || "Sem categoria"}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
-        <button
-          onClick={() => handleTabSwitch("overview")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "12px 24px",
-            borderRadius: "8px",
-            fontWeight: "500",
-            border: "none",
-            cursor: "pointer",
-            backgroundColor: activeTab === "overview" ? "#3b82f6" : "#f1f5f9",
-            color: activeTab === "overview" ? "white" : "#64748b",
-          }}
-        >
-          <Eye size={16} />
-          Overview
-        </button>
-        <button
-          onClick={() => handleTabSwitch("movement")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "12px 24px",
-            borderRadius: "8px",
-            fontWeight: "500",
-            border: "none",
-            cursor: "pointer",
-            backgroundColor: activeTab === "movement" ? "#3b82f6" : "#f1f5f9",
-            color: activeTab === "movement" ? "white" : "#64748b",
-          }}
-        >
-          <Package size={16} />
-          Editar Stock
-        </button>
-      </div>
-
-      {/* Content */}
-      {activeTab === "overview" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-          {/* Overview Header with Actions */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  fontSize: "20px",
-                  fontWeight: "600",
-                  color: "#1e293b",
-                  margin: 0,
+        <div className="stock-info">
+          <div className="stock-row">
+            <span className="label">Stock atual</span>
+            {isEditing ? (
+              <input
+                type="number"
+                min="0"
+                className="editable-input"
+                value={editingRows[item.$id]?.qty ?? item.qty ?? 0}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setEditingRows((prev) => ({
+                    ...prev,
+                    [item.$id]: {
+                      ...prev[item.$id],
+                      qty: parseInt(e.target.value) || 0,
+                    },
+                  }));
                 }}
-              >
-                Overview do Stock
-              </h2>
-              <p style={{ color: "#64748b", margin: "4px 0 0 0" }}>
-                Gestão e monitorização do inventário
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px 16px",
-                backgroundColor: "#10b981",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-            >
-              <Plus size={16} />
-              Novo Item
-            </Button>
+              />
+            ) : (
+              <span className={`value current ${statusInfo.status}`}>
+                {item.qty || 0}
+              </span>
+            )}
           </div>
 
-          {/* Warnings Section */}
-          {criticalStock.length > 0 && (
-            <div
-              style={{
-                backgroundColor: "#fef2f2",
-                border: "1px solid #fecaca",
-                borderLeft: "4px solid #dc2626",
-                borderRadius: "8px",
-                padding: "24px",
-              }}
-            >
-              <div style={{ display: "flex", gap: "16px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    backgroundColor: "#fee2e2",
+          <div className="stock-row">
+            <span className="label">Mínimo</span>
+            {isEditing ? (
+              <input
+                type="number"
+                min="0"
+                className="editable-input"
+                value={editingRows[item.$id]?.min_qty ?? item.min_qty ?? 0}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setEditingRows((prev) => ({
+                    ...prev,
+                    [item.$id]: {
+                      ...prev[item.$id],
+                      min_qty: parseInt(e.target.value) || 0,
+                    },
+                  }));
+                }}
+              />
+            ) : (
+              <span className="value minimum">{item.min_qty || 0}</span>
+            )}
+          </div>
+
+          {(item.cost_price || isEditing) && (
+            <div className="stock-row">
+              <span className="label">Preço</span>
+              {isEditing ? (
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="editable-input"
+                  value={
+                    editingRows[item.$id]?.cost_price ?? item.cost_price ?? 0
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setEditingRows((prev) => ({
+                      ...prev,
+                      [item.$id]: {
+                        ...prev[item.$id],
+                        cost_price: parseFloat(e.target.value) || 0,
+                      },
+                    }));
                   }}
-                >
-                  <AlertTriangle size={20} style={{ color: "#dc2626" }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <h3
-                      style={{
-                        fontSize: "18px",
-                        fontWeight: "600",
-                        color: "#991b1b",
-                        margin: 0,
-                      }}
-                    >
-                      Stock Crítico
-                    </h3>
-                    <span
-                      style={{
-                        padding: "4px 12px",
-                        backgroundColor: "#fee2e2",
-                        border: "1px solid #fecaca",
-                        borderRadius: "20px",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#991b1b",
-                      }}
-                    >
-                      {criticalStock.length}{" "}
-                      {criticalStock.length === 1 ? "item" : "itens"}
-                    </span>
-                  </div>
-                  <p style={{ color: "#b91c1c", marginBottom: "16px" }}>
-                    Os seguintes produtos estão com stock crítico e requerem
-                    reposição imediata.
-                  </p>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(250px, 1fr))",
-                      gap: "12px",
-                    }}
-                  >
-                    {criticalStock.map((item) => (
-                      <div
-                        key={item.$id}
-                        style={{
-                          backgroundColor: "#fee2e2",
-                          border: "1px solid #fecaca",
-                          borderRadius: "8px",
-                          padding: "12px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          <h4
-                            style={{
-                              fontWeight: "500",
-                              color: "#991b1b",
-                              fontSize: "14px",
-                              margin: 0,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {item.name}
-                          </h4>
-                          <span
-                            style={{
-                              fontFamily: "monospace",
-                              color: "#dc2626",
-                              fontSize: "14px",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {item.qty}
-                          </span>
-                        </div>
-                        <p
-                          style={{
-                            fontSize: "12px",
-                            color: "#b91c1c",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          {item.category || item.description}
-                        </p>
-                        <button
-                          onClick={() => handleTabSwitch("movement")}
-                          style={{
-                            width: "100%",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            padding: "6px 12px",
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: "500",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Repor Agora
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                />
+              ) : (
+                <span className="value price">
+                  €{(item.cost_price || 0).toFixed(2)}
+                </span>
+              )}
             </div>
           )}
-
-          {/* Overview table */}
-          <div
-            style={{
-              backgroundColor: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: "8px",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ padding: "16px", borderBottom: "1px solid #e2e8f0" }}>
-              <h1
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  color: "#1e293b",
-                  margin: 0,
-                }}
-              >
-                Inventário
-              </h1>
-              <p
-                style={{
-                  color: "#64748b",
-                  fontSize: "14px",
-                  margin: "4px 0 0 0",
-                }}
-              >
-                {stockItems.length} itens no total
-              </p>
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "14px",
-                }}
-              >
-                <thead style={{ backgroundColor: "#f8fafc" }}>
-                  <tr>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Nome
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Categoria
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Fornecedor
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Local
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Preço
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Stock
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Mín.
-                    </th>
-                    <th
-                      style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        fontWeight: "600",
-                        color: "#374151",
-                      }}
-                    >
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockItems.map((item) => (
-                    <tr
-                      key={item.$id}
-                      style={{ borderBottom: "1px solid #f1f5f9" }}
-                      onMouseEnter={(e) =>
-                        (e.target.parentElement.style.backgroundColor =
-                          "#f8fafc")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.parentElement.style.backgroundColor =
-                          "transparent")
-                      }
-                    >
-                      <td style={{ padding: "12px" }}>
-                        <input
-                          style={{
-                            backgroundColor: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "6px 8px",
-                            width: "120px",
-                            color: "#1e293b",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                          }}
-                          defaultValue={item.name || ""}
-                          onChange={(e) =>
-                            setEditingRows((prev) => ({
-                              ...prev,
-                              [item.$id]: {
-                                ...prev[item.$id],
-                                name: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <input
-                          style={{
-                            backgroundColor: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "6px 8px",
-                            width: "100px",
-                            color: "#1e293b",
-                            fontSize: "14px",
-                          }}
-                          defaultValue={item.category || ""}
-                          onChange={(e) =>
-                            setEditingRows((prev) => ({
-                              ...prev,
-                              [item.$id]: {
-                                ...prev[item.$id],
-                                category: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <input
-                          style={{
-                            backgroundColor: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "6px 8px",
-                            width: "110px",
-                            color: "#1e293b",
-                            fontSize: "14px",
-                          }}
-                          defaultValue={item.supplier || ""}
-                          onChange={(e) =>
-                            setEditingRows((prev) => ({
-                              ...prev,
-                              [item.$id]: {
-                                ...prev[item.$id],
-                                supplier: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <input
-                          style={{
-                            backgroundColor: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "6px 8px",
-                            width: "80px",
-                            color: "#1e293b",
-                            fontSize: "14px",
-                          }}
-                          defaultValue={item.location || ""}
-                          onChange={(e) =>
-                            setEditingRows((prev) => ({
-                              ...prev,
-                              [item.$id]: {
-                                ...prev[item.$id],
-                                location: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          style={{
-                            backgroundColor: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "6px 8px",
-                            width: "80px",
-                            color: "#1e293b",
-                            fontSize: "14px",
-                          }}
-                          defaultValue={item.cost_price || ""}
-                          onChange={(e) =>
-                            setEditingRows((prev) => ({
-                              ...prev,
-                              [item.$id]: {
-                                ...prev[item.$id],
-                                cost_price: parseFloat(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: "bold",
-                            color:
-                              item.qty <= item.min_qty ? "#dc2626" : "#16a34a",
-                          }}
-                        >
-                          {item.qty}
-                        </span>
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <input
-                          type="number"
-                          min="0"
-                          style={{
-                            backgroundColor: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "6px 8px",
-                            width: "60px",
-                            color: "#1e293b",
-                            fontSize: "14px",
-                            fontFamily: "monospace",
-                          }}
-                          defaultValue={item.min_qty || ""}
-                          onChange={(e) =>
-                            setEditingRows((prev) => ({
-                              ...prev,
-                              [item.$id]: {
-                                ...prev[item.$id],
-                                min_qty: parseInt(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveEdit(item.$id)}
-                          disabled={loading || !editingRows[item.$id]}
-                          style={{
-                            backgroundColor: "#3b82f6",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px 12px",
-                            fontSize: "12px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Guardar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
-      )}
 
-      {/* Movement Tab */}
-      {activeTab === "movement" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-          {/* Controls */}
-          <div
-            style={{
-              display: "flex",
-              gap: "24px",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ position: "relative", flex: 1, maxWidth: "400px" }}>
-              <Search
-                size={16}
-                style={{
-                  position: "absolute",
-                  left: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  color: "#9ca3af",
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Pesquisar..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                style={{
-                  width: "100%",
-                  paddingLeft: "40px",
-                  paddingRight: "16px",
-                  paddingTop: "12px",
-                  paddingBottom: "12px",
-                  backgroundColor: "white",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  color: "#1e293b",
-                  fontSize: "14px",
-                }}
-              />
-            </div>
+        <div className="card-footer">
+          <span className="supplier">{item.supplier || "N/A"}</span>
+          <span className="location">{item.location || "N/A"}</span>
+        </div>
 
-            <div
-              style={{
-                display: "flex",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-                backgroundColor: "white",
-                padding: "4px",
+        {/* Edit buttons in line style at bottom when editing */}
+        {isEditing && (
+          <div className="edit-actions">
+            <button
+              className="action-btn save"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSaveEdit(item.$id);
+              }}
+              disabled={loading}
+            >
+              <Save size={14} />
+              Guardar
+            </button>
+            <button
+              className="action-btn cancel"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingRows((prev) => {
+                  const { [item.$id]: removed, ...rest } = prev;
+                  return rest;
+                });
               }}
             >
+              <X size={14} />
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {/* Movement controls with both add and remove buttons - always visible when not editing */}
+        {!isEditing && (
+          <div className="movement-controls">
+            <div className="movement-buttons">
               <button
-                onClick={() => setMovementMode("remove")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontWeight: "500",
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor:
-                    movementMode === "remove" ? "#dc2626" : "transparent",
-                  color: movementMode === "remove" ? "white" : "#64748b",
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToMovementCart(item.$id, 1);
                 }}
-              >
-                <Minus size={16} />
-                Remover
-              </button>
-              <button
-                onClick={() => setMovementMode("add")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  fontWeight: "500",
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor:
-                    movementMode === "add" ? "#16a34a" : "transparent",
-                  color: movementMode === "add" ? "white" : "#64748b",
-                }}
+                className="movement-btn add"
+                disabled={loading}
               >
                 <Plus size={16} />
                 Adicionar
               </button>
-            </div>
-          </div>
-
-          {/* Movement Items Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: "24px",
-            }}
-          >
-            {paginatedItems.map((item) => (
-              <ItemCard
-                key={item.$id}
-                item={item}
-                onClick={() => handleItemClick(item)}
-                isMovementMode={true}
-              />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "16px",
-              }}
-            >
-              <Button
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "8px 16px",
-                  backgroundColor: currentPage === 1 ? "#f1f5f9" : "#3b82f6",
-                  color: currentPage === 1 ? "#9ca3af" : "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                }}
-              >
-                Anterior
-              </Button>
-              <span style={{ color: "#1e293b", fontFamily: "monospace" }}>
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                size="sm"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 16px",
-                  backgroundColor:
-                    currentPage === totalPages ? "#f1f5f9" : "#3b82f6",
-                  color: currentPage === totalPages ? "#9ca3af" : "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                }}
-              >
-                Próxima
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Floating Movement Cart */}
-      {activeTab === "movement" && movementList.length > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "20px",
-            right: "20px",
-            backgroundColor: "white",
-            border: "1px solid #e2e8f0",
-            borderRadius: "12px",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
-            zIndex: 50,
-            minWidth: "300px",
-            maxWidth: "400px",
-          }}
-        >
-          <div
-            style={{
-              padding: "16px",
-              borderBottom: "1px solid #e2e8f0",
-              backgroundColor: movementMode === "add" ? "#f0fdf4" : "#fef2f2",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "12px" }}
-              >
-                <div
-                  style={{
-                    padding: "8px",
-                    borderRadius: "8px",
-                    backgroundColor:
-                      movementMode === "add" ? "#dcfce7" : "#fee2e2",
-                  }}
-                >
-                  <ShoppingCart
-                    size={16}
-                    style={{
-                      color: movementMode === "add" ? "#16a34a" : "#dc2626",
-                    }}
-                  />
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: "600",
-                      color: "#1e293b",
-                      margin: 0,
-                    }}
-                  >
-                    {movementMode === "add"
-                      ? "Adicionar ao Stock"
-                      : "Remover do Stock"}
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "#64748b",
-                      margin: "2px 0 0 0",
-                    }}
-                  >
-                    {movementList.length}{" "}
-                    {movementList.length === 1 ? "produto" : "produtos"} •{" "}
-                    {movementList.reduce((sum, item) => sum + item.qty, 0)}{" "}
-                    unidades
-                  </p>
-                </div>
-              </div>
               <button
-                onClick={() => setIsCartExpanded(!isCartExpanded)}
-                style={{
-                  padding: "8px",
-                  backgroundColor: "#f1f5f9",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
-                  cursor: "pointer",
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToMovementCart(item.$id, -1);
                 }}
+                className="movement-btn remove"
+                disabled={loading}
               >
-                {isCartExpanded ? <X size={16} /> : <Package size={16} />}
+                <Minus size={16} />
+                Remover
               </button>
             </div>
           </div>
+        )}
+      </div>
+    );
+  };
 
-          {isCartExpanded && (
-            <div style={{ padding: "16px" }}>
-              <div
-                style={{
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                  marginBottom: "16px",
-                }}
-              >
-                {movementList.map(({ item, qty }) => (
-                  <div
-                    key={item.$id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        style={{
-                          fontWeight: "500",
-                          color: "#1e293b",
-                          fontSize: "14px",
-                          margin: 0,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.name}
-                      </p>
-                      <p
-                        style={{
-                          fontSize: "12px",
-                          color: "#64748b",
-                          margin: "2px 0 0 0",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.category || item.description}
-                      </p>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <button
-                        onClick={() => handleQuantityChange(item.$id, -1)}
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "4px",
-                          backgroundColor: "#fee2e2",
-                          color: "#dc2626",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <span
-                        style={{
-                          width: "32px",
-                          textAlign: "center",
-                          fontFamily: "monospace",
-                          fontWeight: "bold",
-                          color: "#1e293b",
-                          fontSize: "14px",
-                        }}
-                      >
-                        {qty}
-                      </span>
-                      <button
-                        onClick={() => handleQuantityChange(item.$id, 1)}
-                        style={{
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "4px",
-                          backgroundColor: "#dcfce7",
-                          color: "#16a34a",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                  </div>
+  // Early return if databases is not available
+  if (!databases) {
+    return (
+      <div className="stock-component">
+        <div className="loading-state">
+          <div className="loading-text">Inicializando...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stock-component">
+      {/* Header */}
+      <div className="stock-header">
+        <h1>
+          <Package className="header-icon" />
+          Gestão de Stock
+        </h1>
+        <div className="header-actions">
+          <button
+            onClick={fetchStock}
+            disabled={loading}
+            className="action-button secondary"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            Atualizar
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="action-button primary"
+            disabled={loading}
+          >
+            <Plus size={16} />
+            Adicionar Item
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="stock-content">
+        {/* Stats Overview */}
+        <div className="stats-overview">
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-header">
+                <span className="stat-title">Total Items</span>
+                <Warehouse className="stat-icon" />
+              </div>
+              <div className="stat-value info">{stockItems.length}</div>
+              <div className="stat-description">Items em stock</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-header">
+                <span className="stat-title">Stock Crítico</span>
+                <AlertTriangle className="stat-icon" />
+              </div>
+              <div className="stat-value critical">{criticalStock.length}</div>
+              <div className="stat-description">Itens abaixo do mínimo</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-header">
+                <span className="stat-title">Stock Baixo</span>
+                <TrendingDown className="stat-icon" />
+              </div>
+              <div className="stat-value warning">{warningStock.length}</div>
+              <div className="stat-description">Itens próximos do mínimo</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-header">
+                <span className="stat-title">Stock OK</span>
+                <TrendingUp className="stat-icon" />
+              </div>
+              <div className="stat-value success">
+                {stockItems.length - criticalStock.length - warningStock.length}
+              </div>
+              <div className="stat-description">Itens com stock adequado</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Controls */}
+        <div className="content-controls">
+          <div className="search-container">
+            <Search className="search-icon" />
+            <input
+              type="text"
+              placeholder="Pesquisar items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+        </div>
+
+        {/* Items Grid */}
+        <div className="items-container">
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <div className="loading-text">A carregar stock...</div>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">
+                <Package size={32} />
+              </div>
+              <div className="empty-title">Nenhum item encontrado</div>
+              <div className="empty-description">
+                {searchTerm
+                  ? "Tente ajustar os termos de pesquisa"
+                  : "Adicione alguns itens para começar a gerir o seu stock"}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="items-grid">
+                {paginatedItems.map((item) => (
+                  <ItemCard key={item.$id} item={item} isMovementMode={false} />
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: "8px" }}>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    className="page-button"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={currentPage === 1 || loading}
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+
+                  <span className="page-info">
+                    Página {currentPage} de {totalPages}
+                  </span>
+
+                  <button
+                    className="page-button"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                    disabled={currentPage === totalPages || loading}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Movement Cart - shows whenever there are items in cart */}
+      {Object.keys(movementCart).length > 0 && (
+        <div className="movement-cart">
+          <div className="cart-header">
+            <div className="cart-info">
+              <div className="cart-icon">
+                <ShoppingCart size={16} />
+              </div>
+              <div className="cart-details">
+                <h3 className="cart-title">Movimentos de Stock</h3>
+                <p className="cart-subtitle">
+                  {Object.keys(movementCart).length}{" "}
+                  {Object.keys(movementCart).length === 1
+                    ? "produto"
+                    : "produtos"}{" "}
+                  •{" "}
+                  {Object.values(movementCart).reduce(
+                    (sum, qty) => sum + Math.abs(qty),
+                    0
+                  )}{" "}
+                  movimentos
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsCartExpanded(!isCartExpanded)}
+              className="cart-toggle"
+            >
+              {isCartExpanded ? <X size={16} /> : <Package size={16} />}
+            </button>
+          </div>
+
+          {isCartExpanded && (
+            <div className="cart-content">
+              <div className="cart-items">
+                {Object.entries(movementCart).map(([itemId, quantity]) => {
+                  const item = stockItems.find((i) => i.$id === itemId);
+                  if (!item) return null;
+
+                  return (
+                    <div key={itemId} className="cart-item">
+                      <div className="cart-item-info">
+                        <span className="cart-item-name">{item.name}</span>
+                        <span
+                          className={`cart-item-quantity ${
+                            quantity > 0 ? "positive" : "negative"
+                          }`}
+                        >
+                          {quantity > 0 ? "+" : ""}
+                          {quantity}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeFromMovementCart(itemId)}
+                        className="cart-item-remove"
+                        disabled={loading}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="cart-actions">
                 <button
-                  onClick={() => setMovementList([])}
-                  style={{
-                    padding: "8px 16px",
-                    backgroundColor: "#f1f5f9",
-                    color: "#64748b",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                  }}
+                  onClick={clearMovementCart}
+                  className="action-button secondary"
+                  disabled={loading}
                 >
                   Limpar
                 </button>
                 <button
-                  onClick={handleConfirmMovement}
-                  disabled={loading}
-                  style={{
-                    flex: 1,
-                    padding: "8px 16px",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    color: "white",
-                    border: "none",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    fontSize: "14px",
-                    backgroundColor: loading
-                      ? "#9ca3af"
-                      : movementMode === "add"
-                      ? "#16a34a"
-                      : "#dc2626",
-                  }}
+                  onClick={processMovements}
+                  className="action-button primary"
+                  disabled={Object.keys(movementCart).length === 0 || loading}
                 >
-                  {loading
-                    ? "Processando..."
-                    : `Confirmar ${
-                        movementMode === "add" ? "Adição" : "Remoção"
-                      }`}
+                  <Save size={16} />
+                  {loading ? "A processar..." : "Aplicar Movimentos"}
                 </button>
               </div>
             </div>
@@ -1448,425 +765,270 @@ export default function StockComponent() {
 
       {/* Add New Item Modal */}
       {isAddModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: "8px",
-              width: "100%",
-              maxWidth: "600px",
-              maxHeight: "90vh",
-              overflow: "hidden",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-            }}
-          >
+        <div className="modal-overlay">
+          <div className="modal-container">
             {/* Modal Header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "24px",
-                borderBottom: "1px solid #e2e8f0",
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: "600",
-                    color: "#1e293b",
-                    margin: 0,
-                  }}
-                >
-                  Adicionar Novo Item
-                </h2>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    margin: "4px 0 0 0",
-                  }}
-                >
-                  Preencha os dados do novo produto
-                </p>
+            <div className="modal-header">
+              <div className="header-text">
+                <h2>Adicionar Novo Item</h2>
+                <p>Preencha os dados do novo produto</p>
               </div>
               <button
                 onClick={() => {
                   setIsAddModalOpen(false);
                   resetAddItemForm();
                 }}
-                style={{
-                  padding: "8px",
-                  color: "#64748b",
-                  backgroundColor: "transparent",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                }}
+                className="close-button"
+                disabled={addItemLoading}
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div
-              style={{
-                padding: "24px",
-                overflowY: "auto",
-                maxHeight: "calc(90vh - 140px)",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "24px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Nome do Produto *
-                    </label>
-                    <input
-                      type="text"
-                      value={newItem.name}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder="Ex: Arroz Agulha"
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Categoria
-                    </label>
-                    <select
-                      value={newItem.category}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          category: e.target.value,
-                        }))
-                      }
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                      disabled={dropdownsLoading}
-                    >
-                      <option value="">Selecionar categoria...</option>
-                      {categories.map((category) => (
-                        <option
-                          key={category.$id}
-                          value={category.name || category.category}
-                        >
-                          {category.name || category.category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Descrição
-                    </label>
-                    <textarea
-                      value={newItem.description}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      placeholder="Descrição adicional do produto"
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                        resize: "none",
-                      }}
-                    />
-                  </div>
+            <div className="modal-content">
+              {/* Basic Information */}
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Nome do Produto *</label>
+                  <input
+                    type="text"
+                    value={newItem.name}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="Ex: Arroz Agulha"
+                    className="form-input"
+                    disabled={addItemLoading}
+                  />
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Fornecedor
-                    </label>
-                    <select
-                      value={newItem.supplier}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          supplier: e.target.value,
-                        }))
-                      }
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                      disabled={dropdownsLoading}
-                    >
-                      <option value="">Selecionar fornecedor...</option>
-                      {suppliers.map((supplier) => (
-                        <option
-                          key={supplier.$id}
-                          value={supplier.name || supplier.supplier}
-                        >
-                          {supplier.name || supplier.supplier}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="form-group">
+                  <label>Categoria</label>
+                  <select
+                    value={newItem.category}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }))
+                    }
+                    className="form-select"
+                    disabled={dropdownsLoading || addItemLoading}
+                  >
+                    <option value="">Selecionar categoria...</option>
+                    {categories.map((category) => (
+                      <option
+                        key={category.$id}
+                        value={category.name || category.category || ""}
+                      >
+                        {category.name ||
+                          category.category ||
+                          "Categoria sem nome"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Localização
-                    </label>
-                    <select
-                      value={newItem.location}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          location: e.target.value,
-                        }))
-                      }
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                      disabled={dropdownsLoading}
-                    >
-                      <option value="">Selecionar localização...</option>
-                      {locations.map((location) => (
-                        <option
-                          key={location.$id}
-                          value={location.name || location.location}
-                        >
-                          {location.name || location.location}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="form-group">
+                  <label>Fornecedor</label>
+                  <select
+                    value={newItem.supplier}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        supplier: e.target.value,
+                      }))
+                    }
+                    className="form-select"
+                    disabled={dropdownsLoading || addItemLoading}
+                  >
+                    <option value="">Selecionar fornecedor...</option>
+                    {suppliers.map((supplier) => (
+                      <option
+                        key={supplier.$id}
+                        value={supplier.name || supplier.supplier || ""}
+                      >
+                        {supplier.name ||
+                          supplier.supplier ||
+                          "Fornecedor sem nome"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Preço de Custo (€)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={newItem.cost_price || ""}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          cost_price: e.target.value,
-                        }))
-                      }
-                      placeholder="0.00"
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                    />
-                  </div>
+                <div className="form-group full-width">
+                  <label>Descrição</label>
+                  <textarea
+                    value={newItem.description}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Descrição adicional do produto"
+                    rows={4}
+                    className="form-textarea"
+                    disabled={addItemLoading}
+                  />
+                </div>
 
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Stock Mínimo
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={newItem.min_qty || ""}
-                      onChange={(e) =>
-                        setNewItem((prev) => ({
-                          ...prev,
-                          min_qty: e.target.value,
-                        }))
-                      }
-                      placeholder="0"
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                    />
-                  </div>
+                <div className="form-group">
+                  <label>Localização</label>
+                  <select
+                    value={newItem.location}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        location: e.target.value,
+                      }))
+                    }
+                    className="form-select"
+                    disabled={dropdownsLoading || addItemLoading}
+                  >
+                    <option value="">Selecionar localização...</option>
+                    {locations.map((location) => (
+                      <option
+                        key={location.$id}
+                        value={location.name || location.location || ""}
+                      >
+                        {location.name ||
+                          location.location ||
+                          "Localização sem nome"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Preço de Custo (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newItem.cost_price || ""}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        cost_price: e.target.value,
+                      }))
+                    }
+                    placeholder="0.00"
+                    className="form-input"
+                    disabled={addItemLoading}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stock Mínimo</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newItem.min_qty || ""}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        min_qty: e.target.value,
+                      }))
+                    }
+                    placeholder="0"
+                    className="form-input"
+                    disabled={addItemLoading}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Quantidade Inicial</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newItem.qty || ""}
+                    onChange={(e) =>
+                      setNewItem((prev) => ({
+                        ...prev,
+                        qty: e.target.value,
+                      }))
+                    }
+                    placeholder="0"
+                    className="form-input"
+                    disabled={addItemLoading}
+                  />
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: "12px",
-                padding: "24px",
-                borderTop: "1px solid #e2e8f0",
-              }}
-            >
+            <div className="modal-footer">
               <button
                 onClick={() => {
                   setIsAddModalOpen(false);
                   resetAddItemForm();
                 }}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  color: "#374151",
-                  backgroundColor: "white",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                }}
+                className="footer-button cancel"
+                disabled={addItemLoading}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleAddNewItem}
-                disabled={addItemLoading || !newItem.name.trim()}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  borderRadius: "6px",
-                  border: "none",
-                  cursor:
-                    addItemLoading || !newItem.name.trim()
-                      ? "not-allowed"
-                      : "pointer",
-                  backgroundColor:
-                    addItemLoading || !newItem.name.trim()
-                      ? "#9ca3af"
-                      : "#16a34a",
-                  color: "white",
-                }}
+                disabled={addItemLoading || !newItem.name?.trim()}
+                className="footer-button primary"
               >
                 {addItemLoading ? "A guardar..." : "Adicionar Item"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Critical Stock Warnings */}
+      {criticalStock.length > 0 && (
+        <div className="warning-section">
+          <div className="warning-content">
+            <div className="warning-icon">
+              <AlertTriangle size={20} />
+            </div>
+            <div className="warning-details">
+              <div className="warning-header">
+                <h3 className="warning-title">Stock Crítico</h3>
+                <span className="warning-badge">
+                  {criticalStock.length}{" "}
+                  {criticalStock.length === 1 ? "item" : "itens"}
+                </span>
+              </div>
+              <p className="warning-description">
+                Os seguintes produtos estão com stock crítico e requerem
+                reposição imediata.
+              </p>
+              <div className="warning-list">
+                {criticalStock.slice(0, 5).map((item) => (
+                  <div key={item.$id} className="warning-item">
+                    <div className="warning-item-info">
+                      <span className="warning-item-name">
+                        {item.name || "Nome não disponível"}
+                      </span>
+                      <span className="warning-item-category">
+                        {item.category || "N/A"}
+                      </span>
+                    </div>
+                    <div className="warning-item-stock">
+                      <span className="warning-item-quantity">
+                        {item.qty || 0}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {criticalStock.length > 5 && (
+                  <p className="warning-more">
+                    +{criticalStock.length - 5} outros produtos com stock
+                    crítico
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

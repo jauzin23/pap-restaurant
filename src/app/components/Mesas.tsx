@@ -88,6 +88,7 @@ interface RestaurantFloorPlanProps {
 }
 
 const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
+  // ...existing state and hooks...
   user,
 }: RestaurantFloorPlanProps) {
   const [tables, setTables] = useState<Table[]>([]);
@@ -95,6 +96,10 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const [editMode, setEditMode] = useState<boolean>(false);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [draggedTable, setDraggedTable] = useState<string | null>(null);
+  const dragJustStartedRef = useRef(false);
+  const clickIntentRef = useRef(false);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapTableIdRef = useRef<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -710,12 +715,17 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   };
 
   const handleMouseDown = (e: React.MouseEvent, table: Table) => {
-    if (!editMode || !isManager) return;
+    if (!editMode || !isManager) {
+      // In non-edit mode, allow click
+      clickIntentRef.current = true;
+      return;
+    }
 
     e.preventDefault();
     e.stopPropagation();
     setDraggedTable(table.id);
-    setSelectedTable(table.id);
+    dragJustStartedRef.current = true;
+    clickIntentRef.current = true;
 
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
@@ -728,11 +738,16 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   };
 
   const handleTouchStart = (e: React.TouchEvent, table: Table) => {
-    if (!editMode || !isManager) return;
+    if (!editMode || !isManager) {
+      // In non-edit mode, allow tap
+      clickIntentRef.current = true;
+      return;
+    }
 
     e.stopPropagation();
     setDraggedTable(table.id);
-    setSelectedTable(table.id);
+    dragJustStartedRef.current = true;
+    clickIntentRef.current = true;
 
     const rect = containerRef.current?.getBoundingClientRect();
     const touch = e.touches[0];
@@ -750,6 +765,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       return;
 
     e.stopPropagation();
+    clickIntentRef.current = false; // Moved, so not a click
 
     const rect = containerRef.current.getBoundingClientRect();
     const scale = tableScale; // Use the same scale as rendering
@@ -814,6 +830,11 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
 
     dragPositionRef.current = null;
     setDraggedTable(null);
+    clickIntentRef.current = false;
+    // Reset drag flag after drag ends
+    setTimeout(() => {
+      dragJustStartedRef.current = false;
+    }, 0);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -821,6 +842,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       return;
 
     e.stopPropagation();
+    clickIntentRef.current = false; // Moved, so not a tap
     const touch = e.touches[0];
     if (!touch) return;
 
@@ -887,6 +909,11 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
 
     dragPositionRef.current = null;
     setDraggedTable(null);
+    clickIntentRef.current = false;
+    // Reset drag flag after drag ends
+    setTimeout(() => {
+      dragJustStartedRef.current = false;
+    }, 0);
   };
 
   const rotateTable = (tableId: string) => {
@@ -1188,11 +1215,7 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
         height: (selectedTableData.height / PIXELS_PER_METER).toFixed(1),
       });
     }
-  }, [
-    selectedTableData?.id,
-    selectedTableData?.width,
-    selectedTableData?.height,
-  ]);
+  }, [selectedTableData?.id, selectedTableData?.width, selectedTableData?.height]);
 
   // Handle size input changes and validation
   const handleSizeInputChange = (
@@ -1230,6 +1253,9 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       </div>
     );
   }
+
+  // Debug: check selectedTableData before render
+  console.log('selectedTable:', selectedTable, 'selectedTableData:', selectedTableData);
 
   return (
     <div className="bg-black flex flex-col p-6 overflow-auto h-full flex-1">
@@ -1673,7 +1699,22 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                     onTouchStart={(e) => handleTouchStart(e, table)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (editMode && isManager) setSelectedTable(table.id);
+                      // Debug: log click event and drag state
+                      console.log(
+                        "Table clicked:",
+                        table.id,
+                        "draggedTable:",
+                        draggedTable,
+                        "clickIntent:",
+                        clickIntentRef.current
+                      );
+                      if (draggedTable || !clickIntentRef.current) {
+                        setSelectedTable(null);
+                        return;
+                      }
+                      // Otherwise, open menu for this table (for all users)
+                      setSelectedTable(table.id);
+                      console.log("Set selectedTable:", table.id);
                     }}
                   >
                     <div
@@ -1754,10 +1795,8 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
             </div>
           </div>
 
-          {editMode && isManager && selectedTableData && (
-            <div className="absolute top-0 right-0 w-80 h-full bg-neutral-900 border-l border-t-2 border-b-2 border-neutral-700 overflow-y-auto shadow-2xl z-10 scrollbar-subtle">
-              {/* Left edge gradient to indicate content behind */}
-              <div className="absolute left-0 top-0 w-4 h-full bg-gradient-to-r from-black/20 to-transparent pointer-events-none z-20"></div>
+          {selectedTableData && (
+            <div className="fixed top-0 right-0 w-80 h-full bg-neutral-900 border-l border-neutral-700 shadow-2xl z-[9999] flex flex-col overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-4">

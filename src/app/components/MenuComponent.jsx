@@ -8,10 +8,8 @@ import {
   X,
   RefreshCw,
   Upload,
-  Crop,
-  RotateCcw,
+  ClipboardList,
 } from "lucide-react";
-import ImageCropper from "./ImageCropper";
 import { useApp } from "@/contexts/AppContext";
 import {
   DBRESTAURANTE,
@@ -22,24 +20,12 @@ import {
   storage,
   BUCKET_MENU_IMG,
 } from "@/lib/appwrite";
-import { ID } from "appwrite";
+import { Input, Button, Select } from "antd";
+import { Cropper } from "react-advanced-cropper";
+import "react-advanced-cropper/dist/style.css";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+const { TextArea } = Input;
+import "./MenuComponent.scss";
 
 const DB_ID = DBRESTAURANTE;
 const COLLECTION_ID = COL_MENU;
@@ -69,12 +55,17 @@ export default function MenuComponent() {
   // Image handling
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [showCropper, setShowCropper] = useState(false);
-  const [croppedImage, setCroppedImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [currentImageId, setCurrentImageId] = useState(null);
+  const imageCache = useRef(new Map());
+
+  // Image cropper states - simplified for react-advanced-cropper
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropImage, setCropImage] = useState(null);
+  const [croppedImageBlob, setCroppedImageBlob] = useState(null);
 
   const fileInputRef = useRef(null);
+  const cropperRef = useRef(null);
 
   // Fetch tags and categories
   const fetchCollections = useCallback(async () => {
@@ -106,16 +97,26 @@ export default function MenuComponent() {
   // Function to get image URL for menu item
   const getImageUrl = useCallback((imageId) => {
     if (!imageId || imageId === "undefined" || imageId === "null") return null;
+
+    const cacheKey = imageId;
+
+    // Check cache first
+    if (imageCache.current.has(cacheKey)) {
+      return imageCache.current.get(cacheKey);
+    }
+
     try {
-      // Use the storage.getFilePreview method with positional parameters
       const imageUrl = storage.getFilePreview(
         BUCKET_MENU_IMG,
         imageId,
-        300, // width
-        300, // height
+        0, // width - 0 means original width
+        0, // height - 0 means original height
         "center", // gravity
-        90 // quality
+        85 // quality - balanced for performance and clarity
       );
+
+      // Cache the URL
+      imageCache.current.set(cacheKey, imageUrl);
       return imageUrl;
     } catch (error) {
       console.error("Error getting image URL for", imageId, ":", error);
@@ -182,53 +183,86 @@ export default function MenuComponent() {
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onload = (e) => {
-        setImagePreview(e.target.result);
+        setCropImage(e.target.result);
         setShowCropper(true);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Handle crop completion
-  const handleCropApply = useCallback((croppedFile) => {
-    setCroppedImage(croppedFile);
-    setShowCropper(false);
-  }, []);
-
-  // Handle crop cancellation
-  const handleCropCancel = useCallback(() => {
-    resetImage();
-  }, []);
-
   const resetImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
-    setShowCropper(false);
-    setCroppedImage(null);
+    setCroppedImageBlob(null);
     setCurrentImageId(null);
+    setShowCropper(false);
+    setCropImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const uploadImage = async (file) => {
+  // Cropper functions
+  const handleCropperClose = () => {
+    setShowCropper(false);
+    setCropImage(null);
+    setSelectedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const applyCrop = () => {
+    if (cropperRef.current) {
+      const canvas = cropperRef.current.getCanvas();
+      if (canvas) {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            setCroppedImageBlob(blob);
+            const url = URL.createObjectURL(blob);
+            setImagePreview(url);
+            setShowCropper(false);
+          }
+        }, "image/png");
+      }
+    }
+  };
+
+  const uploadImage = async (fileOrBlob) => {
     try {
       setUploadingImage(true);
       const fileId = `file_${Date.now()}_${Math.random()
         .toString(36)
         .substr(2, 9)}`;
-      console.log("Generated fileId:", fileId); // Debug log
-      console.log("File:", file); // Debug log
-      console.log("File type:", typeof file); // Debug log
-      console.log("File name:", file?.name); // Debug log
-      console.log("File size:", file?.size); // Debug log
+
+      // Handle both File objects and Blob objects
+      let fileToUpload = fileOrBlob;
+      if (fileOrBlob instanceof Blob && !(fileOrBlob instanceof File)) {
+        // Convert blob to file
+        fileToUpload = new File([fileOrBlob], `cropped-image-${fileId}.png`, {
+          type: "image/png",
+        });
+      }
+
+      console.log("Generated fileId:", fileId);
+      console.log("File:", fileToUpload);
+      console.log("File type:", typeof fileToUpload);
+      console.log("File name:", fileToUpload?.name);
+      console.log("File size:", fileToUpload?.size);
 
       // Verify file is valid
-      if (!file || !(file instanceof File || file instanceof Blob)) {
+      if (
+        !fileToUpload ||
+        !(fileToUpload instanceof File || fileToUpload instanceof Blob)
+      ) {
         throw new Error("Invalid file object");
       }
 
-      const response = await storage.createFile(BUCKET_MENU_IMG, fileId, file);
+      const response = await storage.createFile(
+        BUCKET_MENU_IMG,
+        fileId,
+        fileToUpload
+      );
       return response.$id;
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -274,20 +308,18 @@ export default function MenuComponent() {
     setEditingItem(item);
     setNome(item.nome);
     setPreco(item.preco);
-    setDescricao(item.descricao || "");
+    setDescricao(item.description || "");
     setSelectedCategory(item.category || "none");
     setSelectedTags(item.tags || []);
     setIngredientes(item.ingredientes || []);
 
-    // Load existing image if available
     if (item.image_id) {
       setCurrentImageId(item.image_id);
-      // Generate preview URL from Appwrite
       const previewUrl = storage.getFilePreview(
         "68c9da420007c345042f",
         item.image_id,
-        400,
-        400
+        0, // Use original width
+        0 // Use original height
       );
       setImagePreview(previewUrl.href);
     } else {
@@ -301,15 +333,12 @@ export default function MenuComponent() {
     try {
       let imageId = currentImageId;
 
-      // Handle image upload if there's a new cropped image
-      if (croppedImage) {
-        // Delete old image if editing and had an image
+      if (croppedImageBlob) {
         if (editingItem && currentImageId) {
           await deleteImage(currentImageId);
         }
 
-        // Upload new image
-        imageId = await uploadImage(croppedImage);
+        imageId = await uploadImage(croppedImageBlob);
       }
 
       const itemData = {
@@ -414,68 +443,33 @@ export default function MenuComponent() {
   }
 
   return (
-    <div
-      className="menu-component"
-      style={{ backgroundColor: "white", minHeight: "100%", padding: "24px" }}
-    >
+    <div className="menu-component">
       {/* Header */}
-      <div
-        className="menu-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-          paddingBottom: "16px",
-          borderBottom: "1px solid #e2e8f0",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "24px",
-            fontWeight: "600",
-            color: "#1e293b",
-            margin: 0,
-          }}
-        >
+      <div className="menu-header">
+        <h1>
+          <ClipboardList className="header-icon" />
           Gestão de Menu
         </h1>
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div className="header-actions">
           <Button
             onClick={handleRefresh}
             disabled={refreshing}
             className="refresh-button"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 16px",
-              backgroundColor: "#f1f5f9",
-              color: "#475569",
-              border: "1px solid #cbd5e1",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
+            icon={
+              <RefreshCw
+                size={16}
+                className={refreshing ? "animate-spin" : ""}
+              />
+            }
           >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             Atualizar
           </Button>
           <Button
             onClick={openAddModal}
+            type="primary"
             className="add-button"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 16px",
-              backgroundColor: "#3b82f6",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
+            icon={<Plus size={16} />}
           >
-            <Plus size={16} />
             Adicionar Item
           </Button>
         </div>
@@ -484,263 +478,108 @@ export default function MenuComponent() {
       {/* Content */}
       <div className="menu-content">
         {loading ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "48px",
-              color: "#64748b",
-            }}
-          >
-            <div style={{ marginRight: "12px" }}>
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  border: "3px solid #f1f5f9",
-                  borderTop: "3px solid #3b82f6",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                }}
-              ></div>
-            </div>
-            A carregar...
+          <div className="loading-state">
+            <div className="loading-spinner"></div>A carregar...
           </div>
         ) : menuItems.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "48px",
-              color: "#64748b",
-            }}
-          >
-            <p style={{ fontSize: "18px", marginBottom: "8px" }}>
-              Nenhum item no menu
-            </p>
-            <p style={{ fontSize: "14px" }}>
-              Clique em "Adicionar Item" para começar
-            </p>
+          <div className="empty-state">
+            <p>Nenhum item no menu</p>
+            <p>Clique em "Adicionar Item" para começar</p>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "20px",
-              padding: "20px",
-            }}
-          >
+          <div className="menu-items-grid">
             {menuItems.map((item) => {
               // Get the pre-computed image URL from memoized object
               const imageUrl = imageUrls[item.$id] || null;
 
               return (
-                <div
-                  key={item.$id}
-                  style={{
-                    backgroundColor: "white",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                    transition: "transform 0.2s, box-shadow 0.2s",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow =
-                      "0 4px 16px rgba(0,0,0,0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow =
-                      "0 2px 8px rgba(0,0,0,0.1)";
-                  }}
-                >
+                <div key={item.$id} className="menu-item-card">
                   {/* Image Container */}
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "200px",
-                      backgroundColor: "#ffffff", // Always white background for transparency support
-                      backgroundImage:
-                        imageUrl &&
-                        imageUrl !== "null" &&
-                        imageUrl !== "undefined"
-                          ? `url(${imageUrl})`
-                          : "none",
-                      backgroundSize: "contain", // Show full image without zooming
-                      backgroundRepeat: "no-repeat", // Prevent image repetition
-                      backgroundPosition: "center",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      position: "relative",
-                      border: imageUrl ? "none" : "2px dashed #e5e7eb", // Add border only when no image
-                    }}
-                  >
-                    {!imageUrl && (
-                      <div
+                  <div className="image-container">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={item.nome}
+                        className="menu-item-image"
                         style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          color: "#94a3b8",
+                          width: "100%",
+                          height: "200px",
+                          borderRadius: "8px 8px 0 0",
                         }}
-                      >
-                        <Upload size={32} />
-                        <span style={{ fontSize: "12px", marginTop: "8px" }}>
-                          Sem imagem
-                        </span>
-                      </div>
-                    )}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                          e.target.nextSibling.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="no-image-placeholder"
+                      style={{
+                        display: imageUrl ? "none" : "flex",
+                        width: "100%",
+                        height: "200px",
+                        backgroundColor: "#f8f9fa",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "8px 8px 0 0",
+                        border: "1px solid #e9ecef",
+                        color: "#6c757d",
+                      }}
+                    >
+                      <Upload size={32} />
+                      <span style={{ marginTop: "8px", fontSize: "14px" }}>
+                        Sem imagem
+                      </span>
+                    </div>
                   </div>
 
                   {/* Content */}
-                  <div style={{ padding: "16px" }}>
-                    {/* Title and Price */}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <h3
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "600",
-                          color: "#1e293b",
-                          margin: 0,
-                          lineHeight: "1.3",
-                        }}
-                      >
-                        {item.nome}
-                      </h3>
-                      <span
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "700",
-                          color: "#dc2626",
-                          marginLeft: "12px",
-                          flexShrink: 0,
-                        }}
-                      >
-                        €{item.preco?.toFixed(2)}
-                      </span>
+                  <div className="card-content">
+                    <div className="card-info">
+                      {/* Title and Price */}
+                      <div className="title-price-row">
+                        <h3>{item.nome}</h3>
+                        <span className="price">€{item.preco?.toFixed(2)}</span>
+                      </div>
+
+                      {/* Description */}
+                      {item.description && (
+                        <p className="description">{item.description}</p>
+                      )}
+
+                      {/* Category */}
+                      {item.category && (
+                        <div style={{ marginBottom: "8px" }}>
+                          <span className="category-tag">{item.category}</span>
+                        </div>
+                      )}
+
+                      {/* Tags */}
+                      {item.tags && item.tags.length > 0 && (
+                        <div className="tags-container">
+                          {item.tags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="tag">
+                              {tag}
+                            </span>
+                          ))}
+                          {item.tags.length > 3 && (
+                            <span className="more-tags">
+                              +{item.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Description */}
-                    {item.descricao && (
-                      <p
-                        style={{
-                          fontSize: "14px",
-                          color: "#64748b",
-                          margin: "0 0 12px 0",
-                          lineHeight: "1.4",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {item.descricao}
-                      </p>
-                    )}
-
-                    {/* Category */}
-                    {item.category && (
-                      <div style={{ marginBottom: "8px" }}>
-                        <span
-                          style={{
-                            padding: "4px 8px",
-                            fontSize: "12px",
-                            borderRadius: "6px",
-                            backgroundColor: "#dbeafe",
-                            color: "#1d4ed8",
-                            border: "1px solid #bfdbfe",
-                          }}
-                        >
-                          {item.category}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    {item.tags && item.tags.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "4px",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        {item.tags.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag}
-                            style={{
-                              padding: "2px 6px",
-                              fontSize: "11px",
-                              borderRadius: "4px",
-                              backgroundColor: "#faf5ff",
-                              color: "#7c3aed",
-                              border: "1px solid #e9d5ff",
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {item.tags.length > 3 && (
-                          <span
-                            style={{
-                              padding: "2px 6px",
-                              fontSize: "11px",
-                              borderRadius: "4px",
-                              backgroundColor: "#f1f5f9",
-                              color: "#64748b",
-                            }}
-                          >
-                            +{item.tags.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
                     {/* Action Buttons */}
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        justifyContent: "flex-end",
-                      }}
-                    >
+                    <div className="action-buttons">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           openEditModal(item);
                         }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "6px 12px",
-                          backgroundColor: "#3b82f6",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "12px",
-                          cursor: "pointer",
-                          transition: "background-color 0.2s",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.target.style.backgroundColor = "#2563eb")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.target.style.backgroundColor = "#3b82f6")
-                        }
+                        className="edit-btn"
                       >
                         <Edit size={14} />
                         Editar
@@ -750,25 +589,7 @@ export default function MenuComponent() {
                           e.stopPropagation();
                           handleDelete(item.$id);
                         }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "6px 12px",
-                          backgroundColor: "#dc2626",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "12px",
-                          cursor: "pointer",
-                          transition: "background-color 0.2s",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.target.style.backgroundColor = "#b91c1c")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.target.style.backgroundColor = "#dc2626")
-                        }
+                        className="delete-btn"
                       >
                         <Trash2 size={14} />
                         Excluir
@@ -784,62 +605,17 @@ export default function MenuComponent() {
 
       {/* Modal */}
       {modalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: "8px",
-              width: "100%",
-              maxWidth: "600px",
-              maxHeight: "95vh",
-              overflow: "hidden",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
+        <div className="modal-overlay">
+          <div className="modal-container">
             {/* Modal Header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "24px",
-                borderBottom: "1px solid #e2e8f0",
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: "600",
-                    color: "#1e293b",
-                    margin: 0,
-                  }}
-                >
+            <div className="modal-header">
+              <div className="header-text">
+                <h2>
                   {editingItem
                     ? "Editar item do menu"
                     : "Adicionar item ao menu"}
                 </h2>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    margin: "4px 0 0 0",
-                  }}
-                >
+                <p>
                   {editingItem
                     ? "Atualize os detalhes abaixo"
                     : "Preencha as informações abaixo"}
@@ -850,162 +626,60 @@ export default function MenuComponent() {
                   setModalOpen(false);
                   resetImage();
                 }}
-                style={{
-                  padding: "8px",
-                  color: "#64748b",
-                  backgroundColor: "transparent",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                }}
+                className="close-button"
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div
-              style={{
-                overflowY: "auto",
-                flex: 1,
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "24px",
-              }}
-            >
+            <div className="modal-content">
               {/* Basic Information */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "16px",
-                }}
-              >
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      color: "#374151",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Nome do item *
-                  </label>
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Nome do item *</label>
                   <Input
                     placeholder="Introduza o nome do item"
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "40px",
-                      padding: "0 12px",
-                      backgroundColor: "white",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                    }}
                   />
                 </div>
 
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      color: "#374151",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Preço (€) *
-                  </label>
+                <div className="form-group">
+                  <label>Preço (€) *</label>
                   <Input
                     placeholder="0,00"
                     type="number"
                     step="0.01"
                     value={preco}
                     onChange={(e) => setPreco(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "40px",
-                      padding: "0 12px",
-                      backgroundColor: "white",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                    }}
                   />
                 </div>
 
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      color: "#374151",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Categoria
-                  </label>
+                <div className="form-group">
+                  <label>Categoria</label>
                   <Select
                     value={selectedCategory}
-                    onValueChange={setSelectedCategory}
+                    onChange={setSelectedCategory}
+                    placeholder="Selecionar categoria"
+                    style={{ width: "100%" }}
                   >
-                    <SelectTrigger
-                      style={{
-                        width: "100%",
-                        height: "40px",
-                        padding: "0 12px",
-                        backgroundColor: "white",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                      }}
-                    >
-                      <SelectValue placeholder="Selecionar categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem categoria</SelectItem>
-                      {availableCategories.map((category) => (
-                        <SelectItem key={category.$id} value={category.name}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                    <Select.Option value="none">Sem categoria</Select.Option>
+                    {availableCategories.map((category) => (
+                      <Select.Option key={category.$id} value={category.name}>
+                        {category.name}
+                      </Select.Option>
+                    ))}
                   </Select>
                 </div>
 
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      color: "#374151",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Descrição
-                  </label>
-                  <Textarea
+                <div className="form-group full-width">
+                  <label>Descrição</label>
+                  <TextArea
                     placeholder="Introduza a descrição do item (opcional)"
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      backgroundColor: "white",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      minHeight: "80px",
-                      resize: "none",
-                    }}
+                    rows={4}
                   />
                 </div>
               </div>
@@ -1025,179 +699,161 @@ export default function MenuComponent() {
                 </label>
 
                 {/* Existing Image Display (when editing) */}
-                {editingItem &&
-                  editingItem.image_id &&
-                  !imagePreview &&
-                  !showCropper && (
-                    <div style={{ marginBottom: "16px" }}>
-                      <div
-                        style={{
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "8px",
-                          padding: "16px",
-                          backgroundColor: "#f9fafb",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "100%",
-                            height: "200px",
-                            backgroundImage:
-                              editingItem.image_id &&
-                              getImageUrl(editingItem.image_id)
-                                ? `url(${getImageUrl(editingItem.image_id)})`
-                                : "none",
-                            backgroundColor: "#ffffff", // Always white background for transparency support
-                            backgroundSize: "contain", // Show full image without zooming
-                            backgroundRepeat: "no-repeat", // Prevent image repetition
-                            backgroundPosition: "center",
-                            borderRadius: "6px",
-                            marginBottom: "12px",
-                            border: "1px solid #e5e7eb", // Add border to define the image area
-                          }}
-                        ></div>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "8px 16px",
-                              backgroundColor: "#3b82f6",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "6px",
-                              fontSize: "14px",
-                              cursor: "pointer",
-                              transition: "background-color 0.2s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.target.style.backgroundColor = "#2563eb")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.target.style.backgroundColor = "#3b82f6")
-                            }
-                          >
-                            <Upload size={16} />
-                            Substituir Imagem
-                          </button>
-                          <button
-                            type="button"
-                            onClick={deleteImage}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "8px 16px",
-                              backgroundColor: "#dc2626",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "6px",
-                              fontSize: "14px",
-                              cursor: "pointer",
-                              transition: "background-color 0.2s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.target.style.backgroundColor = "#b91c1c")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.target.style.backgroundColor = "#dc2626")
-                            }
-                          >
-                            <Trash2 size={16} />
-                            Remover Imagem
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                {!imagePreview &&
-                  !showCropper &&
-                  (!editingItem || !editingItem.image_id) && (
+                {editingItem && editingItem.image_id && !imagePreview && (
+                  <div style={{ marginBottom: "16px" }}>
                     <div
-                      onClick={() => fileInputRef.current?.click()}
                       style={{
-                        border: "2px dashed #d1d5db",
+                        border: "1px solid #e5e7eb",
                         borderRadius: "8px",
-                        padding: "32px",
-                        textAlign: "center",
-                        cursor: "pointer",
-                        backgroundColor: "#f9fafb",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.borderColor = "#3b82f6";
-                        e.target.style.backgroundColor = "#f0f9ff";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.borderColor = "#d1d5db";
-                        e.target.style.backgroundColor = "#f9fafb";
+                        padding: "16px",
+                        backgroundColor: "#ffffff",
                       }}
                     >
-                      <Upload
-                        size={48}
-                        style={{ color: "#9ca3af", margin: "0 auto 12px" }}
-                      />
-                      <p
+                      <div
                         style={{
-                          fontSize: "16px",
-                          color: "#374151",
-                          margin: "0 0 8px 0",
+                          width: "100%",
+                          height: "200px",
+                          backgroundColor: "#ffffff",
+                          backgroundImage:
+                            editingItem.image_id &&
+                            getImageUrl(editingItem.image_id)
+                              ? `url(${getImageUrl(editingItem.image_id)})`
+                              : "none",
+                          backgroundSize: "contain",
+                          backgroundRepeat: "no-repeat",
+                          backgroundPosition: "center",
+                          borderRadius: "6px",
+                          marginBottom: "12px",
+                          border: "1px solid #e5e7eb",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          justifyContent: "center",
                         }}
                       >
-                        Clique para selecionar uma imagem
-                      </p>
-                      <p
-                        style={{
-                          fontSize: "14px",
-                          color: "#9ca3af",
-                          margin: 0,
-                        }}
-                      >
-                        PNG, JPG ou WEBP até 5MB
-                      </p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            backgroundColor: "#3b82f6",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Upload size={16} />
+                          Substituir Imagem
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentImageId(null);
+                            setImagePreview(null);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            backgroundColor: "#dc2626",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Trash2 size={16} />
+                          Remover Imagem
+                        </button>
+                      </div>
                     </div>
-                  )}
-
-                {showCropper && imagePreview && (
-                  <ImageCropper
-                    imagePreview={imagePreview}
-                    onCropApply={handleCropApply}
-                    onCancel={handleCropCancel}
-                  />
+                  </div>
                 )}
 
-                {imagePreview && !showCropper && (
-                  <div>
+                {/* Image Upload Area */}
+                {!imagePreview && (!editingItem || !editingItem.image_id) && (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: "2px dashed #d1d5db",
+                      borderRadius: "8px",
+                      padding: "32px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      backgroundColor: "#ffffff",
+                    }}
+                  >
+                    <Upload
+                      size={48}
+                      style={{
+                        color: "#9ca3af",
+                        margin: "0 auto 16px",
+                        display: "block",
+                      }}
+                    />
+                    <h4
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "500",
+                        color: "#374151",
+                        margin: "0 0 8px 0",
+                      }}
+                    >
+                      Selecionar Imagem
+                    </h4>
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        color: "#6b7280",
+                        margin: 0,
+                      }}
+                    >
+                      PNG, JPG ou WEBP até 5MB
+                    </p>
+                  </div>
+                )}
+
+                {/* Image Preview */}
+                {imagePreview && (
+                  <div
+                    style={{
+                      backgroundColor: "#ffffff",
+                      borderRadius: "8px",
+                      padding: "16px",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
                     <div
                       style={{
                         position: "relative",
                         display: "inline-block",
-                        marginBottom: "12px",
+                        marginBottom: "16px",
+                        width: "100%",
+                        textAlign: "center",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
                     >
                       <img
-                        src={
-                          croppedImage
-                            ? URL.createObjectURL(croppedImage)
-                            : imagePreview
-                        }
+                        src={imagePreview}
                         alt="Preview"
                         style={{
-                          width: "200px",
-                          height: "200px",
-                          objectFit: "cover",
+                          maxWidth: "300px",
+                          maxHeight: "300px",
+                          objectFit: "contain",
                           borderRadius: "8px",
-                          border: "2px solid #e5e7eb",
+                          border: "1px solid #e5e7eb",
                         }}
                       />
                       <button
@@ -1207,9 +863,9 @@ export default function MenuComponent() {
                           position: "absolute",
                           top: "8px",
                           right: "8px",
-                          width: "28px",
-                          height: "28px",
-                          backgroundColor: "rgba(239, 68, 68, 0.9)",
+                          width: "32px",
+                          height: "32px",
+                          backgroundColor: "#dc2626",
                           color: "white",
                           border: "none",
                           borderRadius: "50%",
@@ -1222,48 +878,47 @@ export default function MenuComponent() {
                         <X size={16} />
                       </button>
                     </div>
-                    <div style={{ display: "flex", gap: "12px" }}>
+                    {selectedImage && (
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          color: "#6b7280",
+                          textAlign: "center",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <div>
+                          Tamanho: {(selectedImage.size / 1024).toFixed(1)} KB
+                        </div>
+                        <div>Nome: {selectedImage.name}</div>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        justifyContent: "center",
+                      }}
+                    >
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
+                          gap: "6px",
                           padding: "8px 16px",
                           backgroundColor: "#f3f4f6",
                           color: "#374151",
                           border: "1px solid #d1d5db",
                           borderRadius: "6px",
-                          fontWeight: "500",
+                          fontSize: "14px",
                           cursor: "pointer",
                         }}
                       >
-                        <RotateCcw size={16} />
+                        <Upload size={16} />
                         Trocar Imagem
                       </button>
-
-                      {croppedImage && (
-                        <button
-                          type="button"
-                          onClick={() => setShowCropper(true)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            padding: "8px 16px",
-                            backgroundColor: "#3b82f6",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
-                            fontWeight: "500",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <Crop size={16} />
-                          Re-crop
-                        </button>
-                      )}
                     </div>
                   </div>
                 )}
@@ -1551,16 +1206,67 @@ export default function MenuComponent() {
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
+      {/* Image Cropper Modal */}
+      {showCropper && (
+        <div className="image-cropper-overlay">
+          <div className="image-cropper-modal">
+            {/* Cropper Header */}
+            <div className="cropper-header">
+              <div className="header-content">
+                <h2>Recortar Imagem</h2>
+                <p>
+                  Use a área de corte para recortar a imagem. O cropper é
+                  responsivo e funciona em dispositivos móveis.
+                </p>
+              </div>
+              <button onClick={handleCropperClose} className="close-button">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Crop Container */}
+            <div className="crop-container">
+              <div
+                style={{
+                  width: "100%",
+                  height: "400px",
+                  maxHeight: "50vh",
+                  minHeight: "300px",
+                }}
+              >
+                <Cropper
+                  ref={cropperRef}
+                  src={cropImage}
+                  className="cropper"
+                  stencilProps={{
+                    handlers: true,
+                    lines: true,
+                    movable: true,
+                    resizable: true,
+                  }}
+                  backgroundWrapperProps={{
+                    scaleImage: true,
+                    moveImage: true,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Cropper Actions */}
+            <div className="cropper-actions">
+              <button
+                onClick={handleCropperClose}
+                className="action-btn cancel-btn"
+              >
+                Cancelar
+              </button>
+              <button onClick={applyCrop} className="action-btn apply-btn">
+                Aplicar Corte
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
