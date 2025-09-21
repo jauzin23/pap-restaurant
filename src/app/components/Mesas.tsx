@@ -1255,7 +1255,12 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   }
 
   // Debug: check selectedTableData before render
-  console.log('selectedTable:', selectedTable, 'selectedTableData:', selectedTableData);
+  console.log(
+    "selectedTable:",
+    selectedTable,
+    "selectedTableData:",
+    selectedTableData
+  );
 
   return (
     <div className="bg-black flex flex-col p-6 overflow-auto h-full flex-1">
