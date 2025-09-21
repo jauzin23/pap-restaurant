@@ -482,9 +482,19 @@ export default function MenuComponent() {
             <div className="loading-spinner"></div>A carregar...
           </div>
         ) : menuItems.length === 0 ? (
-          <div className="empty-state">
-            <p>Nenhum item no menu</p>
-            <p>Clique em "Adicionar Item" para começar</p>
+          <div
+            style={{
+              textAlign: "center",
+              padding: "48px",
+              color: "#64748b",
+            }}
+          >
+            <p style={{ fontSize: "18px", marginBottom: "8px" }}>
+              Nenhum item no menu
+            </p>
+            <p style={{ fontSize: "14px" }}>
+              Clique em &quot;Adicionar Item&quot; para começar
+            </p>
           </div>
         ) : (
           <div className="menu-items-grid">
