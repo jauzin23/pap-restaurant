@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "antd";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "react-responsive";
@@ -25,11 +25,11 @@ export default function UnsupportedPage() {
           móveis. Por favor, utilize um tablet ou desktop.
         </p>
         <Button
-          variant="ghost"
+          type="text"
           className="flex items-center gap-2 text-gray-600 hover:text-orange-500 mx-auto"
           onClick={() => router.push("/")}
+          icon={<ArrowLeft className="w-5 h-5" />}
         >
-          <ArrowLeft className="w-5 h-5" />
           Voltar para o site
         </Button>
       </div>

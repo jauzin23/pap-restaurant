@@ -61,7 +61,6 @@ export default function Header({
 
   return (
     <header className="dashboard__header">
-      {/* Left Section - Logo */}
       <div className="dashboard__header-left">
         {/* Mobile menu toggle */}
         {showMobileToggle && setSidebarOpen && (

@@ -28,10 +28,13 @@ import {
   CreditCard,
   ArrowLeft,
   Plus,
+  TableProperties,
 } from "lucide-react";
 import "./page.scss";
 import RestLayout from "../components/RestLayout";
 import Header from "../components/Header";
+import MenuComponent from "../components/MenuComponent";
+import StockComponent from "../components/StockComponent";
 import { useApp } from "@/contexts/AppContext";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -41,11 +44,13 @@ import {
   COL_ORDERS,
   COL_TABLES,
   COL_MENU,
+  storage,
+  BUCKET_MENU_IMG,
 } from "@/lib/appwrite";
 import { Query } from "appwrite";
 
 export default function RestaurantDashboard() {
-  const [activeNav, setActiveNav] = useState("MENU");
+  const [activeNav, setActiveNav] = useState("MESAS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, loading, account, client } = useApp();
   const router = useRouter();
@@ -97,6 +102,12 @@ export default function RestaurantDashboard() {
       window.removeEventListener("resize", matchHeight);
     };
   }, [user, loading]); // Re-run when user/loading changes
+
+  // Clear table selection when navigation changes
+  useEffect(() => {
+    setSelectedTable(null);
+    setTableOrders([]);
+  }, [activeNav]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -155,10 +166,11 @@ export default function RestaurantDashboard() {
   }, []);
 
   const navItems = [
-    { name: "MENU", count: 12, color: "#3b82f6", icon: Menu },
-    { name: "PEDIDOS", count: 5, color: "#f59e0b", icon: ShoppingCart },
-    { name: "STOCK", count: 8, color: "#10b981", icon: Package },
-    { name: "RESERVAS", count: 3, color: "#ef4444", icon: Calendar },
+    { name: "MESAS", color: "#10b981", icon: TableProperties },
+    { name: "MENU", color: "#3b82f6", icon: Menu },
+    { name: "STOCK", color: "#8b5cf6", icon: Package },
+    { name: "RESERVAS", color: "#ef4444", icon: Calendar },
+    { name: "CHAT", color: "#f59e0b", icon: MessageSquare },
   ];
 
   // Function to get today's date in ISO format for Appwrite query
@@ -277,6 +289,25 @@ export default function RestaurantDashboard() {
   // Get menu item details for an order
   const getMenuItemForOrder = (menuId) => {
     return menuItems.find((item) => item.$id === menuId);
+  };
+
+  // Function to get image URL for menu item
+  const getImageUrl = (imageId) => {
+    if (!imageId || imageId === "undefined" || imageId === "null") return null;
+    try {
+      const imageUrl = storage.getFilePreview(
+        BUCKET_MENU_IMG,
+        imageId,
+        100, // Smaller size for order items
+        100,
+        "center",
+        90
+      );
+      return imageUrl;
+    } catch (error) {
+      console.error("Error getting image URL for", imageId, ":", error);
+      return null;
+    }
   };
 
   // Toggle order status: pendente -> preparando -> concluido (final)
@@ -466,8 +497,6 @@ export default function RestaurantDashboard() {
         <div className="dashboard__main">
           <aside className="dashboard__sidebar dashboard__sidebar--open">
             <nav className="dashboard__nav">
-              <h3 className="dashboard__nav-title">Menu Principal</h3>
-
               {Array.from({ length: 4 }).map((_, index) => (
                 <NavItemSkeleton key={index} />
               ))}
@@ -529,20 +558,26 @@ export default function RestaurantDashboard() {
 
           {/* Navigation Section */}
           <nav className="dashboard__nav">
-            <h3 className="dashboard__nav-title">Menu Principal</h3>
-
             {navItems.map((item) => {
               const IconComponent = item.icon;
               const isActive = activeNav === item.name;
               return (
                 <div
                   key={item.name}
-                  onClick={() => setActiveNav(item.name)}
+                  onClick={() => {
+                    setActiveNav(item.name);
+                    // Clear selected table when switching navigation tabs
+                    setSelectedTable(null);
+                    setTableOrders([]);
+                  }}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       setActiveNav(item.name);
+                      // Clear selected table when switching navigation tabs
+                      setSelectedTable(null);
+                      setTableOrders([]);
                     }
                   }}
                   className={`nav-item ${isActive ? "nav-item--active" : ""}`}
@@ -584,7 +619,7 @@ export default function RestaurantDashboard() {
         {/* Main Content Area - Scrollable */}
         <main className="dashboard__content">
           <div className="dashboard__layout">
-            {/* Left side - RestLayout or Order Management */}
+            {/* Left side - RestLayout, Order Management, or Menu Component */}
             <div className="dashboard__layout-left">
               {selectedTable ? (
                 // Order Management Interface
@@ -633,11 +668,60 @@ export default function RestaurantDashboard() {
                       {tableOrders.map((order) => {
                         const menuItem = getMenuItemForOrder(order.menu_id);
                         const isEditing = editingNote === order.$id;
+                        const imageUrl = menuItem?.image_id
+                          ? getImageUrl(menuItem.image_id)
+                          : null;
 
                         return (
-                          <div key={order.$id} className="order-item">
+                          <div
+                            key={order.$id}
+                            className={`order-item ${
+                              isEditing ? "editing-notes" : ""
+                            }`}
+                            style={{
+                              border: imageUrl ? "none" : "1px solid #e2e8f0",
+                            }}
+                          >
                             <div className="order-item-image">
-                              <UtensilsCrossed size={40} />
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={menuItem?.nome || "Menu item"}
+                                  className="order-image"
+                                  onError={(e) => {
+                                    e.target.style.display = "none";
+                                    e.target.nextSibling.style.display = "flex";
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className="no-image-placeholder"
+                                style={{
+                                  display: imageUrl ? "none" : "flex",
+                                  width: "120px",
+                                  height: "100%",
+                                  minHeight: "100px",
+                                  backgroundColor: "#f8fafc",
+                                  border: "none",
+                                  borderRight: "2px dashed #d1d5db",
+                                  borderRadius: "12px 0 0 12px",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#9ca3af",
+                                  gap: "8px",
+                                }}
+                              >
+                                <UtensilsCrossed size={32} />
+                                <span
+                                  style={{
+                                    fontSize: "12px",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  Sem imagem
+                                </span>
+                              </div>
                             </div>
 
                             <div className="order-item-info">
@@ -655,46 +739,61 @@ export default function RestaurantDashboard() {
                               </div>
 
                               {/* Notes section */}
-                              {isEditing ? (
-                                <div className="note-editor">
-                                  <textarea
-                                    value={tempNote}
-                                    onChange={(e) =>
-                                      setTempNote(e.target.value)
-                                    }
-                                    placeholder="Adicionar nota..."
-                                    rows={2}
-                                  />
-                                  <div className="note-actions">
-                                    <button
-                                      onClick={() => {
-                                        updateOrderNotes(order.$id, tempNote);
-                                        setEditingNote(null);
-                                        setTempNote("");
-                                      }}
-                                      className="save-note"
-                                    >
-                                      <CheckCircle size={16} />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingNote(null);
-                                        setTempNote("");
-                                      }}
-                                      className="cancel-note"
-                                    >
-                                      <X size={16} />
-                                    </button>
+                              <div className="notes-section">
+                                {isEditing ? (
+                                  <div className="note-editor">
+                                    <textarea
+                                      value={tempNote}
+                                      onChange={(e) =>
+                                        setTempNote(e.target.value)
+                                      }
+                                      placeholder="Adicionar nota..."
+                                      rows={3}
+                                    />
+                                    <div className="note-actions">
+                                      <button
+                                        onClick={() => {
+                                          updateOrderNotes(order.$id, tempNote);
+                                          setEditingNote(null);
+                                          setTempNote("");
+                                        }}
+                                        className="save-note"
+                                      >
+                                        <CheckCircle size={16} />
+                                        Guardar
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingNote(null);
+                                          setTempNote("");
+                                        }}
+                                        className="cancel-note"
+                                      >
+                                        <X size={16} />
+                                        Cancelar
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                order.notes && (
-                                  <div className="order-notes">
-                                    <MessageSquare size={12} />
-                                    {order.notes}
+                                ) : (
+                                  <div className="order-notes-display">
+                                    <div className="notes-header">
+                                      <MessageSquare size={12} />
+                                      <span>Notas</span>
+                                    </div>
+                                    <div className="notes-content">
+                                      {order.notes ? (
+                                        <span className="note-text">
+                                          {order.notes}
+                                        </span>
+                                      ) : (
+                                        <span className="no-notes">
+                                          Sem notas
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                )
-                              )}
+                                )}
+                              </div>
                             </div>
 
                             <div className="order-item-actions">
@@ -739,9 +838,12 @@ export default function RestaurantDashboard() {
                                   setTempNote(order.notes || "");
                                 }}
                                 className="edit-note"
-                                title="Editar nota"
+                                title={
+                                  order.notes ? "Editar nota" : "Adicionar nota"
+                                }
                               >
                                 <MessageSquare size={16} />
+                                {order.notes ? "Editar" : "Nota"}
                               </button>
 
                               {/* Delete button */}
@@ -759,13 +861,43 @@ export default function RestaurantDashboard() {
                     </div>
                   )}
                 </div>
-              ) : (
-                // Default RestLayout
+              ) : activeNav === "MENU" ? (
+                // Menu Management Interface
+                <MenuComponent />
+              ) : activeNav === "STOCK" ? (
+                // Stock Management Interface
+                <StockComponent />
+              ) : activeNav === "MESAS" ? (
+                // Default RestLayout for Tables
                 <RestLayout
                   user={user}
                   onEditRedirect={() => router.push("/RestLayout")}
                   onTableSelect={selectTableForOrders}
                 />
+              ) : (
+                // Placeholder for other tabs (RESERVAS)
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                    backgroundColor: "white",
+                    borderRadius: "8px",
+                    margin: "24px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div style={{ textAlign: "center", color: "#64748b" }}>
+                    <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                      🚧
+                    </div>
+                    <h3 style={{ fontSize: "18px", marginBottom: "8px" }}>
+                      Coming sun
+                    </h3>
+                    <p>Esta secção estará disponível em breve</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>

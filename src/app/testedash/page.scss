@@ -1,4 +1,6 @@
 // Variables
+
+@import url(https://fonts.googleapis.com/css?family=Manrope:200,300,regular,500,600,700,800);
 $primary-blue: #3b82f6;
 $primary-blue-dark: #1d4ed8;
 $amber: #f59e0b;
@@ -17,7 +19,7 @@ $gray-600: #64748b;
 $gray-700: #374151;
 $gray-800: #1e293b;
 
-$font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+$font-family: "Manrope", sans-serif;
 
 // Loading animations
 @keyframes spin {
@@ -67,61 +69,82 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 
   // Sidebar
   &__sidebar {
-    width: 320px;
-    background: white;
+    width: 260px;
+    background: #ffffff;
     border-right: 1px solid $gray-200;
-    box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.1);
-    padding: 2rem;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 0rem;
     position: fixed;
     top: 80px;
     bottom: 0;
     left: 0;
     z-index: 40;
     overflow-y: auto;
-    transition: transform 0.3s ease;
+    overflow-x: hidden; // Prevent horizontal scroll
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
     // Mobile responsiveness
     @media (max-width: 1024px) {
+      width: 85vw; // Cover 85% of screen width
+      max-width: 320px; // But don't exceed 320px
+      min-width: 280px; // Minimum width for content
+      top: 0; // Cover full height starting from top
+      height: 100vh; // Full viewport height
       transform: translateX(-100%);
       z-index: 150;
-      background: white;
-      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+      background: #ffffff;
+      box-shadow: 4px 0 32px rgba(0, 0, 0, 0.25);
       border-right: none;
-      padding-top: 4rem; // Extra space for close button
+      padding-top: 6rem;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
       &--open {
         transform: translateX(0);
       }
     }
+
+    // Smaller mobile devices
+    @media (max-width: 480px) {
+      width: 90vw; // Cover even more on small phones
+      max-width: none; // Remove max-width constraint
+      min-width: 260px; // Smaller minimum width
+      padding-top: 5.5rem; // Slightly less padding on small screens
+    }
   }
 
   &__sidebar-footer {
-    padding-top: 1rem;
+    padding-top: 1.5rem;
     border-top: 1px solid $gray-200;
     text-align: center;
+    margin-top: auto;
   }
 
-  // Mobile close button for sidebar
   .mobile-sidebar-close {
     position: absolute;
     top: 20px;
     right: 20px;
-    background: transparent;
-    border: none;
-    padding: 8px;
-    border-radius: 8px;
+    background: $gray-100;
+    border: 1px solid $gray-200;
+    padding: 12px;
+    border-radius: 12px;
     cursor: pointer;
     color: $gray-600;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     display: none;
     z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
     &:hover {
-      background: $gray-100;
+      background: $gray-200;
       color: $gray-800;
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
 
     // Show on mobile and tablet
@@ -130,29 +153,28 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
       align-items: center;
       justify-content: center;
     }
+
+    // Make it slightly bigger on smaller screens
+    @media (max-width: 480px) {
+      top: 16px;
+      right: 16px;
+      padding: 14px;
+    }
   }
 
   // Navigation
   &__nav {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 4px; // Reduced gap for tighter grouping
     flex: 1;
-  }
-
-  &__nav-title {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: $gray-400;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
+    padding: 0.75rem 0;
   }
 
   // Content area
   &__content {
     flex: 1;
-    margin-left: 320px;
+    margin-left: 250px;
     background: $gray-50;
     overflow-y: auto;
     height: 100%;
@@ -256,46 +278,111 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
+  justify-content: flex-start;
+  padding: 0.75rem 1rem;
   border-radius: 12px;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  border: 1px solid;
   cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 56px;
-  background: white;
+  transition: all 0.25s ease;
+  height: 44px;
+  margin-bottom: 2px;
+  background: transparent;
+  border: 2px solid transparent;
+  position: relative;
 
+  // Mobile enhancements
+  @media (max-width: 1024px) {
+    height: 48px; // Slightly taller for easier touch
+    padding: 0.875rem 1.25rem;
+    font-size: 0.85rem; // Slightly larger text
+    margin-bottom: 4px; // More spacing between items
+  }
+
+  @media (max-width: 480px) {
+    height: 52px; // Even taller on small screens
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  // Active state
+  &--active {
+    background: $gray-50;
+    border-color: var(--item-color);
+    color: var(--item-color) !important;
+
+    // Add subtle left border accent
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 20px;
+      background: var(--item-color);
+      border-radius: 0 3px 3px 0;
+    }
+
+    @media (max-width: 1024px) {
+      background: rgba(var(--item-color-rgb, 59, 130, 246), 0.08);
+
+      &::before {
+        width: 4px;
+        height: 24px;
+      }
+    }
+  }
+
+  // Hover state for non-active items
   &:not(&--active):hover {
-    background: $gray-50 !important;
-    border-color: $gray-300 !important;
+    background: $gray-50;
+    transform: translateX(4px);
+
+    .nav-item__content svg {
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 1024px) {
+      transform: none; // Remove slide effect on mobile
+      background: $gray-100;
+    }
   }
 
   &__content {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.875rem;
+    flex: 1;
+
+    @media (max-width: 1024px) {
+      gap: 1rem; // More spacing on mobile
+    }
+
+    // Icon styling
+    svg,
+    .icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      transition: transform 0.25s ease;
+
+      @media (max-width: 1024px) {
+        width: 22px; // Slightly larger icons on mobile
+        height: 22px;
+      }
+    }
   }
 
   &__count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 32px;
-    height: 32px;
-    padding: 0 0.75rem;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    transition: all 0.2s ease;
+    display: none;
   }
 }
 
 // Version text
 .version-text {
-  font-size: 0.6875rem;
-  color: $gray-400;
+  font-size: 0.75rem;
+  color: $gray-500;
   font-weight: 500;
 }
 
@@ -523,10 +610,43 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   z-index: 149; // Just below sidebar
   opacity: 1;
-  transition: opacity 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(2px);
+
+  // Animation states
+  &.entering {
+    opacity: 0;
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  &.exiting {
+    animation: fadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      backdrop-filter: blur(0px);
+    }
+    to {
+      opacity: 1;
+      backdrop-filter: blur(2px);
+    }
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+      backdrop-filter: blur(2px);
+    }
+    to {
+      opacity: 0;
+      backdrop-filter: blur(0px);
+    }
+  }
 
   @media (min-width: 1025px) {
     display: none; // Hide on desktop
@@ -724,34 +844,60 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 
   .order-item {
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.5rem;
+    align-items: stretch; // Changed from flex-start to stretch
+    gap: 0; // Removed gap for seamless image integration
+    padding: 0; // Removed padding for full image coverage
     background: white;
-    border: 1px solid $gray-200;
     border-radius: 12px;
     transition: all 0.2s ease;
+    overflow: hidden; // Ensure content doesn't overflow rounded corners
+    min-height: 100px; // Ensure minimum height
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Add subtle shadow by default
 
     &:hover {
-      border-color: $gray-300;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px); // Subtle lift effect
+    }
+
+    &.editing-notes {
+      border: 2px solid $primary-blue !important;
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2) !important;
+      transform: translateY(-2px);
+
+      .notes-section {
+        background: rgba(59, 130, 246, 0.02);
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin: 0.75rem -0.75rem -0.75rem -0.75rem;
+      }
     }
 
     .order-item-image {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 60px;
-      height: 60px;
-      border-radius: 8px;
-      background: $gray-100;
-      color: $gray-600;
+      width: 120px; // Increased from 60px to 120px
       flex-shrink: 0;
+      overflow: hidden; // Prevent image overflow
+      border-radius: 12px 0 0 12px; // Only round left corners
+
+      .order-image {
+        border-radius: 12px 0 0 12px;
+        width: 100%;
+        min-height: 100px;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+      }
+
+      .no-image-placeholder {
+        border-radius: 12px 0 0 12px; // Match container radius
+      }
     }
 
     .order-item-info {
       flex: 1;
       min-width: 0;
+      padding: 1.5rem; // Moved padding here from container
 
       h4 {
         margin: 0 0 0.5rem 0;
@@ -805,55 +951,143 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
         margin-top: 0.5rem;
       }
 
+      .notes-section {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid $gray-200;
+        transition: all 0.3s ease;
+      }
+
+      .order-notes-display {
+        animation: fadeIn 0.2s ease-in;
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .notes-header {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: $gray-600;
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .notes-content {
+          .note-text {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            background: $gray-50;
+            border: 1px solid $gray-200;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: $gray-700;
+            line-height: 1.4;
+            min-height: 40px;
+          }
+
+          .no-notes {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            background: $gray-50;
+            border: 1px dashed $gray-300;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: $gray-400;
+            font-style: italic;
+            text-align: center;
+            min-height: 40px;
+            line-height: 1.4;
+          }
+        }
+      }
+
       .note-editor {
         margin-top: 0.5rem;
+        animation: slideIn 0.3s ease-out;
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
         textarea {
           width: 100%;
-          padding: 0.5rem;
-          border: 1px solid $gray-300;
-          border-radius: 6px;
+          padding: 0.75rem;
+          border: 2px solid $primary-blue;
+          border-radius: 8px;
           font-size: 0.875rem;
           resize: vertical;
-          min-height: 60px;
+          min-height: 80px;
+          font-family: inherit;
+          transition: all 0.2s ease;
 
           &:focus {
             outline: none;
-            border-color: $primary-blue;
+            border-color: $primary-blue-dark;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+
+          &::placeholder {
+            color: $gray-400;
+            font-style: italic;
           }
         }
 
         .note-actions {
           display: flex;
           gap: 0.5rem;
-          margin-top: 0.5rem;
+          margin-top: 0.75rem;
 
           button {
             display: flex;
             align-items: center;
-            padding: 0.375rem 0.75rem;
+            gap: 0.375rem;
+            padding: 0.5rem 1rem;
             border: none;
             border-radius: 6px;
-            font-size: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            min-width: 100px;
+            justify-content: center;
 
             &.save-note {
               background: $green;
               color: white;
+              flex: 1;
 
               &:hover {
                 background: #059669;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
               }
             }
 
             &.cancel-note {
               background: $gray-200;
               color: $gray-700;
+              flex: 1;
 
               &:hover {
                 background: $gray-300;
+                transform: translateY(-1px);
               }
             }
           }
@@ -929,9 +1163,11 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
       .edit-note {
         background: $gray-200;
         color: $gray-700;
+        min-width: 80px;
 
         &:hover {
           background: $gray-300;
+          transform: translateY(-1px);
         }
       }
 
@@ -998,6 +1234,45 @@ $font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
         button {
           flex: 1;
           min-width: auto;
+        }
+      }
+
+      .notes-section {
+        margin-top: 1rem;
+        padding-top: 1rem;
+      }
+
+      .order-notes-display {
+        .notes-header {
+          font-size: 0.75rem;
+          margin-bottom: 0.75rem;
+        }
+
+        .notes-content {
+          .note-text,
+          .no-notes {
+            font-size: 0.8rem;
+            padding: 0.75rem;
+            min-height: 50px;
+          }
+        }
+      }
+
+      .note-editor {
+        .note-actions {
+          flex-direction: column;
+          gap: 0.75rem;
+
+          button {
+            min-width: auto;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+          }
+        }
+
+        textarea {
+          min-height: 100px;
+          font-size: 0.875rem;
         }
       }
     }
