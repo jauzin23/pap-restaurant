@@ -882,7 +882,11 @@ $font-family: "Manrope", sans-serif;
       border-radius: 12px 0 0 12px; // Only round left corners
 
       .order-image {
-        border-radius: 12px 0 0 12px; // Match container radius
+        border-radius: 12px 0 0 12px;
+        width: 100%;
+        min-height: 100px;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
       }
 
       .no-image-placeholder {

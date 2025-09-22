@@ -688,14 +688,6 @@ export default function RestaurantDashboard() {
                                   src={imageUrl}
                                   alt={menuItem?.nome || "Menu item"}
                                   className="order-image"
-                                  style={{
-                                    width: "fit-content",
-                                    height: "100%",
-                                    minHeight: "100px",
-                                    objectFit: "cover",
-                                    backgroundColor: "#ffffff",
-                                    borderRadius: "12px 0 0 12px",
-                                  }}
                                   onError={(e) => {
                                     e.target.style.display = "none";
                                     e.target.nextSibling.style.display = "flex";

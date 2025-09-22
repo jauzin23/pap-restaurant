@@ -8,7 +8,6 @@ import React, {
   useCallback,
 } from "react";
 import { useRouter } from "next/navigation";
-// Direct icon imports for bundle size
 import {
   Edit,
   Shield,
@@ -58,7 +57,7 @@ const ORDERS_COLLECTION_ID = COL_ORDERS;
 
 interface Order {
   $id: string;
-  numeroMesa: number[]; // Database now requires array format
+  numeroMesa: number[];
   total: number;
   items?: any[];
   itens?: any[];
@@ -2417,15 +2416,7 @@ const RestLayout = React.memo(function RestLayout({
       </div>
 
       {/* Restaurant Layout - Full height */}
-      <div
-        ref={containerRef}
-        className="rest-layout-content"
-        style={{
-          WebkitOverflowScrolling: "touch",
-          transform: "translateZ(0)", // Force hardware acceleration
-          contain: "layout style paint", // Optimize repaints
-        }}
-      >
+      <div ref={containerRef} className="rest-layout-content" style={{}}>
         {showPaidOrders ? (
           /* Paid Orders View */
           <div className="paid-orders-container w-full h-full overflow-y-auto">

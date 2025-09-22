@@ -499,7 +499,6 @@ export default function MenuComponent() {
         ) : (
           <div className="menu-items-grid">
             {menuItems.map((item) => {
-              // Get the pre-computed image URL from memoized object
               const imageUrl = imageUrls[item.$id] || null;
 
               return (

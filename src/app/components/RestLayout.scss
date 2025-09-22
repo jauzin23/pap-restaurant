@@ -256,7 +256,6 @@ $font-family: "Manrope", sans-serif;
   }
 }
 
-// Main content area
 .rest-layout-content {
   flex: 1;
   position: relative;
@@ -267,6 +266,7 @@ $font-family: "Manrope", sans-serif;
   justify-content: center;
   padding: 24px;
   min-height: 0;
+  overflow: scroll;
 
   .table-grid {
     position: relative;
