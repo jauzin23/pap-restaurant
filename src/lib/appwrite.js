@@ -7,6 +7,7 @@ const client = new Client()
 const databases = new Databases(client);
 const account = new Account(client);
 const storage = new Storage(client);
+const PFP = "68dae97b0012bbdc2322";
 const DBRESTAURANTE = "689c9a200025de0e8af2";
 const DB_ATTENDANCE = "689d00b8001c10d4d6a2";
 const COL_MENU = "689d00e2001afa755161";
@@ -21,6 +22,8 @@ const COL_SUPPLIER = "68a2264a0004bc86faf4";
 const LOCATION_STOCK = "68a226bf000acf2e23e6";
 const PAYMENT_METHODS = "68a3c8210030bb5e1baf";
 const BUCKET_MENU_IMG = "68c9da420007c345042f";
+const BUCKET_STOCK_IMG = "68d2a38600005eb462f3";
+const BUCKET_USER_IMG = "68dae92d00114d3e1a2b";
 
 export {
   client,
@@ -41,4 +44,7 @@ export {
   LOCATION_STOCK,
   PAYMENT_METHODS,
   BUCKET_MENU_IMG,
+  BUCKET_STOCK_IMG,
+  BUCKET_USER_IMG,
+  PFP,
 };

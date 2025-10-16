@@ -119,9 +119,13 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [tableNumberError, setTableNumberError] = useState<string>("");
-  const [windowSize, setWindowSize] = useState({ width: 1200, height: 800 });
+  const [windowSize, setWindowSize] = useState({
+    width: 1200,
+    height: 800,
+    containerWidth: 0,
+    containerHeight: 0,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
 
@@ -201,22 +205,56 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     };
   };
 
-  // Handler de resize da janela para layout responsivo
+  // Throttled window resize handler with container size tracking
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    let resizeObserver: ResizeObserver;
+
     const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setWindowSize((prev) => ({
+          ...prev,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }));
+      }, 100);
+    };
+
+    // Set up ResizeObserver for the container
+    const setupResizeObserver = () => {
+      if (containerRef.current && typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            const { width, height } = entry.contentRect;
+            setWindowSize((prev) => ({
+              ...prev,
+              containerWidth: width,
+              containerHeight: height,
+            }));
+          }
+        });
+        resizeObserver.observe(containerRef.current);
+      }
     };
 
     if (typeof window !== "undefined") {
       setWindowSize({
         width: window.innerWidth,
         height: window.innerHeight,
+        containerWidth: 0,
+        containerHeight: 0,
       });
       window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
+      setupResizeObserver();
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        clearTimeout(timeoutId);
+        if (resizeObserver) {
+          resizeObserver.disconnect();
+        }
+      };
     }
   }, []);
 
@@ -226,40 +264,76 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     setLoading(false);
   }, [user]);
 
-  // Lógica de dimensionamento responsivo baseada em RestLayout.tsx
-  const getMaxDimensions = () => {
-    const baseSize = Math.sqrt(pendingRestaurantSize) * 60;
-    // Use RestLayout.tsx scaling as base
-    let scale = 1;
-    if (typeof window !== "undefined") {
-      if (window.innerWidth < 640) {
-        scale = 0.6; // Mobile
-      } else if (window.innerWidth < 1024) {
-        scale = 0.7; // Tablet
-      } else {
-        scale = 0.8; // Desktop - same as RestLayout
-      }
+  // Auto-fit canvas system based on RestLayout.tsx
+  const maxDimensions = useMemo(() => {
+    // If no tables, return default size
+    if (tables.length === 0) {
+      const availableHeight =
+        windowSize.containerHeight || windowSize.height - 200;
+      const availableWidth =
+        windowSize.containerWidth || windowSize.width - 100;
+      return {
+        width: Math.min(800, availableWidth),
+        height: Math.min(600, availableHeight),
+        scale: 0.8,
+        offsetX: 0,
+        offsetY: 0,
+      };
     }
 
-    // Calculate square canvas based on RestLayout logic but with square proportions
-    const baseWidth = Math.max(320, baseSize * 1.2 * scale);
-    const baseHeight = Math.max(240, baseSize * scale);
+    // Calculate bounding box of all tables including chairs
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
 
-    // Use the larger dimension to make it square
-    const canvasSize = Math.max(baseWidth, baseHeight);
+    tables.forEach((table) => {
+      const chairDistance = 25; // Space for chairs
+      minX = Math.min(minX, table.x - chairDistance);
+      maxX = Math.max(maxX, table.x + table.width + chairDistance);
+      minY = Math.min(minY, table.y - chairDistance);
+      maxY = Math.max(maxY, table.y + table.height + chairDistance);
+    });
+
+    // Add padding around the content
+    const padding = 50;
+    const contentWidth = maxX - minX + padding * 2;
+    const contentHeight = maxY - minY + padding * 2;
+
+    // Available space in the container
+    const availableHeight =
+      windowSize.containerHeight || windowSize.height - 200;
+    const availableWidth = windowSize.containerWidth || windowSize.width - 100;
+
+    // Calculate scale to fit everything
+    const scaleX = availableWidth / contentWidth;
+    const scaleY = availableHeight / contentHeight;
+    const scale = Math.min(scaleX, scaleY, 2); // Max scale of 2x
+    const minScale = 0.3; // Minimum scale to maintain readability
+    const finalScale = Math.max(scale, minScale);
+
+    // Calculate final canvas dimensions
+    const canvasWidth = contentWidth * finalScale;
+    const canvasHeight = contentHeight * finalScale;
+
+    // Calculate offset to center content in canvas
+    const offsetX = (-minX + padding) * finalScale;
+    const offsetY = (-minY + padding) * finalScale;
 
     return {
-      width: canvasSize,
-      height: canvasSize, // Always square
-      scale, // Return scale for table scaling
+      width: canvasWidth,
+      height: canvasHeight,
+      scale: finalScale,
+      offsetX,
+      offsetY,
     };
-  };
-
-  // Recalculate dimensions when dependencies change
-  const maxDimensions = useMemo(
-    () => getMaxDimensions(),
-    [pendingRestaurantSize, windowSize.width, windowSize.height]
-  );
+  }, [
+    tables,
+    windowSize.width,
+    windowSize.height,
+    windowSize.containerWidth,
+    windowSize.containerHeight,
+  ]);
 
   // Sync pendingRestaurantSize with restaurantSize when restaurantSize changes
   useEffect(() => {
@@ -278,41 +352,11 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     }
   }, [tables, savedTables, editMode, pendingRestaurantSize, restaurantSize]);
 
-  // Center the canvas on load and when dimensions change
+  // Remove centering logic since we want auto-fit like RestLayout
   useEffect(() => {
-    const centerCanvas = () => {
-      if (scrollContainerRef.current) {
-        const scrollContainer = scrollContainerRef.current;
-
-        // Calculate the scrollable area dimensions
-        const scrollWidth = Math.max(
-          maxDimensions.width + 800,
-          windowSize.width
-        );
-        const scrollHeight = Math.max(
-          maxDimensions.height + 600,
-          windowSize.height
-        );
-        const containerWidth = scrollContainer.clientWidth;
-        const containerHeight = scrollContainer.clientHeight;
-
-        // Center the scroll position
-        const centerX = Math.max(0, (scrollWidth - containerWidth) / 2);
-        const centerY = Math.max(0, (scrollHeight - containerHeight) / 2);
-
-        // Scroll to center position
-        scrollContainer.scrollTo({
-          left: centerX,
-          top: centerY,
-          behavior: "smooth",
-        });
-      }
-    };
-
-    // Small delay to ensure component is fully rendered
-    const timeoutId = setTimeout(centerCanvas, 100);
-    return () => clearTimeout(timeoutId);
-  }, [maxDimensions, windowSize.width, windowSize.height]);
+    // No centering needed - component should always fit in container
+    // This effect is kept for potential future use but doesn't do centering
+  }, [maxDimensions.width, maxDimensions.height, windowSize.width, windowSize.height]);
 
   // Show notification function
   const showNotification = (
@@ -453,10 +497,11 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     };
   }, []);
 
-  // Calculate scaling factor for tables based on canvas size
-  const tableScale = useMemo(() => {
-    return maxDimensions.scale || 0.8;
-  }, [maxDimensions]);
+  // Memoized table scale
+  const tableScale = useMemo(
+    () => maxDimensions.scale || 0.8,
+    [maxDimensions.scale]
+  );
 
   const handleSetRestaurantSize = (size: number) => {
     if (!isManager) return;
@@ -731,8 +776,14 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     if (rect) {
       const scale = tableScale;
       setDragOffset({
-        x: e.clientX - rect.left - table.x * scale,
-        y: e.clientY - rect.top - table.y * scale,
+        x:
+          e.clientX -
+          rect.left -
+          (table.x * scale + (maxDimensions.offsetX || 0)),
+        y:
+          e.clientY -
+          rect.top -
+          (table.y * scale + (maxDimensions.offsetY || 0)),
       });
     }
   };
@@ -754,8 +805,14 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     if (rect && touch) {
       const scale = tableScale;
       setDragOffset({
-        x: touch.clientX - rect.left - table.x * scale,
-        y: touch.clientY - rect.top - table.y * scale,
+        x:
+          touch.clientX -
+          rect.left -
+          (table.x * scale + (maxDimensions.offsetX || 0)),
+        y:
+          touch.clientY -
+          rect.top -
+          (table.y * scale + (maxDimensions.offsetY || 0)),
       });
     }
   };
@@ -791,16 +848,24 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     let centerY = e.clientY - rect.top - dragOffset.y + centerOffsetY;
 
     centerX = Math.max(
-      rotatedWidth / 2,
-      Math.min(maxDimensions.width - rotatedWidth / 2, centerX)
+      rotatedWidth / 2 + (maxDimensions.offsetX || 0),
+      Math.min(
+        maxDimensions.width - rotatedWidth / 2 + (maxDimensions.offsetX || 0),
+        centerX
+      )
     );
     centerY = Math.max(
-      rotatedHeight / 2,
-      Math.min(maxDimensions.height - rotatedHeight / 2, centerY)
+      rotatedHeight / 2 + (maxDimensions.offsetY || 0),
+      Math.min(
+        maxDimensions.height - rotatedHeight / 2 + (maxDimensions.offsetY || 0),
+        centerY
+      )
     );
 
-    const newX = (centerX - centerOffsetX) / scale; // Convert back to unscaled coordinates
-    const newY = (centerY - centerOffsetY) / scale; // Convert back to unscaled coordinates
+    const newX =
+      (centerX - centerOffsetX - (maxDimensions.offsetX || 0)) / scale; // Convert back to unscaled coordinates
+    const newY =
+      (centerY - centerOffsetY - (maxDimensions.offsetY || 0)) / scale; // Convert back to unscaled coordinates
 
     // Store position in ref instead of updating state immediately
     dragPositionRef.current = { x: newX, y: newY };
@@ -810,8 +875,12 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       `[data-table-id="${draggedTable}"]`
     ) as HTMLElement;
     if (tableElement) {
-      tableElement.style.left = `${newX * scale}px`;
-      tableElement.style.top = `${newY * scale}px`;
+      tableElement.style.left = `${
+        newX * scale + (maxDimensions.offsetX || 0)
+      }px`;
+      tableElement.style.top = `${
+        newY * scale + (maxDimensions.offsetY || 0)
+      }px`;
     }
   };
 
@@ -870,16 +939,24 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
     let centerY = touch.clientY - rect.top - dragOffset.y + centerOffsetY;
 
     centerX = Math.max(
-      rotatedWidth / 2,
-      Math.min(maxDimensions.width - rotatedWidth / 2, centerX)
+      rotatedWidth / 2 + (maxDimensions.offsetX || 0),
+      Math.min(
+        maxDimensions.width - rotatedWidth / 2 + (maxDimensions.offsetX || 0),
+        centerX
+      )
     );
     centerY = Math.max(
-      rotatedHeight / 2,
-      Math.min(maxDimensions.height - rotatedHeight / 2, centerY)
+      rotatedHeight / 2 + (maxDimensions.offsetY || 0),
+      Math.min(
+        maxDimensions.height - rotatedHeight / 2 + (maxDimensions.offsetY || 0),
+        centerY
+      )
     );
 
-    const newX = (centerX - centerOffsetX) / scale; // Convert back to unscaled coordinates
-    const newY = (centerY - centerOffsetY) / scale; // Convert back to unscaled coordinates
+    const newX =
+      (centerX - centerOffsetX - (maxDimensions.offsetX || 0)) / scale; // Convert back to unscaled coordinates
+    const newY =
+      (centerY - centerOffsetY - (maxDimensions.offsetY || 0)) / scale; // Convert back to unscaled coordinates
 
     // Store position in ref instead of updating state immediately
     dragPositionRef.current = { x: newX, y: newY };
@@ -889,8 +966,12 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
       `[data-table-id="${draggedTable}"]`
     ) as HTMLElement;
     if (tableElement) {
-      tableElement.style.left = `${newX * scale}px`;
-      tableElement.style.top = `${newY * scale}px`;
+      tableElement.style.left = `${
+        newX * scale + (maxDimensions.offsetX || 0)
+      }px`;
+      tableElement.style.top = `${
+        newY * scale + (maxDimensions.offsetY || 0)
+      }px`;
     }
   };
 
@@ -1263,395 +1344,377 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
   );
 
   return (
-    <div className="bg-black flex flex-col p-6 overflow-auto h-full flex-1">
-      {/* Confirmation Dialog */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-neutral-900 rounded-xl shadow-2xl border border-neutral-700 p-8 max-w-md w-full mx-4">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
-                <AlertTriangle size={24} className="text-black" />
+    <div className="bg-transparent flex flex-col p-6 overflow-auto h-full flex-1">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg shadow-lg flex-1 p-6">
+        {/* Confirmation Dialog */}
+        {showConfirmDialog && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-200 p-8 max-w-md w-full mx-4">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
+                  <AlertTriangle size={24} className="text-black" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Alterações não guardadas
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Tem a certeza que quer sair?
+                  </p>
+                </div>
+              </div>
+              <p className="text-gray-700 mb-8 leading-relaxed">
+                Tem alterações não guardadas (mesas e/ou tamanho do restaurante)
+                que serão perdidas se sair do modo de edição. Quer guardar as
+                alterações primeiro ou descartar?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={confirmDiscardChanges}
+                  className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-200 rounded-lg"
+                >
+                  Descartar alterações
+                </button>
+                <button
+                  onClick={cancelDiscardChanges}
+                  className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition-all duration-200 rounded-lg"
+                >
+                  Continuar a editar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notification Toast */}
+        {notification && (
+          <div
+            className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-lg border backdrop-blur-sm transform transition-all duration-300 ${
+              notification.type === "success"
+                ? "bg-white/90 border-green-500/50 text-green-700"
+                : notification.type === "error"
+                ? "bg-white/90 border-red-500/50 text-red-700"
+                : "bg-white/90 border-yellow-500/50 text-yellow-700"
+            }`}
+            style={{
+              animation: "slideInRight 0.3s ease-out",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              {notification.type === "success" && (
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="3"
+                  >
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                </div>
+              )}
+              {notification.type === "error" && (
+                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="2"
+                  >
+                    <path d="m21 21-9-9m0 0L3 3m9 9 9-9m-9 9-9 9" />
+                  </svg>
+                </div>
+              )}
+              {notification.type === "info" && (
+                <div className="w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="black"
+                    strokeWidth="2"
+                  >
+                    <path d="m12 16 4-4-4-4" />
+                    <path d="M8 12h8" />
+                  </svg>
+                </div>
+              )}
+              <span className="font-medium text-sm">
+                {notification.message}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-neutral-950 rounded-xl border border-neutral-800 flex flex-col p-8 shadow-2xl flex-1 h-full overflow-hidden">
+          <div className="flex items-center justify-between px-0 py-1">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center border border-gray-200">
+                <Grid size={20} className="text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">
-                  Alterações não guardadas
-                </h3>
-                <p className="text-sm text-neutral-400">
-                  Tem a certeza que quer sair?
-                </p>
-              </div>
-            </div>
-            <p className="text-neutral-300 mb-8 leading-relaxed">
-              Tem alterações não guardadas (mesas e/ou tamanho do restaurante)
-              que serão perdidas se sair do modo de edição. Quer guardar as
-              alterações primeiro ou descartar?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={confirmDiscardChanges}
-                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-200 rounded-lg"
-              >
-                Descartar alterações
-              </button>
-              <button
-                onClick={cancelDiscardChanges}
-                className="flex-1 px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-white font-medium transition-all duration-200 rounded-lg"
-              >
-                Continuar a editar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-lg border backdrop-blur-sm transform transition-all duration-300 ${
-            notification.type === "success"
-              ? "bg-neutral-900/95 border-green-500/50 text-green-400"
-              : notification.type === "error"
-              ? "bg-neutral-900/95 border-red-500/50 text-red-400"
-              : "bg-neutral-900/95 border-yellow-500/50 text-yellow-400"
-          }`}
-          style={{
-            animation: "slideInRight 0.3s ease-out",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            {notification.type === "success" && (
-              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="3"
-                >
-                  <path d="m9 12 2 2 4-4" />
-                </svg>
-              </div>
-            )}
-            {notification.type === "error" && (
-              <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                >
-                  <path d="m21 21-9-9m0 0L3 3m9 9 9-9m-9 9-9 9" />
-                </svg>
-              </div>
-            )}
-            {notification.type === "info" && (
-              <div className="w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="black"
-                  strokeWidth="2"
-                >
-                  <path d="m12 16 4-4-4-4" />
-                  <path d="M8 12h8" />
-                </svg>
-              </div>
-            )}
-            <span className="font-medium text-sm">{notification.message}</span>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-neutral-950 rounded-xl border border-neutral-800 flex flex-col p-8 shadow-2xl flex-1 h-full overflow-hidden">
-        <div className="flex items-center justify-between px-0 py-1">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-neutral-900 rounded-lg flex items-center justify-center border border-neutral-700">
-              <Grid size={20} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">
-                Layout do Restaurante
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                {isManager ? (
-                  <div className="flex items-center gap-2 text-green-400">
-                    <Shield size={14} />
-                    <span className="text-sm font-medium">Gestor</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-neutral-400">
-                    <ShieldX size={14} />
-                    <span className="text-sm font-medium">
-                      Modo Visualização
-                    </span>
-                  </div>
-                )}
-                {hasUnsavedChanges && (
-                  <div className="flex items-center gap-2 text-yellow-400 ml-4">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-medium">
-                      Alterações não guardadas
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 h-max">
-            {editMode && isManager && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowSizeMenu(!showSizeMenu)}
-                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
-                >
-                  <Ruler size={16} />
-                  {pendingRestaurantSize}m²
-                  {pendingRestaurantSize !== restaurantSize && (
-                    <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                <h1 className="text-2xl font-bold text-white tracking-tight">
+                  Layout do Restaurante
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  {isManager ? (
+                    <div className="flex items-center gap-2 text-green-400">
+                      <Shield size={14} />
+                      <span className="text-sm font-medium">Gestor</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-neutral-400">
+                      <ShieldX size={14} />
+                      <span className="text-sm font-medium">
+                        Modo Visualização
+                      </span>
+                    </div>
                   )}
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${
-                      showSizeMenu ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {showSizeMenu && (
-                  <div className="absolute top-full mt-3 bg-neutral-900 border border-neutral-700 shadow-xl z-20 min-w-[220px] rounded-lg overflow-hidden">
-                    <div className="p-5">
-                      <h4 className="text-sm font-semibold text-white mb-4">
-                        Tamanho do Restaurante
-                      </h4>
-                      <div className="space-y-1">
-                        {[50, 75, 100, 150, 200, 300, 500].map((size) => (
-                          <button
-                            key={size}
-                            onClick={() => {
-                              handleSetRestaurantSize(size);
-                              setShowSizeMenu(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 text-sm transition-all duration-200 font-medium rounded-lg ${
-                              restaurantSize === size
-                                ? "bg-neutral-800 text-white"
-                                : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
-                            }`}
-                          >
-                            {size}m²{" "}
-                            <span className="text-xs opacity-70">
-                              {size <= 75
-                                ? "(Pequeno)"
-                                : size <= 150
-                                ? "(Médio)"
-                                : size <= 300
-                                ? "(Grande)"
-                                : "(Extra Grande)"}
-                            </span>
-                          </button>
-                        ))}
-                        <div className="border-t border-neutral-700 pt-4 mt-4">
-                          <input
-                            type="number"
-                            placeholder="Tamanho personalizado"
-                            className="w-full px-4 py-3 border border-neutral-700 bg-neutral-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200 placeholder-neutral-400"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                const target = e.target as HTMLInputElement;
-                                const size = parseInt(target.value);
-                                if (size > 0) {
-                                  handleSetRestaurantSize(size);
-                                  setShowSizeMenu(false);
-                                  target.value = "";
+                  {hasUnsavedChanges && (
+                    <div className="flex items-center gap-2 text-yellow-400 ml-4">
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs font-medium">
+                        Alterações não guardadas
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 h-max">
+              {editMode && isManager && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSizeMenu(!showSizeMenu)}
+                    className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
+                  >
+                    <Ruler size={16} />
+                    {pendingRestaurantSize}m²
+                    {pendingRestaurantSize !== restaurantSize && (
+                      <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                    )}
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${
+                        showSizeMenu ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {showSizeMenu && (
+                    <div className="absolute top-full mt-3 bg-white/95 backdrop-blur-sm border border-gray-200 shadow-xl z-20 min-w-[220px] rounded-lg overflow-hidden">
+                      <div className="p-5">
+                        <h4 className="text-sm font-semibold text-white mb-4">
+                          Tamanho do Restaurante
+                        </h4>
+                        <div className="space-y-1">
+                          {[50, 75, 100, 150, 200, 300, 500].map((size) => (
+                            <button
+                              key={size}
+                              onClick={() => {
+                                handleSetRestaurantSize(size);
+                                setShowSizeMenu(false);
+                              }}
+                              className={`w-full text-left px-4 py-3 text-sm transition-all duration-200 font-medium rounded-lg ${
+                                restaurantSize === size
+                                  ? "bg-neutral-800 text-white"
+                                  : "text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                              }`}
+                            >
+                              {size}m²{" "}
+                              <span className="text-xs opacity-70">
+                                {size <= 75
+                                  ? "(Pequeno)"
+                                  : size <= 150
+                                  ? "(Médio)"
+                                  : size <= 300
+                                  ? "(Grande)"
+                                  : "(Extra Grande)"}
+                              </span>
+                            </button>
+                          ))}
+                          <div className="border-t border-neutral-700 pt-4 mt-4">
+                            <input
+                              type="number"
+                              placeholder="Tamanho personalizado"
+                              className="w-full px-4 py-3 border border-neutral-700 bg-neutral-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200 placeholder-neutral-400"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const target = e.target as HTMLInputElement;
+                                  const size = parseInt(target.value);
+                                  if (size > 0) {
+                                    handleSetRestaurantSize(size);
+                                    setShowSizeMenu(false);
+                                    target.value = "";
+                                  }
                                 }
-                              }
-                            }}
-                          />
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
 
-            {isManager && (
-              <button
-                onClick={handleEditModeToggle}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 border ${
-                  editMode
-                    ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
-                    : "bg-green-600 hover:bg-green-700 text-white border-green-600"
-                }`}
-              >
-                <Edit size={16} />
-                {editMode ? "Sair do Editor" : "Editar Layout"}
-              </button>
-            )}
-
-            {editMode && isManager && (
-              <div className="relative">
+              {isManager && (
                 <button
-                  onClick={() => setShowAddMenu(!showAddMenu)}
-                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
+                  onClick={handleEditModeToggle}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 border ${
+                    editMode
+                      ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                      : "bg-green-600 hover:bg-green-700 text-white border-green-600"
+                  }`}
                 >
-                  <Plus size={16} />
-                  Adicionar Mesa
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${
-                      showAddMenu ? "rotate-180" : ""
-                    }`}
-                  />
+                  <Edit size={16} />
+                  {editMode ? "Sair do Editor" : "Editar Layout"}
                 </button>
-                {showAddMenu && (
-                  <div className="absolute top-full mt-3 bg-neutral-900 border border-neutral-700 shadow-xl z-10 min-w-[240px] rounded-lg overflow-hidden">
-                    <div className="p-5">
-                      <h4 className="text-sm font-semibold text-white mb-4">
-                        Formas de Mesa
-                      </h4>
-                      {[
-                        {
-                          shape: "square",
-                          label: "Quadrada",
-                          desc: "4 cadeiras • 2×2m",
-                          icon: Square,
-                          gradient: "from-neutral-800 to-neutral-700",
-                          iconColor: "text-white",
-                        },
-                        {
-                          shape: "rectangular",
-                          label: "Retangular",
-                          desc: "6 cadeiras • 3×1.5m",
-                          icon: RectangleHorizontal,
-                          gradient: "from-neutral-800 to-neutral-700",
-                          iconColor: "text-white",
-                        },
-                        {
-                          shape: "circular",
-                          label: "Redonda",
-                          desc: "6 cadeiras • 2.3×2.3m",
-                          icon: Circle,
-                          gradient: "from-neutral-800 to-neutral-700",
-                          iconColor: "text-white",
-                        },
-                        {
-                          shape: "bar",
-                          label: "Mesa de Bar",
-                          desc: "8 cadeiras • 5×1m",
-                          icon: Minus,
-                          gradient: "from-neutral-800 to-neutral-700",
-                          iconColor: "text-white",
-                        },
-                      ].map((option) => {
-                        const IconComponent = option.icon;
-                        return (
-                          <button
-                            key={option.shape}
-                            onClick={() => {
-                              addTable(option.shape);
-                              setShowAddMenu(false);
-                            }}
-                            className="w-full text-left px-4 py-4 hover:bg-neutral-800 transition-all duration-200 flex items-center gap-4 rounded-lg group"
-                          >
-                            <div
-                              className={`w-10 h-10 bg-gradient-to-br ${option.gradient} flex items-center justify-center rounded-lg border border-neutral-600 group-hover:border-neutral-500 transition-all duration-200`}
-                            >
-                              <IconComponent
-                                size={18}
-                                className={option.iconColor}
-                              />
-                            </div>
-                            <div>
-                              <span className="text-sm font-semibold text-white block">
-                                {option.label}
-                              </span>
-                              <span className="text-xs text-neutral-400">
-                                {option.desc}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {editMode && isManager && (
-              <button
-                onClick={saveLayout}
-                disabled={savingLayout}
-                className={`px-4 py-2 font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-lg border ${
-                  savingLayout
-                    ? "bg-neutral-700 text-neutral-400 cursor-not-allowed border-neutral-600"
-                    : hasUnsavedChanges
-                    ? "bg-yellow-600 hover:bg-yellow-700 text-black border-yellow-600 animate-pulse"
-                    : "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
-                }`}
-              >
-                {savingLayout ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-neutral-400 border-t-transparent"></div>
-                    A Guardar...
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    {hasUnsavedChanges
-                      ? "Guardar Alterações"
-                      : "Guardar Layout"}
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
+              )}
 
-        <div className="flex flex-1 overflow-hidden mt-6 min-h-0 relative">
-          <div
-            ref={scrollContainerRef}
-            className={`flex-1 p-4 min-h-0 transition-all duration-300 canvas-scroll ${
-              draggedTable ? "overflow-hidden" : "overflow-auto"
-            }`}
-            style={{
-              touchAction: draggedTable ? "none" : "auto",
-              WebkitOverflowScrolling: "touch",
-              overscrollBehavior: draggedTable ? "none" : "auto",
-            }}
-          >
-            {/* Large scrollable area with canvas centered */}
+              {editMode && isManager && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAddMenu(!showAddMenu)}
+                    className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium border border-neutral-700 hover:border-neutral-600 transition-all duration-200 flex items-center gap-2 text-sm rounded-lg"
+                  >
+                    <Plus size={16} />
+                    Adicionar Mesa
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${
+                        showAddMenu ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {showAddMenu && (
+                    <div className="absolute top-full mt-3 bg-white/95 backdrop-blur-sm border border-gray-200 shadow-xl z-10 min-w-[240px] rounded-lg overflow-hidden">
+                      <div className="p-5">
+                        <h4 className="text-sm font-semibold text-white mb-4">
+                          Formas de Mesa
+                        </h4>
+                        {[
+                          {
+                            shape: "square",
+                            label: "Quadrada",
+                            desc: "4 cadeiras • 2×2m",
+                            icon: Square,
+                            gradient: "from-neutral-800 to-neutral-700",
+                            iconColor: "text-white",
+                          },
+                          {
+                            shape: "rectangular",
+                            label: "Retangular",
+                            desc: "6 cadeiras • 3×1.5m",
+                            icon: RectangleHorizontal,
+                            gradient: "from-neutral-800 to-neutral-700",
+                            iconColor: "text-white",
+                          },
+                          {
+                            shape: "circular",
+                            label: "Redonda",
+                            desc: "6 cadeiras • 2.3×2.3m",
+                            icon: Circle,
+                            gradient: "from-neutral-800 to-neutral-700",
+                            iconColor: "text-white",
+                          },
+                          {
+                            shape: "bar",
+                            label: "Mesa de Bar",
+                            desc: "8 cadeiras • 5×1m",
+                            icon: Minus,
+                            gradient: "from-neutral-800 to-neutral-700",
+                            iconColor: "text-white",
+                          },
+                        ].map((option) => {
+                          const IconComponent = option.icon;
+                          return (
+                            <button
+                              key={option.shape}
+                              onClick={() => {
+                                addTable(option.shape);
+                                setShowAddMenu(false);
+                              }}
+                              className="w-full text-left px-4 py-4 hover:bg-neutral-800 transition-all duration-200 flex items-center gap-4 rounded-lg group"
+                            >
+                              <div
+                                className={`w-10 h-10 bg-gradient-to-br ${option.gradient} flex items-center justify-center rounded-lg border border-neutral-600 group-hover:border-neutral-500 transition-all duration-200`}
+                              >
+                                <IconComponent
+                                  size={18}
+                                  className={option.iconColor}
+                                />
+                              </div>
+                              <div>
+                                <span className="text-sm font-semibold text-white block">
+                                  {option.label}
+                                </span>
+                                <span className="text-xs text-neutral-400">
+                                  {option.desc}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {editMode && isManager && (
+                <button
+                  onClick={saveLayout}
+                  disabled={savingLayout}
+                  className={`px-4 py-2 font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-lg border ${
+                    savingLayout
+                      ? "bg-neutral-700 text-neutral-400 cursor-not-allowed border-neutral-600"
+                      : hasUnsavedChanges
+                      ? "bg-yellow-600 hover:bg-yellow-700 text-black border-yellow-600 animate-pulse"
+                      : "bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700"
+                  }`}
+                >
+                  {savingLayout ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-neutral-400 border-t-transparent"></div>
+                      A Guardar...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      {hasUnsavedChanges
+                        ? "Guardar Alterações"
+                        : "Guardar Layout"}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-1 overflow-hidden mt-6 min-h-0 relative">
             <div
+              className={`flex-1 p-4 min-h-0 transition-all duration-300 flex items-center justify-center ${
+                draggedTable ? "overflow-hidden" : "overflow-auto"
+              }`}
               style={{
-                width: `${Math.max(
-                  maxDimensions.width + 800,
-                  windowSize.width
-                )}px`,
-                height: `${Math.max(
-                  maxDimensions.height + 600,
-                  windowSize.height
-                )}px`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                position: "relative",
                 touchAction: draggedTable ? "none" : "auto",
               }}
             >
               <div
                 ref={containerRef}
-                className={`relative border-2 border-neutral-700 bg-neutral-900 shadow-xl ${
+                className={`relative border-2 border-gray-300 bg-white/80 backdrop-blur-sm shadow-xl ${
                   draggedTable ? "select-none touch-none" : ""
                 }`}
                 style={{
                   backgroundImage: `
-                    linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
-                  `,
+                  linear-gradient(rgba(115, 115, 115, 0.1) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(115, 115, 115, 0.1) 1px, transparent 1px)
+                `,
                   backgroundSize: `${20 * tableScale}px ${20 * tableScale}px`,
                   width: `${maxDimensions.width}px`,
                   height: `${maxDimensions.height}px`,
@@ -1689,8 +1752,12 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                         : ""
                     }`}
                     style={{
-                      left: `${table.x * tableScale}px`,
-                      top: `${table.y * tableScale}px`,
+                      left: `${
+                        table.x * tableScale + (maxDimensions.offsetX || 0)
+                      }px`,
+                      top: `${
+                        table.y * tableScale + (maxDimensions.offsetY || 0)
+                      }px`,
                       width: `${table.width * tableScale}px`,
                       height: `${table.height * tableScale}px`,
                       transform: `rotate(${table.rotation}deg)`,
@@ -1717,33 +1784,51 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
                         setSelectedTable(null);
                         return;
                       }
-                      // Otherwise, open menu for this table (for all users)
-                      setSelectedTable(table.id);
-                      console.log("Set selectedTable:", table.id);
+
+                      if (dragJustStartedRef.current) {
+                        return;
+                      }
+
+                      if (tapTimeoutRef.current) {
+                        clearTimeout(tapTimeoutRef.current);
+                        tapTimeoutRef.current = null;
+                      }
+
+                      if (tapTableIdRef.current === table.id) {
+                        // Double tap: show edit menu
+                        setSelectedTable(table.id);
+                        tapTableIdRef.current = null;
+                      } else {
+                        // First tap: wait for potential second tap
+                        tapTableIdRef.current = table.id;
+                        tapTimeoutRef.current = setTimeout(() => {
+                          // Single tap: just select table
+                          setSelectedTable(table.id);
+                          tapTableIdRef.current = null;
+                          tapTimeoutRef.current = null;
+                        }, 300);
+                      }
                     }}
                   >
                     <div
-                      className={`w-full h-full border-2 flex items-center justify-center transition-all duration-200 ${
+                      className={`w-full h-full transition-all duration-200 shadow-lg ${
                         selectedTable === table.id
-                          ? "bg-neutral-800 border-yellow-400 shadow-xl"
+                          ? "bg-yellow-400 border-4 border-yellow-500 shadow-xl shadow-yellow-500/20"
                           : table.id.startsWith("temp_")
-                          ? "bg-neutral-800 border-yellow-400/50 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
-                          : "bg-neutral-800 border-neutral-600 hover:border-neutral-500 shadow-lg hover:shadow-xl group-hover:bg-neutral-700"
-                      }`}
-                      style={{
-                        ...getTableStyle(table),
-                      }}
+                          ? "bg-yellow-400/80 border-4 border-yellow-500/80 shadow-xl shadow-yellow-500/20"
+                          : "bg-neutral-700 border-4 border-neutral-600 group-hover:bg-neutral-600 group-hover:border-neutral-500 shadow-lg shadow-black/10"
+                      } flex items-center justify-center rounded-lg font-bold text-lg text-white relative overflow-hidden`}
+                      style={getTableStyle(table)}
                     >
                       <span
-                        className={`font-bold transition-colors duration-200 ${
-                          selectedTable === table.id
-                            ? "text-yellow-400"
-                            : table.id.startsWith("temp_")
-                            ? "text-yellow-400"
-                            : "text-white group-hover:text-neutral-200"
-                        } ${!editMode ? "select-none" : ""}`}
+                        className={`font-bold text-lg z-20 pointer-events-none ${
+                          selectedTable === table.id ||
+                          table.id.startsWith("temp_")
+                            ? "text-black"
+                            : "text-white"
+                        }`}
                         style={{
-                          fontSize: `${16 * tableScale}px`,
+                          fontSize: `${Math.max(12, 16 * tableScale)}px`,
                         }}
                       >
                         {table.tableNumber}
@@ -1799,415 +1884,6 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
               </div>
             </div>
           </div>
-
-          {selectedTableData && (
-            <div className="fixed top-0 right-0 w-80 h-full bg-neutral-900 border-l border-neutral-700 shadow-2xl z-[9999] flex flex-col overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`w-12 h-12 ${
-                        selectedTableData.id.startsWith("temp_")
-                          ? "bg-yellow-500"
-                          : "bg-neutral-700"
-                      } flex items-center justify-center rounded-lg border border-neutral-600`}
-                    >
-                      <span
-                        className={`font-bold text-lg ${
-                          selectedTableData.id.startsWith("temp_")
-                            ? "text-black"
-                            : "text-white"
-                        }`}
-                      >
-                        {selectedTableData.tableNumber}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-white">
-                        Mesa {selectedTableData.tableNumber}
-                      </h3>
-                      <p className="text-sm text-neutral-400">
-                        {selectedTableData.id.startsWith("temp_")
-                          ? "Nova mesa (não guardada)"
-                          : "Configurar propriedades"}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedTable(null)}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-neutral-800 hover:bg-red-600 border border-neutral-600 hover:border-red-500 transition-all duration-200 group"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="text-neutral-400 group-hover:text-white transition-colors duration-200"
-                    >
-                      <path d="m18 6-12 12" />
-                      <path d="m6 6 12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Forma da Mesa
-                    </label>
-                    <select
-                      value={selectedTableData.shape || "square"}
-                      onChange={(e) =>
-                        updateTableShape(selectedTable!, e.target.value)
-                      }
-                      className="w-full px-4 py-3 border border-neutral-600 bg-neutral-900 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
-                    >
-                      <option value="square">Quadrada</option>
-                      <option value="rectangular">Retangular</option>
-                      <option value="circular">Redonda</option>
-                      <option value="bar">Mesa de Bar</option>
-                    </select>
-                  </div>
-
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Posição
-                    </label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-neutral-400 mb-2 font-medium">
-                          X (píxeis)
-                        </label>
-                        <input
-                          type="number"
-                          value={Math.round(selectedTableData.x)}
-                          onChange={(e) => {
-                            const newX = Math.max(
-                              0,
-                              parseInt(e.target.value) || 0
-                            );
-                            setTables((prevTables) =>
-                              prevTables.map((table) => {
-                                if (table.id === selectedTable) {
-                                  return { ...table, x: newX };
-                                }
-                                return table;
-                              })
-                            );
-                          }}
-                          className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-neutral-400 mb-2 font-medium">
-                          Y (píxeis)
-                        </label>
-                        <input
-                          type="number"
-                          value={Math.round(selectedTableData.y)}
-                          onChange={(e) => {
-                            const newY = Math.max(
-                              0,
-                              parseInt(e.target.value) || 0
-                            );
-                            setTables((prevTables) =>
-                              prevTables.map((table) => {
-                                if (table.id === selectedTable) {
-                                  return { ...table, y: newY };
-                                }
-                                return table;
-                              })
-                            );
-                          }}
-                          className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Tamanho
-                    </label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-neutral-400 mb-2 font-medium">
-                          {selectedTableData.shape === "circular"
-                            ? "Diâmetro (m)"
-                            : "Largura (m)"}
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={sizeInputs.width}
-                          onChange={(e) =>
-                            handleSizeInputChange("width", e.target.value)
-                          }
-                          onBlur={(e) =>
-                            handleSizeInputCommit("width", e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              handleSizeInputCommit("width", sizeInputs.width);
-                              e.currentTarget.blur();
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
-                          min="1"
-                          max="50"
-                        />
-                      </div>
-                      {selectedTableData.shape !== "circular" && (
-                        <div>
-                          <label className="block text-xs text-neutral-400 mb-2 font-medium">
-                            Altura (m)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            value={sizeInputs.height}
-                            onChange={(e) =>
-                              handleSizeInputChange("height", e.target.value)
-                            }
-                            onBlur={(e) =>
-                              handleSizeInputCommit("height", e.target.value)
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleSizeInputCommit(
-                                  "height",
-                                  sizeInputs.height
-                                );
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            className="w-full px-3 py-2 border border-neutral-600 bg-neutral-900 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-medium rounded-lg transition-all duration-200"
-                            min="1"
-                            max="15"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-5">
-                      <label className="block text-xs text-neutral-400 mb-3 font-medium">
-                        Predefinições Rápidas
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { label: "Pequena", w: 1.5, h: 1.5 },
-                          { label: "Média", w: 2.3, h: 2.3 },
-                          { label: "Grande", w: 3, h: 3 },
-                          { label: "Larga", w: 3.8, h: 2 },
-                          { label: "Longa", w: 4.5, h: 1.5 },
-                          { label: "Bar", w: 5.5, h: 1.1 },
-                        ].map((preset) => (
-                          <button
-                            key={preset.label}
-                            onClick={() => {
-                              updateTableSize(
-                                selectedTable!,
-                                "width",
-                                preset.w
-                              );
-                              if (selectedTableData.shape !== "circular") {
-                                updateTableSize(
-                                  selectedTable!,
-                                  "height",
-                                  preset.h
-                                );
-                              }
-                              // Update local size inputs to reflect the preset values
-                              setSizeInputs({
-                                width: preset.w.toFixed(1),
-                                height: (selectedTableData.shape === "circular"
-                                  ? preset.w
-                                  : preset.h
-                                ).toFixed(1),
-                              });
-                            }}
-                            className="px-3 py-2 text-xs bg-neutral-700 hover:bg-neutral-600 border border-neutral-600 hover:border-neutral-500 transition-all duration-200 font-semibold text-white rounded-lg"
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedTableData.shape !== "circular" && (
-                    <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                      <label className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                        <Settings size={16} />
-                        Posição das Cadeiras
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        {[
-                          { key: "top", label: "Topo" },
-                          { key: "right", label: "Direita" },
-                          { key: "bottom", label: "Base" },
-                          { key: "left", label: "Esquerda" },
-                        ].map((side) => (
-                          <label
-                            key={side.key}
-                            className="flex items-center gap-3 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={
-                                selectedTableData.chairSides[
-                                  side.key as keyof typeof selectedTableData.chairSides
-                                ]
-                              }
-                              onChange={(e) =>
-                                updateChairSides(
-                                  selectedTable!,
-                                  side.key,
-                                  e.target.checked
-                                )
-                              }
-                              className="w-4 h-4 text-yellow-500 focus:ring-yellow-500 bg-neutral-700 border-neutral-600 rounded transition-all duration-200"
-                            />
-                            <span className="text-sm font-medium text-neutral-300">
-                              {side.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-neutral-500 mt-3 leading-relaxed">
-                        Desmarque os lados onde não quer cadeiras
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Cadeiras ({selectedTableData.chairs} /{" "}
-                      {getMaxChairs(
-                        selectedTableData.width,
-                        selectedTableData.height,
-                        selectedTableData.shape
-                      )}
-                      )
-                    </label>
-                    <input
-                      type="range"
-                      min="1"
-                      max={getMaxChairs(
-                        selectedTableData.width,
-                        selectedTableData.height,
-                        selectedTableData.shape
-                      )}
-                      value={selectedTableData.chairs}
-                      onChange={(e) =>
-                        updateTableChairs(
-                          selectedTable!,
-                          parseInt(e.target.value)
-                        )
-                      }
-                      className="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer slider"
-                      style={{
-                        background: `linear-gradient(to right, rgb(234 179 8) 0%, rgb(234 179 8) ${
-                          (selectedTableData.chairs /
-                            getMaxChairs(
-                              selectedTableData.width,
-                              selectedTableData.height,
-                              selectedTableData.shape
-                            )) *
-                          100
-                        }%, rgb(64 64 64) ${
-                          (selectedTableData.chairs /
-                            getMaxChairs(
-                              selectedTableData.width,
-                              selectedTableData.height,
-                              selectedTableData.shape
-                            )) *
-                          100
-                        }%, rgb(64 64 64) 100%)`,
-                      }}
-                    />
-                    <div className="flex justify-between text-xs text-neutral-500 mt-3 font-medium">
-                      <span>1</span>
-                      <span>
-                        {getMaxChairs(
-                          selectedTableData.width,
-                          selectedTableData.height,
-                          selectedTableData.shape
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Número da Mesa
-                    </label>
-                    <input
-                      type="number"
-                      value={selectedTableData.tableNumber}
-                      onChange={(e) => {
-                        const newNumber = Math.max(
-                          1,
-                          parseInt(e.target.value) || 1
-                        );
-                        updateTableNumber(selectedTable!, newNumber);
-                      }}
-                      className={`w-full px-4 py-3 border focus:outline-none focus:ring-2 focus:border-transparent font-medium text-white bg-neutral-900 rounded-lg transition-all duration-200 ${
-                        tableNumberError
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-neutral-600 focus:ring-yellow-500"
-                      }`}
-                      min="1"
-                    />
-                    {tableNumberError && (
-                      <p className="text-red-400 text-xs mt-2 font-medium">
-                        {tableNumberError}
-                      </p>
-                    )}
-                    <p className="text-xs text-neutral-500 mt-2 leading-relaxed">
-                      Cada mesa deve ter um número único
-                    </p>
-                  </div>
-
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Rotação ({selectedTableData.rotation}°)
-                    </label>
-                    <button
-                      onClick={() => rotateTable(selectedTable!)}
-                      className="w-full px-4 py-3 bg-neutral-700 hover:bg-neutral-600 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-lg border border-neutral-600"
-                    >
-                      <RotateCw size={16} />
-                      Rodar 90°
-                    </button>
-                  </div>
-
-                  <div className="bg-neutral-800 p-5 rounded-lg border border-neutral-700">
-                    <label className="block text-sm font-semibold text-white mb-4">
-                      Ações da Mesa
-                    </label>
-                    <button
-                      onClick={() => duplicateTable(selectedTable!)}
-                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-lg border border-blue-600 mb-3"
-                    >
-                      <Copy size={16} />
-                      Duplicar Mesa
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => deleteTable(selectedTable!)}
-                    className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-lg border border-red-600"
-                  >
-                    <Trash2 size={16} />
-                    Eliminar Mesa
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

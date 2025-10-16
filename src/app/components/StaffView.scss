@@ -1,0 +1,739 @@
+// Staff View Specific Styles - Same as Manager View
+.staff-view {
+  .staff-dashboard-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr 320px;
+    gap: 6px;
+  }
+
+  .left-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .center-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .right-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .summary-icon-value-col {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .summary-icon-value-row {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  // Progress Card Styles
+  .progress-card {
+    .progress-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .hours-display {
+      display: flex;
+      align-items: baseline;
+    }
+
+    .hours {
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .hours-label {
+      font-size: 20px;
+      color: #666;
+      margin-left: 2px;
+      font-weight: 600;
+    }
+
+    .work-time-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
+    .week-label {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .highlight-badge {
+      background: #ff6b35;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: auto;
+      letter-spacing: -0.01em;
+    }
+
+    .week-chart {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      height: 110px;
+      padding-top: 16px;
+    }
+
+    .chart-bar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+    }
+
+    .bar {
+      width: 100%;
+      background: #e5e5e5;
+      border-radius: 6px 6px 0 0;
+      transition: all 0.3s;
+    }
+
+    .bar.active {
+      background: #ff6b35;
+    }
+
+    .chart-bar span {
+      font-size: 11px;
+      color: #999;
+      font-weight: 600;
+    }
+  }
+
+  // Calendar Section Styles
+  .calendar-section {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+    .calendar-header {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .month {
+      font-size: 13px;
+      color: #999;
+      padding: 6px 0;
+      font-weight: 500;
+    }
+
+    .month.current {
+      color: #1a1a1a;
+      font-weight: 600;
+    }
+
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .day-column {
+      text-align: center;
+    }
+
+    .day-header {
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .day-number {
+      font-size: 13px;
+      color: #666;
+      font-weight: 500;
+    }
+
+    .calendar-events {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .event-time {
+      font-size: 11px;
+      color: #999;
+      padding: 3px 0;
+      font-weight: 600;
+    }
+
+    .event-card {
+      padding: 14px;
+      border-radius: 10px;
+      position: relative;
+
+      .event-title {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 3px;
+        letter-spacing: -0.01em;
+      }
+
+      .event-subtitle {
+        font-size: 11px;
+        opacity: 0.75;
+        margin-bottom: 10px;
+        font-weight: 500;
+      }
+
+      .event-avatars {
+        display: flex;
+        gap: 4px;
+
+        .avatar {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: #666;
+          border: 2px solid white;
+        }
+      }
+
+      &.team-sync {
+        background: #1a1a1a;
+        color: white;
+      }
+
+      &.onboarding {
+        background: #f5f5f5;
+      }
+
+      &.dinner {
+        background: #ff6b35;
+        color: white;
+      }
+    }
+  }
+
+  // Time Tracker Card Styles
+  .time-tracker-card {
+    .time-circle {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      margin: 16px auto;
+
+      .circle-svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .time-display {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+
+        .time {
+          font-size: 32px;
+          font-weight: 700;
+          line-height: 1;
+          letter-spacing: -0.02em;
+        }
+
+        .time-label {
+          font-size: 11px;
+          color: #999;
+          margin-top: 4px;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+
+  // Onboarding Card Styles
+  .onboarding-card {
+    .percentage {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .onboarding-bars {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+
+      .progress-bar {
+        flex: 1;
+        position: relative;
+
+        .bar-label {
+          font-size: 10px;
+          margin-bottom: 6px;
+          color: #666;
+          font-weight: 600;
+        }
+
+        .bar-fill {
+          height: 70px;
+          border-radius: 10px;
+
+          &.task {
+            background: #ff6b35;
+          }
+
+          &.progress {
+            background: #1a1a1a;
+          }
+
+          &.incomplete {
+            background: #e5e5e5;
+          }
+        }
+      }
+    }
+
+    .legend {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 16px;
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 500;
+
+        .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+
+          &.task {
+            background: #ff6b35;
+          }
+
+          &.progress {
+            background: #1a1a1a;
+          }
+
+          &.incomplete {
+            background: #e5e5e5;
+          }
+        }
+      }
+    }
+  }
+
+  // New Order Styles for Stats Bar
+  .stat-item .stat-btn.new-order {
+    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
+    }
+  }
+
+  // New Order Card Styles
+  .new-order-card {
+    margin-bottom: 6px;
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+
+      .header-icon {
+        color: #ff6b35;
+      }
+    }
+
+    .order-description {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .quick-tables-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+
+      .quick-table-btn {
+        background: rgba(255, 107, 53, 0.1);
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #ff6b35;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 107, 53, 0.2);
+          transform: translateY(-1px);
+        }
+
+        &.more-tables {
+          background: rgba(26, 26, 26, 0.1);
+          border-color: rgba(26, 26, 26, 0.2);
+          color: #1a1a1a;
+
+          &:hover {
+            background: rgba(26, 26, 26, 0.2);
+          }
+        }
+      }
+    }
+
+    .create-order-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #ff6b35, #ff8c42);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+      }
+    }
+  }
+
+  // Table Selector Modal Styles
+  .table-selector-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+  }
+
+  .table-selector-modal {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 107, 53, 0.1);
+    border-radius: 20px;
+    padding: 24px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 24px 96px rgba(0, 0, 0, 0.2);
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+
+      h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #1a1a1a;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #666;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 107, 53, 0.1);
+          color: #ff6b35;
+        }
+      }
+    }
+
+    .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+
+      .table-btn {
+        background: rgba(248, 250, 252, 0.8);
+        border: 1px solid rgba(255, 107, 53, 0.1);
+        border-radius: 12px;
+        padding: 16px 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        position: relative;
+
+        .table-number {
+          font-size: 18px;
+          font-weight: 700;
+          color: #1a1a1a;
+        }
+
+        .table-status {
+          font-size: 11px;
+          color: #666;
+          text-transform: uppercase;
+          font-weight: 500;
+        }
+
+        .selected-icon {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          color: #10b981;
+        }
+
+        &.available {
+          &:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 107, 53, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+          }
+
+          &.selected {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
+
+            .table-number {
+              color: #10b981;
+            }
+          }
+        }
+
+        &.occupied {
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.2);
+          cursor: not-allowed;
+          opacity: 0.6;
+
+          .table-number {
+            color: #ef4444;
+          }
+        }
+
+        &.reserved {
+          background: rgba(245, 158, 11, 0.1);
+          border-color: rgba(245, 158, 11, 0.2);
+          cursor: not-allowed;
+          opacity: 0.6;
+
+          .table-number {
+            color: #f59e0b;
+          }
+        }
+      }
+    }
+
+    .modal-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .selected-info {
+        font-size: 14px;
+        color: #666;
+        padding: 12px;
+        background: rgba(255, 107, 53, 0.05);
+        border-radius: 8px;
+        text-align: center;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 12px;
+
+        button {
+          flex: 1;
+          padding: 12px 20px;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          font-size: 14px;
+
+          &.cancel-btn {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+            border: 1px solid rgba(107, 114, 128, 0.2);
+
+            &:hover {
+              background: rgba(107, 114, 128, 0.2);
+              transform: translateY(-1px);
+            }
+          }
+
+          &.confirm-btn {
+            background: linear-gradient(135deg, #ff6b35, #ff8c42);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
+
+            &:hover:not(:disabled) {
+              transform: translateY(-1px);
+              box-shadow: 0 6px 24px rgba(255, 107, 53, 0.4);
+            }
+
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+              transform: none;
+              box-shadow: none;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Responsive Adjustments for Staff View
+  @media (max-width: 1400px) {
+    .staff-dashboard-grid {
+      grid-template-columns: 240px 1fr 300px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .staff-dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .calendar-days {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .time-circle {
+      width: 140px !important;
+      height: 140px !important;
+
+      .time {
+        font-size: 24px !important;
+      }
+    }
+
+    // New order responsive styles
+    .table-selector-modal {
+      margin: 20px;
+      padding: 20px;
+
+      .tables-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+      }
+    }
+
+    .quick-tables-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .progress-content {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .hours {
+      font-size: 28px !important;
+    }
+
+    .hours-label {
+      font-size: 16px !important;
+    }
+
+    .week-chart {
+      height: 80px;
+      gap: 8px;
+    }
+
+    .calendar-events {
+      gap: 6px;
+    }
+
+    .event-card {
+      padding: 10px;
+    }
+
+    .onboarding-bars {
+      .bar-fill {
+        height: 50px;
+      }
+    }
+
+    // Additional new order responsive styles
+    .table-selector-modal {
+      .tables-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      }
+
+      .modal-actions {
+        flex-direction: column;
+      }
+    }
+  }
+}

@@ -1,3 +1,49 @@
+// Summary stats custom layout
+// Summary stats custom layout
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-right: 2rem;
+}
+
+.summary-icon-value-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+// Always keep icon and value in a row, prevent wrapping
+.summary-icon-value-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.summary-number {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #222;
+}
+
+.summary-label.left-align {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #666;
+  text-align: left;
+  padding-left: 0;
+}
 // Variables
 
 @import url(https://fonts.googleapis.com/css?family=Manrope:200,300,regular,500,600,700,800);
@@ -751,7 +797,7 @@ $font-family: "Manrope", sans-serif;
     h2 {
       flex: 1;
       margin: 0;
-      font-size: 1.125rem; // Reduzido de 1.25rem para 1.125rem
+      font-size: 1.125rem;
       font-weight: 600;
       color: $gray-800;
     }
@@ -844,19 +890,19 @@ $font-family: "Manrope", sans-serif;
 
   .order-item {
     display: flex;
-    align-items: stretch; // Changed from flex-start to stretch
-    gap: 0; // Removed gap for seamless image integration
-    padding: 0; // Removed padding for full image coverage
+    align-items: stretch;
     background: white;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     transition: all 0.2s ease;
-    overflow: hidden; // Ensure content doesn't overflow rounded corners
-    min-height: 100px; // Ensure minimum height
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Add subtle shadow by default
+    overflow: hidden;
+    height: auto;
+    min-height: fit-content;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
     &:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      transform: translateY(-1px); // Subtle lift effect
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
     }
 
     &.editing-notes {
@@ -868,47 +914,69 @@ $font-family: "Manrope", sans-serif;
         background: rgba(59, 130, 246, 0.02);
         border-radius: 8px;
         padding: 0.75rem;
-        margin: 0.75rem -0.75rem -0.75rem -0.75rem;
+        margin-top: 0.75rem;
       }
     }
 
     .order-item-image {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 120px; // Increased from 60px to 120px
+      width: 100px;
+      height: 100px;
       flex-shrink: 0;
-      overflow: hidden; // Prevent image overflow
-      border-radius: 12px 0 0 12px; // Only round left corners
+      position: relative;
+      align-self: flex-start;
+      margin: 10px;
 
       .order-image {
-        border-radius: 12px 0 0 12px;
         width: 100%;
-        min-height: 100px;
-        aspect-ratio: 1 / 1;
-        object-fit: cover;
+        height: 100%;
+        object-fit: contain;
       }
 
       .no-image-placeholder {
-        border-radius: 12px 0 0 12px; // Match container radius
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        color: #9ca3af;
+        gap: 6px;
+
+        span {
+          font-size: 11px;
+          text-align: center;
+          line-height: 1.2;
+        }
       }
     }
 
     .order-item-info {
       flex: 1;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
       min-width: 0;
-      padding: 1.5rem; // Moved padding here from container
+      height: auto;
+      min-height: 120px;
+      justify-content: flex-start;
 
       h4 {
         margin: 0 0 0.5rem 0;
         font-size: 1rem;
         font-weight: 600;
         color: $gray-800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .order-item-price {
-        font-size: 0.75rem; // Reduzido para 0.75rem (12px)
-        font-weight: 400; // Reduzido para 400 (normal)
+        font-size: 0.875rem;
+        font-weight: 600;
         color: $green;
         margin-bottom: 0.5rem;
       }
@@ -919,43 +987,40 @@ $font-family: "Manrope", sans-serif;
         gap: 0.375rem;
         font-size: 0.75rem;
         color: $gray-500;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
 
-        // Different colors based on urgency/status
         &.time-recent {
-          color: $green; // Green for recent orders
+          color: $green;
         }
 
         &.time-medium {
-          color: $amber; // Amber for medium time
+          color: $amber;
         }
 
         &.time-urgent {
-          color: $red; // Red for urgent orders
+          color: $red;
         }
 
         &.time-completed {
-          color: $gray-400; // Gray for completed orders
+          color: $gray-400;
         }
-      }
-
-      .order-notes {
-        display: flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.5rem 0.75rem;
-        background: $gray-50;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        color: $gray-700;
-        margin-top: 0.5rem;
       }
 
       .notes-section {
         margin-top: 0.75rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid $gray-200;
         transition: all 0.3s ease;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+
+        &.has-notes {
+          display: flex;
+        }
+
+        &.no-notes {
+          display: none;
+        }
       }
 
       .order-notes-display {
@@ -993,6 +1058,7 @@ $font-family: "Manrope", sans-serif;
             color: $gray-700;
             line-height: 1.4;
             min-height: 40px;
+            word-wrap: break-word;
           }
 
           .no-notes {
@@ -1012,7 +1078,6 @@ $font-family: "Manrope", sans-serif;
       }
 
       .note-editor {
-        margin-top: 0.5rem;
         animation: slideIn 0.3s ease-out;
 
         @keyframes slideIn {
@@ -1036,6 +1101,7 @@ $font-family: "Manrope", sans-serif;
           min-height: 80px;
           font-family: inherit;
           transition: all 0.2s ease;
+          box-sizing: border-box;
 
           &:focus {
             outline: none;
@@ -1065,13 +1131,12 @@ $font-family: "Manrope", sans-serif;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-            min-width: 100px;
+            flex: 1;
             justify-content: center;
 
             &.save-note {
               background: $green;
               color: white;
-              flex: 1;
 
               &:hover {
                 background: #059669;
@@ -1083,7 +1148,6 @@ $font-family: "Manrope", sans-serif;
             &.cancel-note {
               background: $gray-200;
               color: $gray-700;
-              flex: 1;
 
               &:hover {
                 background: $gray-300;
@@ -1099,7 +1163,14 @@ $font-family: "Manrope", sans-serif;
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
+      padding: 1.25rem;
       flex-shrink: 0;
+      width: 120px;
+      align-items: stretch;
+      justify-content: flex-start;
+      height: auto;
+      min-height: 120px;
+      align-self: flex-start;
 
       button {
         display: flex;
@@ -1112,8 +1183,8 @@ $font-family: "Manrope", sans-serif;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        min-width: 100px;
         justify-content: center;
+        white-space: nowrap;
 
         &:disabled {
           cursor: not-allowed;
@@ -1163,7 +1234,6 @@ $font-family: "Manrope", sans-serif;
       .edit-note {
         background: $gray-200;
         color: $gray-700;
-        min-width: 80px;
 
         &:hover {
           background: $gray-300;

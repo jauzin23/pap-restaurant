@@ -1,21 +1,18 @@
 // MenuComponent.scss - Professional restaurant menu management styles
 
 .menu-component {
-  background-color: white;
   min-height: 100%;
 }
 
 // Header styles
 .menu-header {
-  padding: 24px 32px;
+  padding: 24px 0px;
   padding-right: 1rem;
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: transparent;
   flex-shrink: 0;
-  margin-bottom: 24px;
 
   h1 {
     font-size: 28px;
@@ -57,27 +54,37 @@
       background: white;
       color: #374151;
       border: 1px solid #d1d5db;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
 
       &:hover {
         background: #f9fafb;
         border-color: #9ca3af;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.15);
       }
     }
 
     .add-button {
       background: #3b82f6;
       color: white;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 2px 6px rgba(59, 130, 246, 0.25);
 
       &:hover {
         background: #1d4ed8;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+          0 4px 12px rgba(59, 130, 246, 0.35);
       }
 
       &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
         transform: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.05);
       }
     }
 
@@ -89,7 +96,8 @@
 
 // Content area
 .menu-content {
-  padding: 24px;
+  padding: 32px;
+  padding-top: 24px;
   .loading-state {
     display: flex;
     justify-content: center;
@@ -140,7 +148,8 @@
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.2s;
   cursor: pointer;
   min-height: 350px;
@@ -149,7 +158,9 @@
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
   }
 
   .image-container {
@@ -209,7 +220,6 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 8px;
 
       h3 {
         font-size: 18px;
@@ -294,7 +304,7 @@
         border-radius: 6px;
         font-size: 12px;
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: all 0.2s;
         position: relative;
         z-index: 10;
       }
@@ -302,55 +312,104 @@
       .edit-btn {
         background-color: #3b82f6 !important;
         color: white !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 1px 3px rgba(59, 130, 246, 0.25) !important;
 
         &:hover {
           background-color: #2563eb !important;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+            0 2px 6px rgba(59, 130, 246, 0.35) !important;
         }
       }
 
       .delete-btn {
         background-color: #dc2626 !important;
         color: white !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 1px 3px rgba(220, 38, 38, 0.25) !important;
 
         &:hover {
           background-color: #b91c1c !important;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+            0 2px 6px rgba(220, 38, 38, 0.35) !important;
         }
       }
     }
   }
 }
 
-// Modal styles
+// Modal styles - Centered modal with overlay
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 100 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  margin: 0 !important;
+  transform: none !important;
+  clip: unset !important;
+  clip-path: none !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
+}
+
+// Disable scroll on body/main content when modal is open
+.modal-overlay ~ * {
+  overflow: hidden !important;
+}
+
+body:has(.modal-overlay) {
+  overflow: hidden !important;
+}
+
+.main-content:has(.modal-overlay) {
+  overflow: hidden !important;
 }
 
 .modal-container {
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 600px;
-  max-height: 95vh;
-  overflow: hidden;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
+  background-color: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  max-height: 85vh !important;
+  height: auto !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 101 !important;
+  position: relative !important;
+  margin: auto !important;
+  transform: none !important;
+  clip: unset !important;
+  clip-path: none !important;
+  pointer-events: auto !important;
 }
 
 .modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px;
-  border-bottom: 1px solid #e2e8f0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 24px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  flex-shrink: 0 !important; // Prevent header from shrinking
+  background-color: white !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1 !important;
 
   .header-text {
     h2 {
@@ -383,12 +442,37 @@
 }
 
 .modal-content {
-  overflow-y: auto;
-  flex: 1;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  flex: 1 !important;
+  padding: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+  max-height: none !important;
+
+  // Custom scrollbar for modal content
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.3);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(59, 130, 246, 0.5);
+    }
+  }
+
+  // Firefox scrollbar
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.3) rgba(0, 0, 0, 0.05);
 }
 
 // Form styles
@@ -420,11 +504,14 @@
       border-radius: 6px;
       font-size: 14px;
       transition: all 0.2s;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05),
+        0 1px 1px rgba(0, 0, 0, 0.05);
 
       &:focus {
         outline: none;
         border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05),
+          0 0 0 3px rgba(59, 130, 246, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
       }
     }
 
@@ -648,11 +735,16 @@
       border: 1px solid #d1d5db;
       cursor: pointer;
       transition: all 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.05);
 
       &.selected {
         border-color: #3b82f6;
         background-color: #dbeafe;
         color: #1d4ed8;
+        box-shadow: inset 0 1px 2px rgba(59, 130, 246, 0.1),
+          inset 0 -1px 0 rgba(29, 78, 216, 0.1),
+          0 1px 3px rgba(59, 130, 246, 0.15);
       }
 
       &:not(.selected) {
@@ -661,6 +753,8 @@
 
         &:hover {
           background-color: #f9fafb;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       }
     }
@@ -747,9 +841,13 @@
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 2px 4px rgba(59, 130, 246, 0.25);
 
       &:hover {
         background-color: #2563eb;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.15), 0 4px 8px rgba(59, 130, 246, 0.35);
       }
     }
   }
@@ -797,12 +895,17 @@
 
 // Modal footer
 .modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 24px;
-  border-top: 1px solid #e2e8f0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  padding: 24px !important;
+  border-top: 1px solid #e2e8f0 !important;
+  flex-shrink: 0 !important; // Prevent footer from shrinking
+  background-color: white !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 1 !important;
 
   .cancel-btn {
     padding: 8px 16px;
@@ -814,9 +917,13 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
 
     &:hover {
       background-color: #f9fafb;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.15);
     }
   }
 
@@ -833,14 +940,21 @@
       cursor: not-allowed;
       background-color: #9ca3af;
       color: white;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.05);
     }
 
     &:not(:disabled) {
       background-color: #3b82f6;
       color: white;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 2px 6px rgba(59, 130, 246, 0.25);
 
       &:hover {
         background-color: #2563eb;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+          0 4px 12px rgba(59, 130, 246, 0.35);
       }
     }
   }
@@ -848,14 +962,24 @@
 
 // Responsive design
 .image-cropper-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  margin: 0 !important;
+  transform: none !important;
+  clip: unset !important;
+  clip-path: none !important;
+  overflow: visible !important;
 }
 
 .image-cropper-modal {
@@ -1123,26 +1247,85 @@
         background-color: white;
         color: #374151;
         border: 1px solid #d1d5db;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
 
         &:hover {
           background-color: #f9fafb;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.15);
         }
       }
 
       &.apply-btn {
         background-color: #3b82f6;
         color: white;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 2px 6px rgba(59, 130, 246, 0.25);
 
         &:hover:not(:disabled) {
           background-color: #2563eb;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+            0 4px 12px rgba(59, 130, 246, 0.35);
         }
 
         &:disabled {
           background-color: #9ca3af;
           cursor: not-allowed;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.05);
         }
       }
     }
+  }
+}
+
+// Toast Notification - Must be higher than header (z-index: 1002)
+.toast-notification {
+  position: fixed !important;
+  top: 24px !important;
+  right: 24px !important;
+  z-index: 999999 !important;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) 2.7s;
+  pointer-events: auto !important;
+
+  .toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    span {
+      flex: 1;
+    }
+  }
+
+  &.toast-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+  }
+
+  &.toast-error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+  }
+
+  &.toast-info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
   }
 }
 
@@ -1153,6 +1336,28 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
   }
 }
 

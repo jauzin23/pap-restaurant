@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -12,30 +12,33 @@ import {
   UtensilsCrossed,
   Loader2,
   CheckCircle,
+  UserCircle,
 } from "lucide-react";
 import Header from "../../components/Header";
-import { useApp } from "@/contexts/AppContext";
+import { BackgroundBeams } from "../../components/BackgroundBeams";
+import { auth } from "../../../lib/api";
+import { isAuthenticated } from "../../../lib/auth";
 import {
-  databases,
-  client,
-  DBRESTAURANTE,
-  COL_ORDERS,
-  COL_TABLES,
-  COL_MENU,
-} from "@/lib/appwrite";
-import { Query } from "appwrite";
+  WebSocketProvider,
+  useWebSocketContext,
+} from "../../../contexts/WebSocketContext";
 import "./page.scss";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 interface MenuItem {
   $id: string;
+  id: string;
   nome: string;
   preco: number;
   category: string;
   description?: string;
+  image_id?: string;
 }
 
 interface Table {
   $id: string;
+  id: string;
   tableNumber: number;
 }
 
@@ -43,28 +46,31 @@ interface CartItem extends MenuItem {
   notes?: string;
 }
 
-export default function PedidoPage({
+interface User {
+  $id: string;
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  labels: string[];
+  profile_image?: string;
+}
+
+function PedidoPageContent({
   params,
 }: {
   params: Promise<{ mesas?: string[] }>;
 }) {
   const router = useRouter();
-  const { user, loading } = useApp();
+  const { socket, connected } = useWebSocketContext();
 
   const resolvedParams = React.use(params);
-  console.log("Raw params:", params);
-  console.log("Resolved params:", resolvedParams);
   const mesas = resolvedParams.mesas || [];
-  console.log("Received mesas parameter:", mesas);
-  console.log("mesas type:", typeof mesas);
-  console.log("mesas is array:", Array.isArray(mesas));
 
-  // Debug useEffect to monitor mesas changes
-  useEffect(() => {
-    console.log("useEffect - mesas changed:", mesas);
-  }, [mesas]);
-
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [validTables, setValidTables] = useState<number[]>([]);
+  const [validTableIds, setValidTableIds] = useState<string[]>([]); // Store table IDs for API calls
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Todos");
@@ -77,95 +83,154 @@ export default function PedidoPage({
   const [tempNote, setTempNote] = useState("");
   const [menuLoading, setMenuLoading] = useState(false);
   const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
+  const [username, setUsername] = useState("");
+  const [userLabels, setUserLabels] = useState<string[]>([]);
+  const [profileImg, setProfileImg] = useState("");
+  const [activeNavItem, setActiveNavItem] = useState("Pedidos");
 
-  // Validate tables and fetch menu on load
-  useEffect(() => {
-    console.log("useEffect triggered - loading:", loading, "user:", !!user);
+  // Memoized Profile Image Component with fallback
+  const ProfileImage = React.memo(
+    ({
+      src,
+      alt,
+      className,
+      size = 24,
+      isCircular = false,
+    }: {
+      src?: string;
+      alt: string;
+      className?: string;
+      size?: number;
+      isCircular?: boolean;
+    }) => {
+      const [hasError, setHasError] = useState(false);
 
-    if (!loading && !user) {
-      console.log("No user, redirecting to login");
-      router.push("/login");
-      return;
+      if (hasError || !src) {
+        return (
+          <div
+            className={`${className} bg-gray-100 flex items-center justify-center ${
+              isCircular ? "rounded-full" : "rounded-lg"
+            }`}
+            style={{
+              width: typeof size === "number" ? `${size}px` : size,
+              height: typeof size === "number" ? `${size}px` : size,
+            }}
+          >
+            <UserCircle
+              size={typeof size === "number" ? Math.floor(size * 0.7) : 24}
+              className="text-gray-400"
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div
+          className={`${className} ${
+            isCircular ? "rounded-full" : "rounded-lg"
+          } overflow-hidden`}
+          style={{
+            width: typeof size === "number" ? `${size}px` : size,
+            height: typeof size === "number" ? `${size}px` : size,
+            backgroundColor: "#f8fafc",
+          }}
+        >
+          <img
+            src={src}
+            alt={alt}
+            className="w-full h-full object-cover"
+            onError={() => setHasError(true)}
+            style={{
+              backgroundColor: "transparent",
+            }}
+          />
+        </div>
+      );
+    }
+  );
+
+  // Function to get auth token
+  const getAuthToken = () => {
+    return localStorage.getItem("auth_token"); // Fixed: use same key as api.js
+  };
+
+  // Function to make API requests with auth
+  const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      // Handle authentication errors specifically
+      if (response.status === 401) {
+        console.error("Authentication failed - redirecting to login");
+        router.push("/login");
+        throw new Error("Session expired. Please login again.");
+      }
+      throw new Error(`API Error: ${response.status}`);
     }
 
-    if (user) {
-      console.log("User found, validating tables and fetching menu");
-      validateTablesAndFetchMenu();
-    }
-  }, [user, loading, mesas]);
+    return response.json();
+  };
 
-  // Set up real-time subscription for menu updates
+  // Function to get image URL for menu item
+  const getImageUrl = (imageId: string | undefined) => {
+    if (!imageId || imageId === "undefined" || imageId === "null") return null;
+    return `${API_BASE_URL}/files/imagens-menu/${imageId}`;
+  };
+
+  // Authentication check and user data loading
   useEffect(() => {
-    if (!user || loading || !client) return;
+    const loadUserAndData = async () => {
+      if (!isAuthenticated()) {
+        router.push("/login");
+        return;
+      }
 
-    const unsubscribeMenu = client.subscribe(
-      `databases.${DBRESTAURANTE}.collections.${COL_MENU}.documents`,
-      (response) => {
-        console.log("Menu update received:", response);
+      try {
+        const userData = await auth.get();
+        setUser(userData);
+        setUsername(userData.name || userData.username || userData.email);
+        setUserLabels(userData.labels || []);
 
-        // Refetch menu when items change
-        if (
-          response.events.some(
-            (event) =>
-              event.includes("create") ||
-              event.includes("update") ||
-              event.includes("delete")
-          )
-        ) {
-          fetchMenuItems();
+        if (userData.profile_image) {
+          setProfileImg(
+            `${API_BASE_URL}/files/imagens-perfil/${userData.profile_image}`
+          );
         }
-      }
-    );
 
-    const unsubscribeTables = client.subscribe(
-      `databases.${DBRESTAURANTE}.collections.${COL_TABLES}.documents`,
-      (response) => {
-        console.log("Tables update received:", response);
-
-        // Refetch tables when they change
-        if (
-          response.events.some(
-            (event) =>
-              event.includes("create") ||
-              event.includes("update") ||
-              event.includes("delete")
-          )
-        ) {
-          validateTablesAndFetchMenu();
-        }
-      }
-    );
-
-    return () => {
-      if (unsubscribeMenu && typeof unsubscribeMenu === "function") {
-        unsubscribeMenu();
-      }
-      if (unsubscribeTables && typeof unsubscribeTables === "function") {
-        unsubscribeTables();
+        await validateTablesAndFetchMenu();
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        router.push("/login");
+      } finally {
+        setLoading(false);
       }
     };
-  }, [user, loading, client]);
 
-  // Separate function to fetch only menu items
+    loadUserAndData();
+  }, [mesas]);
+
+  // Function to fetch menu items
   const fetchMenuItems = async () => {
     try {
       setMenuLoading(true);
+      const response = await apiRequest("/menu");
 
-      const menuResponse = await databases.listDocuments(
-        DBRESTAURANTE,
-        COL_MENU,
-        [Query.limit(1000), Query.orderAsc("category"), Query.orderAsc("nome")]
-      );
-
-      const items = menuResponse.documents as unknown as MenuItem[];
+      const items = response.documents || response.menu || [];
       setMenuItems(items);
 
       // Extract and update categories
-      const uniqueCategories = [
-        ...new Set(
-          items.map((item) => item.category || "outros").filter(Boolean)
-        ),
-      ];
+      const itemCategories = items.map(
+        (item: MenuItem) => item.category || "outros"
+      );
+      const uniqueCategories = [...new Set(itemCategories)] as string[];
       setCategories(["Todos", ...uniqueCategories]);
 
       console.log("Menu items updated:", items.length, "items");
@@ -176,29 +241,19 @@ export default function PedidoPage({
     }
   };
 
-  // Validate table numbers exist and fetch menu items
+  // Validate table IDs exist and fetch menu items
   const validateTablesAndFetchMenu = async () => {
     try {
       setIsLoading(true);
 
-      // Log current URL for debugging
-      console.log("Current URL:", window.location.href);
-      console.log("Current pathname:", window.location.pathname);
-
       console.log("Debug - mesas array:", mesas);
-      console.log("Debug - mesas length:", mesas.length);
-      console.log("Debug - mesas[0]:", mesas[0]);
-      console.log("Debug - typeof mesas[0]:", typeof mesas[0]);
 
-      // Validate tables - handle both array format and comma-separated format
-      let tableNumbers: number[] = [];
+      // Validate tables - now expecting table IDs (UUIDs) instead of table numbers
+      let tableIds: string[] = [];
 
       if (mesas.length === 0) {
-        console.error("mesas array is empty - redirecting to testedash");
-        console.error(
-          "This might happen if URL is /order/ without table numbers"
-        );
-        router.push("/testedash");
+        console.error("mesas array is empty - redirecting to pagina-teste-new");
+        router.push("/pagina-teste-new");
         return;
       }
 
@@ -208,7 +263,7 @@ export default function PedidoPage({
       );
       if (cleanMesas.length === 0) {
         console.error("mesas array contains only null/undefined/empty values");
-        router.push("/testedash");
+        router.push("/pagina-teste-new");
         return;
       }
 
@@ -217,23 +272,21 @@ export default function PedidoPage({
         typeof cleanMesas[0] === "string" &&
         (cleanMesas[0].includes(",") || cleanMesas[0].includes("%2C"))
       ) {
-        // Handle comma-separated format like "3,5,7" or URL-encoded "9%2C10%2C11%2C12"
+        // Handle comma-separated format like "uuid1,uuid2,uuid3" or URL-encoded
         console.log("Parsing comma-separated format:", cleanMesas[0]);
 
         // Decode URL-encoded string first
         const decodedString = decodeURIComponent(cleanMesas[0]);
         console.log("Decoded string:", decodedString);
 
-        tableNumbers = decodedString
+        tableIds = decodedString
           .split(",")
           .map((str) => str.trim())
-          .filter((str) => str !== "")
-          .map(Number)
-          .filter((num) => !isNaN(num));
+          .filter((str) => str !== "");
       } else {
-        // Handle regular array format like ["3", "5", "7"]
+        // Handle regular array format like ["uuid1", "uuid2", "uuid3"]
         console.log("Parsing array format:", cleanMesas);
-        tableNumbers = cleanMesas
+        tableIds = cleanMesas
           .map((item) => {
             // Try to decode each item in case it's URL-encoded
             try {
@@ -242,65 +295,230 @@ export default function PedidoPage({
               return String(item);
             }
           })
-          .map(Number)
-          .filter((num) => !isNaN(num));
+          .filter((id) => id !== "");
       }
 
-      console.log("Parsed table numbers:", tableNumbers);
+      console.log("Parsed table IDs:", tableIds);
 
-      if (tableNumbers.length === 0) {
-        console.error("No table numbers provided after parsing");
-        console.error("Original mesas:", mesas);
-        router.push("/testedash");
+      if (tableIds.length === 0) {
+        console.error("No table IDs provided after parsing");
+        router.push("/pagina-teste-new");
         return;
       }
 
-      // Check if tables exist with better error handling
-      const tablesResponse = await databases.listDocuments(
-        DBRESTAURANTE,
-        COL_TABLES,
-        [Query.limit(1000), Query.orderAsc("tableNumber")]
-      );
+      // Check if tables exist
+      const tablesResponse = await apiRequest("/tables");
+      const existingTables = tablesResponse.documents || [];
 
-      const existingTableNumbers = (
-        tablesResponse.documents as unknown as Table[]
-      ).map((table) => table.tableNumber);
+      console.log("Tables API response:", tablesResponse);
+      console.log("Existing tables:", existingTables);
 
-      const validTableNumbers = tableNumbers.filter((num) =>
-        existingTableNumbers.includes(num)
-      );
-
-      if (validTableNumbers.length === 0) {
-        console.error("No valid tables found");
-        router.push("/testedash");
+      if (!existingTables || existingTables.length === 0) {
+        console.error("No tables found in the database");
+        alert(
+          "Error: No tables found in the system. Please contact an administrator."
+        );
+        router.push("/pagina-teste-new");
         return;
       }
+
+      // Validate that the provided table IDs exist in the database
+      const validTableIdsArray = tableIds.filter((id) =>
+        existingTables.some((table: Table) => (table.$id || table.id) === id)
+      );
+
+      if (validTableIdsArray.length === 0) {
+        console.error("No valid table IDs found");
+        router.push("/pagina-teste-new");
+        return;
+      }
+
+      // Get the table numbers for display purposes
+      const validTableNumbers = existingTables
+        .filter((table: Table) =>
+          validTableIdsArray.includes(table.$id || table.id)
+        )
+        .map((table: Table) => table.tableNumber);
+
+      console.log("Existing tables from API:", existingTables);
+      console.log("Valid table IDs:", validTableIdsArray);
+      console.log("Valid table numbers (for display):", validTableNumbers);
 
       setValidTables(validTableNumbers);
+      setValidTableIds(validTableIdsArray);
 
-      // Fetch menu items with improved sorting
+      // Fetch menu items
       await fetchMenuItems();
 
       console.log("Tables and menu loaded successfully");
     } catch (error) {
       console.error("Error validating tables or fetching menu:", error);
-      router.push("/testedash");
+      router.push("/pagina-teste-new");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Filter menu items by category
-  const filteredMenuItems =
-    activeCategory === "Todos"
+  // Function to handle navigation clicks
+  const handleNavClick = (navItem: string) => {
+    if (navItem === "Painel") {
+      router.push("/pagina-teste-new");
+    }
+  };
+
+  // Check if user is a manager
+  const isManager =
+    userLabels.includes("manager") ||
+    userLabels.includes("Manager") ||
+    userLabels.includes("gerente") ||
+    userLabels.includes("Gerente");
+
+  // Memoize WebSocket event handlers to prevent recreation on every render
+  const handleOrderCreated = useCallback(
+    (order: any) => {
+      console.log("📦 Order created via WebSocket:", order);
+
+      // Check if order belongs to our tables
+      if (order.table_id && Array.isArray(order.table_id)) {
+        const belongsToOurTables = order.table_id.some((id: string) =>
+          validTableIds.includes(id)
+        );
+
+        if (belongsToOurTables) {
+          console.log("✅ Order belongs to current tables, refreshing menu");
+          // Note: We don't auto-add to cart, just refresh menu availability
+          fetchMenuItems();
+        }
+      }
+    },
+    [validTableIds]
+  );
+
+  const handleOrderUpdated = useCallback(
+    (order: any) => {
+      console.log("📝 Order updated via WebSocket:", order);
+
+      // Check if order belongs to our tables
+      if (order.table_id && Array.isArray(order.table_id)) {
+        const belongsToOurTables = order.table_id.some((id: string) =>
+          validTableIds.includes(id)
+        );
+
+        if (belongsToOurTables) {
+          console.log("✅ Order belongs to current tables");
+          fetchMenuItems();
+        }
+      }
+    },
+    [validTableIds]
+  );
+
+  const handleOrderDeleted = useCallback((data: any) => {
+    console.log("🗑️ Order deleted via WebSocket:", data);
+    fetchMenuItems();
+  }, []);
+
+  // Menu events - update menu items in real-time
+  const handleMenuCreated = useCallback((item: any) => {
+    console.log("🍕 Menu item created via WebSocket:", item);
+    setMenuItems((prev) => [...prev, item]);
+
+    // Update categories
+    const newCategory = item.category || "outros";
+    setCategories((prev) => {
+      if (!prev.includes(newCategory)) {
+        return [...prev, newCategory];
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleMenuUpdated = useCallback((item: any) => {
+    console.log("✏️ Menu item updated via WebSocket:", item);
+    setMenuItems((prev) =>
+      prev.map((m) => (m.$id === item.$id || m.id === item.id ? item : m))
+    );
+  }, []);
+
+  const handleMenuDeleted = useCallback((data: any) => {
+    console.log("🗑️ Menu item deleted via WebSocket:", data);
+    const itemId = data.id || data.$id;
+    setMenuItems((prev) =>
+      prev.filter((m) => m.$id !== itemId && m.id !== itemId)
+    );
+
+    // Remove from cart if it was there
+    setCartItems((prev) =>
+      prev.filter((item) => item.$id !== itemId && item.id !== itemId)
+    );
+  }, []);
+
+  // WebSocket Real-Time Updates
+  useEffect(() => {
+    if (!socket || !connected) return;
+
+    console.log("🔌 OrderPage: Setting up WebSocket listeners");
+
+    // Subscribe to specific tables
+    if (validTableIds.length > 0) {
+      validTableIds.forEach((tableId) => {
+        console.log(`📡 Subscribing to table: ${tableId}`);
+        socket.emit("subscribe:table", tableId);
+      });
+    }
+
+    // Register all event listeners
+    socket.on("order:created", handleOrderCreated);
+    socket.on("order:updated", handleOrderUpdated);
+    socket.on("order:deleted", handleOrderDeleted);
+    socket.on("menu:created", handleMenuCreated);
+    socket.on("menu:updated", handleMenuUpdated);
+    socket.on("menu:deleted", handleMenuDeleted);
+
+    // Cleanup function
+    return () => {
+      console.log("🔌 OrderPage: Cleaning up WebSocket listeners");
+
+      // Unsubscribe from tables
+      if (validTableIds.length > 0) {
+        validTableIds.forEach((tableId) => {
+          console.log(`📡 Unsubscribing from table: ${tableId}`);
+          socket.emit("unsubscribe:table", tableId);
+        });
+      }
+
+      // Remove all event listeners
+      socket.off("order:created", handleOrderCreated);
+      socket.off("order:updated", handleOrderUpdated);
+      socket.off("order:deleted", handleOrderDeleted);
+      socket.off("menu:created", handleMenuCreated);
+      socket.off("menu:updated", handleMenuUpdated);
+      socket.off("menu:deleted", handleMenuDeleted);
+    };
+  }, [
+    socket,
+    connected,
+    validTableIds,
+    handleOrderCreated,
+    handleOrderUpdated,
+    handleOrderDeleted,
+    handleMenuCreated,
+    handleMenuUpdated,
+    handleMenuDeleted,
+  ]);
+
+  // Memoize filtered menu items to avoid recalculation on every render
+  const filteredMenuItems = useMemo(() => {
+    return activeCategory === "Todos"
       ? menuItems
       : menuItems.filter(
           (item) => (item.category || "outros") === activeCategory
         );
+  }, [menuItems, activeCategory]);
 
-  // Add item to cart
-  const addToCart = async (item: MenuItem) => {
-    setAddingToCart(item.$id);
+  // Memoize add to cart function
+  const addToCart = useCallback(async (item: MenuItem) => {
+    setAddingToCart(item.$id || item.id);
 
     // Small delay for visual feedback
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -312,12 +530,12 @@ export default function PedidoPage({
     if (window.innerWidth <= 768) {
       setCartSidebarOpen(true);
     }
-  };
+  }, []);
 
-  // Remove item from cart
-  const removeFromCart = (index: number) => {
+  // Memoize remove from cart function
+  const removeFromCart = useCallback((index: number) => {
     setCartItems((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
   // Open note modal
   const openNoteModal = (index: number) => {
@@ -340,42 +558,51 @@ export default function PedidoPage({
     setTempNote("");
   };
 
-  // Calculate total
-  const total = cartItems.reduce((sum, item) => sum + (item.preco || 0), 0);
+  // Memoize total calculation
+  const total = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + (item.preco || 0), 0);
+  }, [cartItems]);
 
   // Confirm order
   const confirmOrder = async () => {
     if (cartItems.length === 0) {
+      console.error("No items in cart");
+      return;
+    }
+
+    if (validTableIds.length === 0) {
+      console.error("No valid table IDs available");
+      alert("Error: No valid tables selected");
       return;
     }
 
     try {
       setIsOrderSubmitting(true);
 
-      // Create individual order documents for each item
-      const orderPromises = cartItems.map((item) =>
-        databases.createDocument(DBRESTAURANTE, COL_ORDERS, "unique()", {
-          status: "pendente",
-          criadoEm: new Date().toLocaleString("pt-PT", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-          }),
-          staffID: user?.$id,
-          paid: false,
-          total: item.preco || 0,
-          numeroMesa: validTables,
-          menu_id: item.$id,
-          notes: item.notes || "",
-        })
-      );
+      // Create batch order request with proper table IDs and prices
+      const orderData = {
+        orders: cartItems.map((item) => ({
+          table_id: validTableIds, // Use table IDs instead of table numbers
+          menu_item_id: item.$id || item.id,
+          notas: item.notes || "",
+          price: item.preco || 0, // Include price as required by API
+        })),
+      };
 
-      // Execute all order creations in parallel for better performance
-      await Promise.all(orderPromises);
+      console.log("Valid table IDs:", validTableIds);
+      console.log(
+        "Cart items:",
+        cartItems.map((item) => ({
+          name: item.nome,
+          id: item.$id || item.id,
+        }))
+      );
+      console.log("Sending order data:", JSON.stringify(orderData, null, 2)); // Debug log
+
+      await apiRequest("/orders/batch", {
+        method: "POST",
+        body: JSON.stringify(orderData),
+      });
 
       console.log(
         `Successfully created ${
@@ -386,7 +613,7 @@ export default function PedidoPage({
       // Show success for 2 seconds then redirect
       setOrderSuccess(true);
       setTimeout(() => {
-        router.push("/testedash");
+        router.push("/pagina-teste-new");
       }, 2000);
     } catch (error) {
       console.error("Error creating order:", error);
@@ -397,7 +624,7 @@ export default function PedidoPage({
 
   // Cancel and go back
   const cancelOrder = () => {
-    router.push("/testedash");
+    router.push("/pagina-teste-new");
   };
 
   // Loading spinner component
@@ -418,8 +645,34 @@ export default function PedidoPage({
   // Main loading state
   if (loading || isLoading) {
     return (
-      <div className="dashboard">
-        <Header />
+      <div className="dashboard fade-in">
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: -1,
+          }}
+        >
+          <div className="relative bg-white text-black min-h-screen">
+            <BackgroundBeams pathCount={20} />
+          </div>
+        </div>
+
+        <Header
+          activeNavItem={activeNavItem}
+          onNavClick={handleNavClick}
+          user={user}
+          username={username}
+          userLabels={userLabels}
+          profileImg={profileImg}
+          isManager={isManager}
+          currentView="staff"
+          showViewToggle={false}
+        />
+
         <div className="order-page">
           <div className="order-main">
             <div className="order-header">
@@ -461,24 +714,34 @@ export default function PedidoPage({
     );
   }
 
-  if (loading || isLoading) {
-    return (
+  return (
+    <div className="dashboard fade-in">
       <div
         style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          zIndex: -1,
         }}
       >
-        Carregando...
+        <div className="relative bg-white text-black min-h-screen">
+          <BackgroundBeams pathCount={20} />
+        </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="dashboard">
-      <Header />
+      <Header
+        activeNavItem={activeNavItem}
+        onNavClick={handleNavClick}
+        user={user}
+        username={username}
+        userLabels={userLabels}
+        profileImg={profileImg}
+        isManager={isManager}
+        currentView="staff"
+        showViewToggle={false}
+      />
 
       {/* Loading overlay for order submission */}
       {(isOrderSubmitting || orderSuccess) && (
@@ -501,237 +764,438 @@ export default function PedidoPage({
         </div>
       )}
 
-      <div
-        className="order-page"
-        style={{
-          pointerEvents: isOrderSubmitting || orderSuccess ? "none" : "auto",
-        }}
-      >
-        {/* Main Content */}
-        <main className="order-main">
-          {/* Header with selected tables */}
-          <div className="order-header">
-            <button onClick={cancelOrder} className="back-button">
-              <ArrowLeft size={20} />
-            </button>
-            <h1>
-              Novo Pedido - Mesa{validTables.length > 1 ? "s" : ""}{" "}
-              {validTables.join(", ")}
-            </h1>
-          </div>
-
-          {/* Category Tabs */}
-          <div className="category-tabs">
-            {menuLoading ? (
-              <div className="category-loading">
-                <LoadingSpinner size={16} />
-                <span>A atualizar menu...</span>
-              </div>
-            ) : (
-              categories.map((category) => (
-                <button
-                  key={category}
-                  className={`category-tab ${
-                    activeCategory === category ? "active" : ""
-                  }`}
-                  onClick={() => setActiveCategory(category)}
-                  disabled={menuLoading}
-                >
-                  {category}
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* Menu Items Grid */}
-          <div className="menu-grid">
-            {menuLoading ? (
-              Array.from({ length: 6 }).map((_, index) => (
-                <MenuItemSkeleton key={`skeleton-${index}`} />
-              ))
-            ) : filteredMenuItems.length === 0 ? (
-              <div className="menu-empty">
-                <UtensilsCrossed size={48} />
-                <h3>Nenhum item encontrado</h3>
-                <p>Não há itens disponíveis nesta categoria</p>
-              </div>
-            ) : (
-              filteredMenuItems.map((item) => (
-                <div
-                  key={item.$id}
-                  className={`menu-item-card ${
-                    addingToCart === item.$id ? "loading" : ""
-                  }`}
-                  onClick={() => addToCart(item)}
-                >
-                  <div className="menu-item-image">
-                    {addingToCart === item.$id ? (
-                      <LoadingSpinner size={24} />
-                    ) : (
-                      <UtensilsCrossed size={40} />
-                    )}
-                  </div>
-                  <div className="menu-item-info">
-                    <h3>{item.nome}</h3>
-                    <p className="menu-item-description">
-                      {item.description || "Deliciosa opção do nosso menu"}
-                    </p>
-                    <div className="menu-item-price">
-                      €{(item.preco || 0).toFixed(2)}
-                    </div>
-                    {item.category && (
-                      <div className="menu-item-category">{item.category}</div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </main>
-
-        {/* Mobile Cart Toggle Button */}
-        <button
-          className="mobile-cart-toggle"
-          onClick={() => setCartSidebarOpen(!cartSidebarOpen)}
+      <main className="main-content fade-in-delayed">
+        <div
+          className="order-page"
+          style={{
+            pointerEvents: isOrderSubmitting || orderSuccess ? "none" : "auto",
+          }}
         >
-          <ShoppingCart size={24} />
-          {cartItems.length > 0 && (
-            <span className="mobile-cart-badge">{cartItems.length}</span>
-          )}
-        </button>
+          {/* Main Content */}
+          <div className="order-main">
+            {/* Header with selected tables */}
+            <div className="order-header">
+              <button onClick={cancelOrder} className="back-button">
+                <ArrowLeft size={20} />
+              </button>
+              <h1 className="page-title slide-in-up">
+                Novo Pedido - Mesa{validTables.length > 1 ? "s" : ""}{" "}
+                {validTables.join(", ")}
+              </h1>
+            </div>
 
-        {/* Mobile Cart Overlay */}
-        {cartSidebarOpen && (
+            {/* Category Tabs */}
+            <div className="category-tabs fade-in-delayed">
+              {menuLoading ? (
+                <div className="category-loading">
+                  <LoadingSpinner size={16} />
+                  <span>A atualizar menu...</span>
+                </div>
+              ) : (
+                categories.map((category) => (
+                  <button
+                    key={category}
+                    className={`category-tab scale-in ${
+                      activeCategory === category ? "active" : ""
+                    }`}
+                    onClick={() => setActiveCategory(category)}
+                    disabled={menuLoading}
+                  >
+                    {category}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Menu Items Grid */}
+            <div className="menu-grid slide-in-up">
+              {menuLoading ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <MenuItemSkeleton key={`skeleton-${index}`} />
+                ))
+              ) : filteredMenuItems.length === 0 ? (
+                <div className="menu-empty">
+                  <UtensilsCrossed size={48} />
+                  <h3>Nenhum item encontrado</h3>
+                  <p>Não há itens disponíveis nesta categoria</p>
+                </div>
+              ) : (
+                filteredMenuItems.map((item) => {
+                  const imageUrl = item.image_id
+                    ? getImageUrl(item.image_id)
+                    : null;
+                  const itemId = item.$id || item.id;
+                  return (
+                    <div
+                      key={itemId}
+                      className={`menu-item-card scale-in ${
+                        addingToCart === itemId ? "loading" : ""
+                      }`}
+                      onClick={() => addToCart(item)}
+                    >
+                      {/* Image - inset style thumbnail */}
+                      <div className="menu-item-image">
+                        {addingToCart === itemId ? (
+                          <LoadingSpinner size={24} />
+                        ) : imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={item.nome}
+                            className="menu-image"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                              const parent = (e.target as HTMLElement)
+                                .parentElement;
+                              if (parent) {
+                                const fallback = parent.querySelector(
+                                  ".no-image-placeholder"
+                                );
+                                if (fallback)
+                                  (fallback as HTMLElement).style.display =
+                                    "flex";
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className="no-image-placeholder"
+                          style={{ display: imageUrl ? "none" : "flex" }}
+                        >
+                          <UtensilsCrossed size={32} />
+                        </div>
+                      </div>
+
+                      {/* Info - vertical card layout */}
+                      <div className="menu-item-info">
+                        <div className="menu-item-details">
+                          <h3>{item.nome}</h3>
+                          {item.category && (
+                            <span className="menu-item-category">
+                              {item.category}
+                            </span>
+                          )}
+                          {item.tags && item.tags.length > 0 && (
+                            <div className="menu-item-tags">
+                              {item.tags.map((tag, idx) => (
+                                <span key={idx} className="tag">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="menu-item-price">
+                          €{(item.preco || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Cart Toggle Button */}
+          <button
+            className="mobile-cart-toggle"
+            onClick={() => setCartSidebarOpen(!cartSidebarOpen)}
+          >
+            <ShoppingCart size={24} />
+            {cartItems.length > 0 && (
+              <span className="mobile-cart-badge">{cartItems.length}</span>
+            )}
+          </button>
+
+          {/* Cart Overlay */}
           <div
-            className="mobile-cart-overlay"
+            className={`mobile-cart-overlay ${cartSidebarOpen ? "active" : ""}`}
             onClick={() => setCartSidebarOpen(false)}
           />
-        )}
 
-        {/* Shopping Cart Sidebar */}
-        <aside
-          className={`cart-sidebar ${
-            cartSidebarOpen ? "cart-sidebar--open" : ""
-          }`}
-        >
-          <div className="cart-header">
-            <ShoppingCart size={20} />
-            <h2>Carrinho</h2>
-            <span className="cart-count">{cartItems.length}</span>
+          {/* Shopping Cart Sidebar */}
+          <aside
+            className={`cart-sidebar ${
+              cartSidebarOpen ? "cart-sidebar--open" : ""
+            }`}
+          >
+            <div className="cart-header">
+              <ShoppingCart size={20} />
+              <h2>Carrinho</h2>
+              <span className="cart-count">{cartItems.length}</span>
 
-            {/* Mobile close button */}
-            <button
-              className="mobile-cart-close"
-              onClick={() => setCartSidebarOpen(false)}
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="cart-items">
-            {cartItems.map((item, index) => (
-              <div key={`${item.$id}-${index}`} className="cart-item">
-                <div className="cart-item-info">
-                  <h4>{item.nome}</h4>
-                  <div className="cart-item-price">
-                    €{(item.preco || 0).toFixed(2)}
-                  </div>
-                  {item.notes && (
-                    <div className="cart-item-notes">
-                      <MessageSquare size={12} />
-                      {item.notes}
-                    </div>
-                  )}
-                </div>
-                <div className="cart-item-actions">
-                  <button
-                    onClick={() => openNoteModal(index)}
-                    className="note-button"
-                    title="Adicionar nota"
-                  >
-                    <MessageSquare size={16} />
-                  </button>
-                  <button
-                    onClick={() => removeFromCart(index)}
-                    className="remove-button"
-                    title="Remover item"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {cartItems.length === 0 && (
-            <div className="cart-empty">
-              <p>Carrinho vazio</p>
-              <p>Selecione itens do menu</p>
-            </div>
-          )}
-
-          {/* Cart Footer */}
-          <div className="cart-footer">
-            <div className="cart-total">
-              <strong>Total: €{total.toFixed(2)}</strong>
-            </div>
-            <div className="cart-actions">
+              {/* Mobile close button */}
               <button
-                onClick={cancelOrder}
-                className="cancel-button"
-                title="Cancelar"
+                className="mobile-cart-close"
+                onClick={() => setCartSidebarOpen(false)}
               >
                 <X size={20} />
               </button>
-              <button
-                onClick={confirmOrder}
-                className="confirm-button"
-                disabled={cartItems.length === 0 || isOrderSubmitting}
-                title="Confirmar Pedido"
-              >
-                {isOrderSubmitting ? (
-                  <>
-                    <LoadingSpinner size={20} />A processar...
-                  </>
-                ) : (
-                  <>
-                    <Check size={20} />
-                    Confirmar
-                  </>
-                )}
-              </button>
             </div>
-          </div>
-        </aside>
 
-        {/* Note Modal */}
-        {noteModalOpen !== null && (
-          <div className="modal-overlay">
-            <div className="note-modal">
-              <h3>
-                <MessageSquare size={20} style={{ marginRight: "8px" }} />
-                Adicionar Nota
-              </h3>
-              <textarea
-                value={tempNote}
-                onChange={(e) => setTempNote(e.target.value)}
-                placeholder="Nota para o chef (ex: sem cebola, bem passado, etc.)..."
-                rows={4}
-              />
-              <div className="note-modal-actions">
-                <button onClick={() => setNoteModalOpen(null)}>
-                  <X size={16} />
-                  Cancelar
+            <div className="cart-items">
+              {cartItems.map((item, index) => {
+                const itemId = item.$id || item.id;
+                const imageUrl = getImageUrl(item.image_id);
+                return (
+                  <div key={`${itemId}-${index}`} className="cart-item">
+                    {/* Image Container */}
+                    <div className="cart-item-image-container">
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={item.nome}
+                          className="cart-item-image"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                            const nextSibling = (e.target as HTMLElement)
+                              .nextSibling as HTMLElement;
+                            if (nextSibling) {
+                              nextSibling.style.display = "flex";
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="no-image-placeholder"
+                        style={{
+                          display: imageUrl ? "none" : "flex",
+                        }}
+                      >
+                        <UtensilsCrossed size={24} />
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="cart-item-content">
+                      <div className="cart-item-info">
+                        {/* Title and Price */}
+                        <div className="title-price-row">
+                          <h4>{item.nome}</h4>
+                          <span className="price">
+                            €{(item.preco || 0).toFixed(2)}
+                          </span>
+                        </div>
+
+                        {/* Description */}
+                        {item.description && (
+                          <p className="description">{item.description}</p>
+                        )}
+
+                        {/* Category */}
+                        {item.category && (
+                          <div style={{ marginBottom: "8px" }}>
+                            <span className="category-tag">
+                              {item.category}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Notes */}
+                        {item.notes && (
+                          <div className="cart-item-notes">
+                            <MessageSquare size={12} />
+                            {item.notes}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="action-buttons">
+                        <button
+                          onClick={() => openNoteModal(index)}
+                          className="edit-btn"
+                          title="Adicionar nota"
+                        >
+                          <MessageSquare size={14} />
+                          Nota
+                        </button>
+                        <button
+                          onClick={() => removeFromCart(index)}
+                          className="delete-btn"
+                          title="Remover item"
+                        >
+                          <Trash2 size={14} />
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {cartItems.length === 0 && (
+              <div className="cart-empty">
+                <p>Carrinho vazio</p>
+                <p>Selecione itens do menu</p>
+              </div>
+            )}
+
+            {/* Cart Footer */}
+            <div className="cart-footer">
+              <div className="cart-total">
+                <strong>Total: €{total.toFixed(2)}</strong>
+              </div>
+              <div className="cart-actions">
+                <button
+                  onClick={cancelOrder}
+                  className="cancel-button"
+                  title="Cancelar"
+                >
+                  <X size={20} />
                 </button>
-                <button onClick={saveNote}>
-                  <Check size={16} />
-                  Guardar
+                <button
+                  onClick={confirmOrder}
+                  className="confirm-button"
+                  disabled={cartItems.length === 0 || isOrderSubmitting}
+                  title="Confirmar Pedido"
+                >
+                  {isOrderSubmitting ? (
+                    <>
+                      <LoadingSpinner size={20} />A processar...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={20} />
+                      Confirmar
+                    </>
+                  )}
                 </button>
               </div>
             </div>
+          </aside>
+        </div>
+      </main>
+
+      {/* Note Modal - moved outside order-page to avoid pointer-events issues */}
+      {noteModalOpen !== null && (
+        <div
+          className="modal-overlay"
+          onClick={() => setNoteModalOpen(null)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999999,
+            pointerEvents: "auto",
+          }}
+        >
+          <div
+            className="note-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "8px",
+              padding: "24px",
+              width: "90%",
+              maxWidth: "500px",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+              pointerEvents: "auto",
+              position: "relative",
+              zIndex: 1000000,
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <MessageSquare size={20} />
+              Adicionar Nota
+            </h3>
+            <textarea
+              value={tempNote}
+              onChange={(e) => setTempNote(e.target.value)}
+              placeholder="Nota para o chef (ex: sem cebola, bem passado, etc.)..."
+              rows={4}
+              autoFocus
+              style={{
+                width: "100%",
+                padding: "12px",
+                border: "1px solid #e9ecef",
+                borderRadius: "6px",
+                fontSize: "14px",
+                fontFamily: "inherit",
+                resize: "vertical",
+                minHeight: "100px",
+                marginBottom: "16px",
+                pointerEvents: "auto",
+                userSelect: "text",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={() => setNoteModalOpen(null)}
+                style={{
+                  padding: "12px 16px",
+                  border: "none",
+                  borderRadius: "6px",
+                  backgroundColor: "#6c757d",
+                  color: "white",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  pointerEvents: "auto",
+                }}
+              >
+                <X size={16} />
+                Cancelar
+              </button>
+              <button
+                onClick={saveNote}
+                style={{
+                  padding: "12px 16px",
+                  border: "none",
+                  borderRadius: "6px",
+                  backgroundColor: "#ff6b35",
+                  color: "white",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  pointerEvents: "auto",
+                }}
+              >
+                <Check size={16} />
+                Guardar
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Wrap the component with WebSocketProvider
+export default function PedidoPage({
+  params,
+}: {
+  params: Promise<{ mesas?: string[] }>;
+}) {
+  return (
+    <WebSocketProvider>
+      <PedidoPageContent params={params} />
+    </WebSocketProvider>
   );
 }

@@ -1,468 +1,230 @@
-@import url(https://fonts.googleapis.com/css?family=Manrope:200,300,regular,500,600,700,800);
+"use client";
 
-.placeholder-content {
-  padding: 32px;
-  text-align: center;
-  color: #64748b;
+import { useState, useEffect } from "react";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Menu } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMediaQuery } from "react-responsive";
+import { useApp } from "@/contexts/AppContext";
 
-  h2 {
-    margin-bottom: 16px;
-    color: #374151;
-  }
+export default function LoginPage() {
+  const router = useRouter();
+  const { account, user, setUser } = useApp();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const isMobile = useMediaQuery({ maxWidth: 640 });
 
-  p {
-    margin: 0;
-  }
-}
+  useEffect(() => {
+    setMounted(true);
+    if (isMobile) router.push("/unsupported");
+  }, [router, isMobile]);
 
-.dashboard {
-  display: flex;
-  height: 100vh;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  font-family: "Manrope", sans-serif;
-}
-
-// Sidebar
-.sidebar {
-  width: 280px;
-  background: white;
-  border-right: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 0;
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 24px;
-    margin-bottom: 24px;
-    font-weight: 800;
-    font-size: 24px;
-    color: #111827;
-
-    img {
-      width: 30px;
-      height: 30px;
+  useEffect(() => {
+    if (user) {
+      router.push("/");
     }
-  }
+  }, [user, router]);
 
-  .separator-container {
-    width: 100%;
-    padding: 0 24px;
-    .separator {
-      height: 1px;
-      background: #e5e7eb;
-      margin-bottom: 24px;
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await account.createEmailPasswordSession(email.trim(), password);
+      const loggedUser = await account.get();
+      setUser(loggedUser);
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      setError("Login falhou. Verifique os seus dados.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  .nav-section {
-    margin-bottom: 32px;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden font-['Manrope']">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:32px_32px] opacity-60" />
+      
+      {/* Gradient Orbs */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-indigo-400/20 to-cyan-400/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
 
-    h3 {
-      padding: 0 24px;
-      margin-bottom: 16px;
-      font-size: 12px;
-      font-weight: 500;
-      text-transform: uppercase;
-      color: #6b7280;
-      letter-spacing: 0.05em;
-    }
+      <div className="relative z-10 min-h-screen flex">
+        {/* Left Side - Branding */}
+        <div className="hidden lg:flex lg:w-1/2 bg-white/80 backdrop-blur-sm border-r border-gray-200/80 flex-col justify-center px-16">
+          <div className="max-w-md">
+            {/* Logo */}
+            <div className="flex items-center gap-3 mb-12">
+              <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
+                <Menu className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-3xl font-bold text-gray-900">Mesa+</span>
+            </div>
 
-    nav {
-      .nav-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 24px;
-        color: #6b7280;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        position: relative;
+            {/* Hero Content */}
+            <div className="space-y-6">
+              <h1 className="text-4xl font-bold text-gray-900 leading-tight">
+                Bem-vindo de volta ao
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> Mesa+</span>
+              </h1>
+              <p className="text-lg text-gray-600 leading-relaxed">
+                Gerencie seu restaurante com facilidade. Monitore mesas, pedidos e muito mais em tempo real.
+              </p>
+            </div>
 
-        &:hover {
-          background: #f9fafb;
-          color: #374151;
-        }
+            {/* Features */}
+            <div className="mt-12 space-y-4">
+              {[
+                "Monitorização em tempo real",
+                "Gestão inteligente de mesas",
+                "Relatórios detalhados"
+              ].map((feature, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                  <span className="text-gray-700 font-medium">{feature}</span>
+                </div>
+              ))}
+            </div>
 
-        &.active {
-          background: #f3f4f6;
-          color: #0d0425;
-          font-weight: 600;
-          overflow: hidden;
+            {/* Status */}
+            <div className="mt-16 flex items-center gap-2 text-sm text-gray-500">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>Todos os sistemas operacionais</span>
+            </div>
+          </div>
+        </div>
 
-          &::before {
-            content: "";
-            position: absolute;
-            right: -2px;
-            top: 0;
-            bottom: 0;
-            margin-top: 4px;
-            margin-bottom: 4px;
-            width: 6px;
-            background: #0d0425;
-            border-top-left-radius: 8px;
-            border-bottom-left-radius: 8px;
-          }
-        }
-      }
-    }
-  }
+        {/* Right Side - Login Form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+          <div
+            className={`w-full max-w-md transition-all duration-1000 ease-out ${
+              mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
+          >
+            {/* Mobile Logo */}
+            <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+              <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+                <Menu className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-2xl font-bold text-gray-900">Mesa+</span>
+            </div>
 
-  .workspace-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 0 24px;
+            {/* Login Card */}
+            <div className="bg-white/90 backdrop-blur-sm border border-gray-200/80 rounded-2xl p-8 shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.05),0_12px_24px_rgba(0,0,0,0.05)]">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Iniciar Sessão
+                </h2>
+                <p className="text-gray-600">
+                  Entre na sua conta para continuar
+                </p>
+              </div>
 
-    .workspace-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 8px;
-    }
+              {/* Form */}
+              <form onSubmit={handleLogin} className="space-y-6">
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      placeholder="O seu email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full h-12 pl-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    />
+                    <Mail className="absolute right-3 top-3.5 h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
 
-    .workspace-items {
-      .workspace-subitem {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px 0;
-        font-size: 13px;
-        color: #6b7280;
-        cursor: pointer;
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="A sua password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full h-12 pl-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
 
-        &:hover {
-          color: #374151;
-        }
+                {/* Error Message */}
+                {error && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <p className="text-red-700 text-sm font-medium">{error}</p>
+                  </div>
+                )}
 
-        .badge {
-          background: #0d0425;
-          color: white;
-          border-radius: 12px;
-          padding: 2px 6px;
-          font-size: 10px;
-          font-weight: 600;
-        }
-      }
-    }
-  }
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:from-blue-700 focus:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 group shadow-lg shadow-blue-500/25"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>A entrar...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Entrar</span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
+                    </>
+                  )}
+                </button>
+              </form>
 
-  .user-profile {
-    margin-top: auto;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid #e5e7eb;
+              {/* Forgot Password */}
+              <div className="text-center mt-6">
+                <button className="text-sm text-gray-600 hover:text-blue-600 transition-colors duration-200">
+                  Esqueceu-se da password?
+                </button>
+              </div>
+            </div>
 
-    .user-avatar img {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-    }
+            {/* Footer */}
+            <div className="text-center mt-8">
+              <p className="text-xs text-gray-500">
+                © 2025 Mesa+. Todos os direitos reservados.
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Feito por João Monteiro
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-    .user-info {
-      flex: 1;
-
-      .user-name {
-        font-size: 14px;
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 2px;
-      }
-
-      .user-email {
-        font-size: 12px;
-        color: #6b7280;
-      }
-    }
-
-    .user-menu {
-      color: #6b7280;
-      cursor: pointer;
-    }
-  }
-}
-
-// Main Content
-.main-content {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: white;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 32px;
-  background: white;
-  border-bottom: 1px solid #f1f5f9;
-  min-height: 80px;
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-
-    .header-title-section {
-      .page-title {
-        font-size: 28px;
-        font-weight: 700;
-        color: #0f172a;
-        margin: 0 0 4px 0;
-        line-height: 1.2;
-      }
-
-      .page-subtitle {
-        font-size: 14px;
-        color: #64748b;
-        margin: 0;
-        font-weight: 400;
-      }
-    }
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-
-      .action-btn {
-        position: relative;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 10px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        color: #64748b;
-
-        &:hover {
-          background: #f1f5f9;
-          border-color: #cbd5e1;
-          color: #475569;
-        }
-
-        &.notification-btn {
-          .notification-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: 600;
-            border: 2px solid white;
-          }
-        }
-      }
-
-      .header-divider {
-        width: 1px;
-        height: 32px;
-        background: #e2e8f0;
-      }
-
-      .user-section {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-
-        .user-profile-header img {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
-          border: 2px solid #f1f5f9;
-        }
-
-        .user-info-header {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-
-          .user-name-header {
-            font-size: 14px;
-            font-weight: 600;
-            color: #0f172a;
-          }
-
-          .date {
-            font-size: 12px;
-            color: #64748b;
-            font-weight: 500;
-          }
-        }
-      }
-
-      .create-btn {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 12px 20px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-
-        &:hover {
-          background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-        }
-
-        &:active {
-          transform: translateY(0);
-        }
-      }
-    }
-  }
-}
-
-// Interview Table
-.interview-table {
-  background: white;
-  border-radius: 12px;
-  margin: 24px 32px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border: 1px solid #f1f5f9;
-
-  .table-header {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.5fr 1.5fr 1fr 1fr 60px;
-    gap: 24px;
-    padding: 16px 24px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 12px;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .table-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.5fr 1.5fr 1fr 1fr 60px;
-    gap: 24px;
-    padding: 20px 24px;
-    border-bottom: 1px solid #f8fafc;
-    align-items: center;
-    font-size: 14px;
-    transition: all 0.2s ease;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &:hover {
-      background: #f8fafc;
-    }
-
-    .col-name {
-      font-weight: 600;
-      color: #0f172a;
-    }
-
-    .col-round {
-      color: #64748b;
-    }
-
-    .interviewer-avatars {
-      display: flex;
-      align-items: center;
-
-      img {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: 2px solid white;
-        margin-left: -6px;
-
-        &:first-child {
-          margin-left: 0;
-        }
-      }
-
-      .more-count {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: #f1f5f9;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 600;
-        color: #64748b;
-        margin-left: -6px;
-        border: 2px solid white;
-      }
-    }
-
-    .col-applicants {
-      color: #64748b;
-    }
-
-    .col-questions {
-      color: #64748b;
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      font-weight: 500;
-
-      &.complete {
-        color: #059669;
-      }
-
-      &.cancelled {
-        color: #dc2626;
-      }
-
-      &.in-progress {
-        color: #2563eb;
-      }
-    }
-
-    .col-action {
-      display: flex;
-      justify-content: center;
-
-      svg {
-        color: #cbd5e1;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover {
-          color: #64748b;
-        }
-      }
-    }
-  }
+      <style jsx>{`
+        @import url('https://fonts.googleapis.com/css?family=Manrope:200,300,regular,500,600,700,800');
+      `}</style>
+    </div>
+  );
 }

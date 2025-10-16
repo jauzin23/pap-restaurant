@@ -50,10 +50,66 @@ import {
 import { Query } from "appwrite";
 
 export default function RestaurantDashboard() {
+  // Add these helper functions after your imports in testedash/page.jsx
+
+  // Helper function to get time-based class for orders
+  const getTimeClass = (order) => {
+    if (!order.$createdAt) return "time-normal";
+
+    const now = new Date();
+    const created = new Date(order.$createdAt);
+    const minutesAgo = Math.floor((now.getTime() - created.getTime()) / 60000);
+
+    if (minutesAgo < 15) return "time-recent";
+    if (minutesAgo < 30) return "time-normal";
+    if (minutesAgo < 60) return "time-warning";
+    return "time-urgent";
+  };
+
+  // Helper function to format order time display
+  const getOrderTime = (order) => {
+    if (!order.$createdAt) return "Sem data";
+
+    const now = new Date();
+    const created = new Date(order.$createdAt);
+    const minutesAgo = Math.floor((now.getTime() - created.getTime()) / 60000);
+
+    if (minutesAgo < 1) return "Agora mesmo";
+    if (minutesAgo < 60) return `${minutesAgo} min`;
+
+    const hoursAgo = Math.floor(minutesAgo / 60);
+    const remainingMinutes = minutesAgo % 60;
+
+    if (hoursAgo < 24) {
+      return remainingMinutes === 0
+        ? `${hoursAgo}h`
+        : `${hoursAgo}h ${remainingMinutes}min`;
+    }
+
+    const daysAgo = Math.floor(hoursAgo / 24);
+    return `${daysAgo}d`;
+  };
+
+  // Always destructure useApp first
+  const { user, loading, account, client } = useApp();
+  const isManager = user?.tags?.includes("manager");
   const [activeNav, setActiveNav] = useState("MESAS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, loading, account, client } = useApp();
   const router = useRouter();
+
+  // Debug: log user tags from Appwrite
+  useEffect(() => {
+    if (user) {
+      console.log("User tags:", user.tags);
+    }
+  }, [user]);
+
+  // Ensure correct initial tab for manager after user loads
+  useEffect(() => {
+    if (user && isManager) {
+      setActiveNav("MANAGER");
+    }
+  }, [user, isManager]);
 
   // Daily statistics state
   const [dailyStats, setDailyStats] = useState({
@@ -166,12 +222,13 @@ export default function RestaurantDashboard() {
   }, []);
 
   const navItems = [
+    isManager && { name: "MANAGER", color: "#6366f1", icon: Crown },
     { name: "MESAS", color: "#10b981", icon: TableProperties },
     { name: "MENU", color: "#3b82f6", icon: Menu },
     { name: "STOCK", color: "#8b5cf6", icon: Package },
     { name: "RESERVAS", color: "#ef4444", icon: Calendar },
     { name: "CHAT", color: "#f59e0b", icon: MessageSquare },
-  ];
+  ].filter(Boolean);
 
   // Function to get today's date in ISO format for Appwrite query
   const getTodayDateRange = () => {
@@ -295,14 +352,7 @@ export default function RestaurantDashboard() {
   const getImageUrl = (imageId) => {
     if (!imageId || imageId === "undefined" || imageId === "null") return null;
     try {
-      const imageUrl = storage.getFilePreview(
-        BUCKET_MENU_IMG,
-        imageId,
-        100, // Smaller size for order items
-        100,
-        "center",
-        90
-      );
+      const imageUrl = storage.getFilePreview(BUCKET_MENU_IMG, imageId);
       return imageUrl;
     } catch (error) {
       console.error("Error getting image URL for", imageId, ":", error);
@@ -442,39 +492,7 @@ export default function RestaurantDashboard() {
       }
     }
   };
-
-  // Get display time based on order status
-  const getOrderTime = (order) => {
-    if (order.status === "concluido" && order.concluidoEm) {
-      return `Concluído: ${order.concluidoEm}`;
-    } else {
-      return getTimeElapsed(order.$createdAt);
-    }
-  };
-
-  // Get time class for styling based on elapsed time and status
-  const getTimeClass = (order) => {
-    if (order.status === "concluido") {
-      return "time-completed";
-    }
-
-    if (!order.$createdAt) return "";
-
-    const now = new Date();
-    const orderTime = new Date(order.$createdAt);
-    const diffMs = now - orderTime;
-    const minutes = Math.floor(diffMs / (1000 * 60));
-
-    if (minutes < 15) {
-      return "time-recent"; // Green - less than 15 minutes
-    } else if (minutes < 30) {
-      return "time-medium"; // Amber - 15-30 minutes
-    } else {
-      return "time-urgent"; // Red - more than 30 minutes
-    }
-  };
-
-  // Loading spinner component
+  // ...existing code...
   const LoadingSpinner = ({ size = 24 }) => (
     <Loader2 size={size} className="loading-spinner" />
   );
@@ -678,10 +696,8 @@ export default function RestaurantDashboard() {
                             className={`order-item ${
                               isEditing ? "editing-notes" : ""
                             }`}
-                            style={{
-                              border: imageUrl ? "none" : "1px solid #e2e8f0",
-                            }}
                           >
+                            {/* Image Section */}
                             <div className="order-item-image">
                               {imageUrl ? (
                                 <img
@@ -690,40 +706,30 @@ export default function RestaurantDashboard() {
                                   className="order-image"
                                   onError={(e) => {
                                     e.target.style.display = "none";
-                                    e.target.nextSibling.style.display = "flex";
+                                    // Show placeholder when image fails to load
+                                    const placeholder =
+                                      e.target.parentElement.querySelector(
+                                        ".no-image-placeholder"
+                                      );
+                                    if (placeholder) {
+                                      placeholder.style.display = "flex";
+                                    }
                                   }}
                                 />
                               ) : null}
+
                               <div
                                 className="no-image-placeholder"
                                 style={{
                                   display: imageUrl ? "none" : "flex",
-                                  width: "120px",
-                                  height: "100%",
-                                  minHeight: "100px",
-                                  backgroundColor: "#f8fafc",
-                                  border: "none",
-                                  borderRight: "2px dashed #d1d5db",
-                                  borderRadius: "12px 0 0 12px",
-                                  flexDirection: "column",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "#9ca3af",
-                                  gap: "8px",
                                 }}
                               >
                                 <UtensilsCrossed size={32} />
-                                <span
-                                  style={{
-                                    fontSize: "12px",
-                                    textAlign: "center",
-                                  }}
-                                >
-                                  Sem imagem
-                                </span>
+                                <span>Sem imagem</span>
                               </div>
                             </div>
 
+                            {/* Info Section */}
                             <div className="order-item-info">
                               <h4>{menuItem?.nome || "Item não encontrado"}</h4>
                               <div className="order-item-price">
@@ -738,64 +744,68 @@ export default function RestaurantDashboard() {
                                 {getOrderTime(order)}
                               </div>
 
-                              {/* Notes section */}
-                              <div className="notes-section">
-                                {isEditing ? (
-                                  <div className="note-editor">
-                                    <textarea
-                                      value={tempNote}
-                                      onChange={(e) =>
-                                        setTempNote(e.target.value)
-                                      }
-                                      placeholder="Adicionar nota..."
-                                      rows={3}
-                                    />
-                                    <div className="note-actions">
-                                      <button
-                                        onClick={() => {
-                                          updateOrderNotes(order.$id, tempNote);
-                                          setEditingNote(null);
-                                          setTempNote("");
-                                        }}
-                                        className="save-note"
-                                      >
-                                        <CheckCircle size={16} />
-                                        Guardar
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setEditingNote(null);
-                                          setTempNote("");
-                                        }}
-                                        className="cancel-note"
-                                      >
-                                        <X size={16} />
-                                        Cancelar
-                                      </button>
+                              {/* Notes section - only show if there are notes or editing */}
+                              {(order.notes || isEditing) && (
+                                <div
+                                  className={`notes-section ${
+                                    order.notes ? "has-notes" : "no-notes"
+                                  }`}
+                                >
+                                  {isEditing ? (
+                                    <div className="note-editor">
+                                      <textarea
+                                        value={tempNote}
+                                        onChange={(e) =>
+                                          setTempNote(e.target.value)
+                                        }
+                                        placeholder="Adicionar nota..."
+                                        rows={3}
+                                      />
+                                      <div className="note-actions">
+                                        <button
+                                          onClick={() => {
+                                            updateOrderNotes(
+                                              order.$id,
+                                              tempNote
+                                            );
+                                            setEditingNote(null);
+                                            setTempNote("");
+                                          }}
+                                          className="save-note"
+                                        >
+                                          <CheckCircle size={16} />
+                                          Guardar
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setEditingNote(null);
+                                            setTempNote("");
+                                          }}
+                                          className="cancel-note"
+                                        >
+                                          <X size={16} />
+                                          Cancelar
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div className="order-notes-display">
-                                    <div className="notes-header">
-                                      <MessageSquare size={12} />
-                                      <span>Notas</span>
-                                    </div>
-                                    <div className="notes-content">
-                                      {order.notes ? (
+                                  ) : (
+                                    <div className="order-notes-display">
+                                      <div className="notes-header">
+                                        <MessageSquare size={12} />
+                                        <span>Notas</span>
+                                      </div>
+                                      <div className="notes-content">
                                         <span className="note-text">
                                           {order.notes}
                                         </span>
-                                      ) : (
-                                        <span className="no-notes">
-                                          Sem notas
-                                        </span>
-                                      )}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
+                            {/* Actions Section */}
                             <div className="order-item-actions">
                               {/* Status toggle button */}
                               <button
@@ -893,7 +903,7 @@ export default function RestaurantDashboard() {
                       🚧
                     </div>
                     <h3 style={{ fontSize: "18px", marginBottom: "8px" }}>
-                      Coming sun
+                      Coming Soon
                     </h3>
                     <p>Esta secção estará disponível em breve</p>
                   </div>

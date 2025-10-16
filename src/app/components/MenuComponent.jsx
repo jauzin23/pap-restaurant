@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   Edit,
@@ -9,17 +10,9 @@ import {
   RefreshCw,
   Upload,
   ClipboardList,
+  Wand2,
+  Check,
 } from "lucide-react";
-import { useApp } from "@/contexts/AppContext";
-import {
-  DBRESTAURANTE,
-  COL_MENU,
-  COL_TAGS,
-  COL_CATEGORY,
-  databases,
-  storage,
-  BUCKET_MENU_IMG,
-} from "@/lib/appwrite";
 import { Input, Button, Select } from "antd";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
@@ -27,16 +20,53 @@ import "react-advanced-cropper/dist/style.css";
 const { TextArea } = Input;
 import "./MenuComponent.scss";
 
-const DB_ID = DBRESTAURANTE;
-const COLLECTION_ID = COL_MENU;
+// Import auth from your API module
+import { getAuthToken, apiRequest as baseApiRequest } from "@/lib/api";
+import { useWebSocketContext } from "@/contexts/WebSocketContext";
+
+// API Configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+// API helper function that uses your existing auth system
+const apiRequest = async (endpoint, options = {}) => {
+  const token = getAuthToken();
+
+  const defaultOptions = {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      // Handle authentication errors
+      alert("Sessão expirada. Por favor, faça login novamente.");
+      return null;
+    }
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
 
 export default function MenuComponent() {
-  const { databases, client } = useApp();
+  const { socket, connected } = useWebSocketContext();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [authError, setAuthError] = useState(false);
 
   // Collections data
   const [availableTags, setAvailableTags] = useState([]);
@@ -64,35 +94,64 @@ export default function MenuComponent() {
   const [cropImage, setCropImage] = useState(null);
   const [croppedImageBlob, setCroppedImageBlob] = useState(null);
 
+  // Background removal states
+  const [removingBackground, setRemovingBackground] = useState(false);
+  const [backgroundRemovalPreview, setBackgroundRemovalPreview] =
+    useState(null);
+  const [originalImageBeforeRemoval, setOriginalImageBeforeRemoval] =
+    useState(null);
+
+  // Toast notification state
+  const [toast, setToast] = useState(null);
+
   const fileInputRef = useRef(null);
   const cropperRef = useRef(null);
+
+  // Toast notification function
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   // Fetch tags and categories
   const fetchCollections = useCallback(async () => {
     setLoadingCollections(true);
     try {
-      const [tagsRes, categoriesRes] = await Promise.all([
-        databases.listDocuments(DB_ID, COL_TAGS),
-        databases.listDocuments(DB_ID, COL_CATEGORY),
-      ]);
-      setAvailableTags(tagsRes.documents);
-      setAvailableCategories(categoriesRes.documents);
+      const data = await apiRequest("/menu");
+      if (data) {
+        setAvailableTags(data.tags || []);
+        setAvailableCategories(data.category || []);
+        setAuthError(false);
+      } else {
+        // Handle authentication error case
+        setAvailableTags([]);
+        setAvailableCategories([]);
+        setAuthError(true);
+      }
     } catch (err) {
-      console.error("Error fetching collections:", err);
+      setAvailableTags([]);
+      setAvailableCategories([]);
     }
     setLoadingCollections(false);
-  }, [databases]);
+  }, []);
 
   const fetchMenu = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await databases.listDocuments(DB_ID, COLLECTION_ID);
-      setMenuItems(res.documents);
+      const data = await apiRequest("/menu");
+      if (data) {
+        setMenuItems(data.documents || []);
+        setAuthError(false);
+      } else {
+        // Handle authentication error case
+        setMenuItems([]);
+        setAuthError(true);
+      }
     } catch (err) {
-      console.error("Error fetching menu:", err);
+      setMenuItems([]);
     }
     setLoading(false);
-  }, [databases]);
+  }, []);
 
   // Function to get image URL for menu item
   const getImageUrl = useCallback((imageId) => {
@@ -106,20 +165,12 @@ export default function MenuComponent() {
     }
 
     try {
-      const imageUrl = storage.getFilePreview(
-        BUCKET_MENU_IMG,
-        imageId,
-        0, // width - 0 means original width
-        0, // height - 0 means original height
-        "center", // gravity
-        85 // quality - balanced for performance and clarity
-      );
+      const imageUrl = `${API_BASE_URL}/files/imagens-menu/${imageId}`;
 
       // Cache the URL
       imageCache.current.set(cacheKey, imageUrl);
       return imageUrl;
     } catch (error) {
-      console.error("Error getting image URL for", imageId, ":", error);
       return null;
     }
   }, []);
@@ -128,7 +179,8 @@ export default function MenuComponent() {
   const imageUrls = useMemo(() => {
     const urls = {};
     menuItems.forEach((item) => {
-      if (item.image_id) {
+      // Add null check for item and item.image_id
+      if (item && item.image_id) {
         urls[item.$id] = getImageUrl(item.image_id);
       }
     });
@@ -137,6 +189,7 @@ export default function MenuComponent() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    setAuthError(false); // Reset auth error on refresh
     try {
       await Promise.all([fetchMenu(), fetchCollections()]);
     } catch (err) {
@@ -144,37 +197,6 @@ export default function MenuComponent() {
     }
     setRefreshing(false);
   };
-
-  const subscribeToMenu = useCallback(() => {
-    try {
-      const unsubscribe = client.subscribe(
-        `databases.${DB_ID}.collections.${COLLECTION_ID}.documents`,
-        (response) => {
-          if (
-            response.events.some(
-              (event) =>
-                event.includes(
-                  "databases.*.collections.*.documents.*.create"
-                ) ||
-                event.includes(
-                  "databases.*.collections.*.documents.*.update"
-                ) ||
-                event.includes("databases.*.collections.*.documents.*.delete")
-            )
-          ) {
-            setTimeout(() => {
-              fetchMenu();
-            }, 100);
-          }
-        }
-      );
-
-      return unsubscribe;
-    } catch (err) {
-      console.error("Error setting up menu subscription:", err);
-      return null;
-    }
-  }, [client, fetchMenu]);
 
   // Image handling functions
   const handleImageSelect = (e) => {
@@ -197,8 +219,131 @@ export default function MenuComponent() {
     setCurrentImageId(null);
     setShowCropper(false);
     setCropImage(null);
+    setBackgroundRemovalPreview(null);
+    setOriginalImageBeforeRemoval(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  // Background removal function
+  const removeBackground = async () => {
+    if (!imagePreview && !currentImageId) {
+      showToast("Por favor, selecione uma imagem primeiro", "error");
+      return;
+    }
+
+    try {
+      setRemovingBackground(true);
+
+      // Get the image data (either from preview URL or create from blob or from existing image)
+      let imageDataToSend;
+
+      if (croppedImageBlob) {
+        // Convert blob to base64
+        const reader = new FileReader();
+        imageDataToSend = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(croppedImageBlob);
+        });
+      } else if (imagePreview) {
+        // If it's a data URL or blob URL, we need to fetch it first
+        if (imagePreview.startsWith("data:")) {
+          imageDataToSend = imagePreview;
+        } else if (imagePreview.startsWith("blob:")) {
+          // Convert blob URL to base64
+          const response = await fetch(imagePreview);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          imageDataToSend = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } else {
+          // It's a URL from the server, fetch it
+          const response = await fetch(imagePreview);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          imageDataToSend = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      } else if (currentImageId) {
+        // Fetch existing image from server
+        const imageUrl = getImageUrl(currentImageId);
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        imageDataToSend = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      console.log("[BG REMOVAL] Sending request to remove background...");
+
+      // Save original image before removal (for undo)
+      setOriginalImageBeforeRemoval({
+        preview: imagePreview,
+        blob: croppedImageBlob,
+      });
+
+      // Call the background removal API
+      const response = await apiRequest("/upload/remove-background", {
+        method: "POST",
+        body: JSON.stringify({
+          imageData: imageDataToSend,
+        }),
+      });
+
+      console.log("[BG REMOVAL] Background removed successfully!");
+
+      // Convert the returned base64 to blob
+      const base64Response = response.imageData;
+      const base64Data = base64Response.replace(
+        /^data:image\/[^;]+;base64,/,
+        ""
+      );
+      const binaryData = atob(base64Data);
+      const arrayBuffer = new Uint8Array(binaryData.length);
+
+      for (let i = 0; i < binaryData.length; i++) {
+        arrayBuffer[i] = binaryData.charCodeAt(i);
+      }
+
+      const blob = new Blob([arrayBuffer], { type: "image/png" });
+
+      // Update the preview and blob
+      const previewUrl = URL.createObjectURL(blob);
+      setImagePreview(previewUrl);
+      setCroppedImageBlob(blob);
+      setBackgroundRemovalPreview(previewUrl);
+
+      showToast("Fundo removido com sucesso!", "success");
+    } catch (error) {
+      console.error("[BG REMOVAL] Error removing background:", error);
+      showToast(
+        "Erro ao remover o fundo. Por favor, tente novamente.",
+        "error"
+      );
+    } finally {
+      setRemovingBackground(false);
+    }
+  };
+
+  // Undo background removal
+  const undoBackgroundRemoval = () => {
+    if (originalImageBeforeRemoval) {
+      setImagePreview(originalImageBeforeRemoval.preview);
+      setCroppedImageBlob(originalImageBeforeRemoval.blob);
+      setBackgroundRemovalPreview(null);
+      setOriginalImageBeforeRemoval(null);
+      showToast("Fundo original restaurado", "info");
     }
   };
 
@@ -231,66 +376,193 @@ export default function MenuComponent() {
   const uploadImage = async (fileOrBlob) => {
     try {
       setUploadingImage(true);
-      const fileId = `file_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
 
-      // Handle both File objects and Blob objects
-      let fileToUpload = fileOrBlob;
-      if (fileOrBlob instanceof Blob && !(fileOrBlob instanceof File)) {
-        // Convert blob to file
-        fileToUpload = new File([fileOrBlob], `cropped-image-${fileId}.png`, {
-          type: "image/png",
-        });
-      }
+      // Convert the file/blob to base64
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
 
-      console.log("Generated fileId:", fileId);
-      console.log("File:", fileToUpload);
-      console.log("File type:", typeof fileToUpload);
-      console.log("File name:", fileToUpload?.name);
-      console.log("File size:", fileToUpload?.size);
+      return new Promise((resolve, reject) => {
+        img.onload = async () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
 
-      // Verify file is valid
-      if (
-        !fileToUpload ||
-        !(fileToUpload instanceof File || fileToUpload instanceof Blob)
-      ) {
-        throw new Error("Invalid file object");
-      }
+          const base64Data = canvas.toDataURL("image/png");
 
-      const response = await storage.createFile(
-        BUCKET_MENU_IMG,
-        fileId,
-        fileToUpload
-      );
-      return response.$id;
+          try {
+            const response = await apiRequest("/upload/menu-image", {
+              method: "POST",
+              body: JSON.stringify({
+                imageData: base64Data,
+                filename: `menu-image-${Date.now()}.png`,
+              }),
+            });
+
+            resolve(response.filename);
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        img.onerror = reject;
+
+        // Handle both File objects and Blob objects
+        if (fileOrBlob instanceof File || fileOrBlob instanceof Blob) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(fileOrBlob);
+        } else {
+          reject(new Error("Invalid file object"));
+        }
+      });
     } catch (error) {
-      console.error("Error uploading image:", error);
       throw error;
     } finally {
       setUploadingImage(false);
     }
   };
 
-  const deleteImage = async (fileId) => {
-    if (!fileId) return;
-    try {
-      await storage.deleteFile(BUCKET_MENU_IMG, fileId);
-    } catch (error) {
-      console.error("Error deleting image:", error);
-    }
-  };
-
   useEffect(() => {
     fetchMenu();
     fetchCollections();
+  }, [fetchMenu, fetchCollections]);
 
-    const unsubscribe = subscribeToMenu();
+  // WebSocket Real-Time Updates
+  useEffect(() => {
+    if (!socket || !connected) return;
 
-    return () => {
-      if (unsubscribe) unsubscribe();
+    console.log("🔌 MenuComponent: Setting up WebSocket listeners");
+
+    // Menu item created
+    const handleMenuCreated = (item) => {
+      console.log("🍕 Menu item created via WebSocket:", item);
+
+      // Add new item to the list (optimistic update)
+      setMenuItems((prev) => {
+        // Check if item already exists (avoid duplicates)
+        const exists = prev.some(
+          (m) =>
+            m.$id === item.$id ||
+            m.$id === item.id ||
+            m.id === item.$id ||
+            m.id === item.id
+        );
+        if (exists) return prev;
+
+        return [item, ...prev];
+      });
+
+      // Update categories if new category introduced
+      if (item.category) {
+        setAvailableCategories((prev) => {
+          const exists = prev.some((cat) => cat.name === item.category);
+          if (!exists) {
+            return [...prev, { id: item.category, name: item.category }];
+          }
+          return prev;
+        });
+      }
+
+      // Update tags if new tags introduced
+      if (item.tags && Array.isArray(item.tags)) {
+        setAvailableTags((prev) => {
+          const newTags = item.tags.filter(
+            (tagName) => !prev.some((t) => t.name === tagName)
+          );
+          if (newTags.length > 0) {
+            return [
+              ...prev,
+              ...newTags.map((tagName) => ({ id: tagName, name: tagName })),
+            ];
+          }
+          return prev;
+        });
+      }
     };
-  }, [fetchMenu, subscribeToMenu, fetchCollections]);
+
+    // Menu item updated
+    const handleMenuUpdated = (item) => {
+      console.log("✏️ Menu item updated via WebSocket:", item);
+
+      setMenuItems((prev) =>
+        prev.map((m) => {
+          // Match by $id or id
+          if (
+            m.$id === item.$id ||
+            m.$id === item.id ||
+            m.id === item.$id ||
+            m.id === item.id
+          ) {
+            return item;
+          }
+          return m;
+        })
+      );
+
+      // Update categories if changed
+      if (item.category) {
+        setAvailableCategories((prev) => {
+          const exists = prev.some((cat) => cat.name === item.category);
+          if (!exists) {
+            return [...prev, { id: item.category, name: item.category }];
+          }
+          return prev;
+        });
+      }
+
+      // Update tags if changed
+      if (item.tags && Array.isArray(item.tags)) {
+        setAvailableTags((prev) => {
+          const newTags = item.tags.filter(
+            (tagName) => !prev.some((t) => t.name === tagName)
+          );
+          if (newTags.length > 0) {
+            return [
+              ...prev,
+              ...newTags.map((tagName) => ({ id: tagName, name: tagName })),
+            ];
+          }
+          return prev;
+        });
+      }
+    };
+
+    // Menu item deleted
+    const handleMenuDeleted = (data) => {
+      console.log("🗑️ Menu item deleted via WebSocket:", data);
+      const itemId = data.id || data.$id;
+
+      setMenuItems((prev) =>
+        prev.filter((m) => m.$id !== itemId && m.id !== itemId)
+      );
+
+      // If currently editing this item, close the modal
+      if (
+        editingItem &&
+        (editingItem.$id === itemId || editingItem.id === itemId)
+      ) {
+        setModalOpen(false);
+        setEditingItem(null);
+      }
+    };
+
+    // Register all event listeners
+    socket.on("menu:created", handleMenuCreated);
+    socket.on("menu:updated", handleMenuUpdated);
+    socket.on("menu:deleted", handleMenuDeleted);
+
+    // Cleanup function
+    return () => {
+      console.log("🔌 MenuComponent: Cleaning up WebSocket listeners");
+
+      socket.off("menu:created", handleMenuCreated);
+      socket.off("menu:updated", handleMenuUpdated);
+      socket.off("menu:deleted", handleMenuDeleted);
+    };
+  }, [socket, connected, editingItem]);
 
   function openAddModal() {
     setEditingItem(null);
@@ -315,13 +587,8 @@ export default function MenuComponent() {
 
     if (item.image_id) {
       setCurrentImageId(item.image_id);
-      const previewUrl = storage.getFilePreview(
-        "68c9da420007c345042f",
-        item.image_id,
-        0, // Use original width
-        0 // Use original height
-      );
-      setImagePreview(previewUrl.href);
+      const previewUrl = `${API_BASE_URL}/files/imagens-menu/${item.image_id}`;
+      setImagePreview(previewUrl);
     } else {
       resetImage();
     }
@@ -334,10 +601,8 @@ export default function MenuComponent() {
       let imageId = currentImageId;
 
       if (croppedImageBlob) {
-        if (editingItem && currentImageId) {
-          await deleteImage(currentImageId);
-        }
-
+        // Upload the new image first
+        // The backend will handle deleting the old image when updating
         imageId = await uploadImage(croppedImageBlob);
       }
 
@@ -364,36 +629,19 @@ export default function MenuComponent() {
           )
         );
 
-        await databases.updateDocument(
-          DB_ID,
-          COLLECTION_ID,
-          editingItem.$id,
-          itemData
-        );
+        await apiRequest(`/menu/${editingItem.$id}`, {
+          method: "PUT",
+          body: JSON.stringify(itemData),
+        });
       } else {
-        const tempItem = {
-          ...itemData,
-          $id: `temp-${Date.now()}`,
-          $createdAt: new Date().toISOString(),
-        };
-
-        setMenuItems((prev) => [tempItem, ...prev]);
-
-        const response = await databases.createDocument(
-          DB_ID,
-          COLLECTION_ID,
-          "unique()",
-          itemData
-        );
-
-        setMenuItems((prev) =>
-          prev.map((item) => (item.$id === tempItem.$id ? response : item))
-        );
+        await apiRequest("/menu", {
+          method: "POST",
+          body: JSON.stringify(itemData),
+        });
       }
 
       setModalOpen(false);
     } catch (err) {
-      console.error("Error saving:", err);
       fetchMenu();
     }
   }
@@ -401,17 +649,14 @@ export default function MenuComponent() {
   async function handleDelete(id) {
     if (!confirm("Tens a certeza que queres apagar este item?")) return;
     try {
-      const item = menuItems.find((item) => item.$id === id);
-
-      // Delete associated image if exists
-      if (item?.image_id) {
-        await deleteImage(item.image_id);
-      }
-
+      // Optimistic update
       setMenuItems((prev) => prev.filter((item) => item.$id !== id));
-      await databases.deleteDocument(DB_ID, COLLECTION_ID, id);
+
+      // Backend will handle deleting the associated image
+      await apiRequest(`/menu/${id}`, {
+        method: "DELETE",
+      });
     } catch (err) {
-      console.error("Error deleting:", err);
       fetchMenu();
     }
   }
@@ -477,7 +722,45 @@ export default function MenuComponent() {
 
       {/* Content */}
       <div className="menu-content">
-        {loading ? (
+        {authError ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "48px",
+              color: "#dc2626",
+              backgroundColor: "#fef2f2",
+              borderRadius: "8px",
+              border: "1px solid #fecaca",
+            }}
+          >
+            <p style={{ fontSize: "18px", marginBottom: "8px" }}>
+              ⚠️ Erro de Autenticação
+            </p>
+            <p style={{ fontSize: "14px", marginBottom: "16px" }}>
+              Não foi possível autenticar. Verifique se está logado.
+            </p>
+            <p style={{ fontSize: "12px", color: "#6b7280" }}>
+              Token atual: {getAuthToken() ? "Presente" : "Ausente"}
+            </p>
+            <button
+              onClick={() => {
+                setAuthError(false);
+                handleRefresh();
+              }}
+              style={{
+                marginTop: "16px",
+                padding: "8px 16px",
+                backgroundColor: "#dc2626",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        ) : loading ? (
           <div className="loading-state">
             <div className="loading-spinner"></div>A carregar...
           </div>
@@ -579,6 +862,47 @@ export default function MenuComponent() {
                           )}
                         </div>
                       )}
+
+                      {/* Ingredients */}
+                      {item.ingredientes && item.ingredientes.length > 0 && (
+                        <div style={{ marginTop: "8px" }}>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#6b7280",
+                              marginBottom: "4px",
+                              fontWeight: "500",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                            }}
+                          >
+                            Ingredientes
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "4px",
+                            }}
+                          >
+                            {item.ingredientes.map((ing) => (
+                              <span
+                                key={ing}
+                                style={{
+                                  fontSize: "12px",
+                                  padding: "2px 6px",
+                                  backgroundColor: "#f1f5f9",
+                                  color: "#475569",
+                                  borderRadius: "4px",
+                                  border: "1px solid #cbd5e1",
+                                }}
+                              >
+                                {ing}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Action Buttons */}
@@ -612,670 +936,783 @@ export default function MenuComponent() {
         )}
       </div>
 
-      {/* Modal */}
-      {modalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-container">
-            {/* Modal Header */}
-            <div className="modal-header">
-              <div className="header-text">
-                <h2>
-                  {editingItem
-                    ? "Editar item do menu"
-                    : "Adicionar item ao menu"}
-                </h2>
-                <p>
-                  {editingItem
-                    ? "Atualize os detalhes abaixo"
-                    : "Preencha as informações abaixo"}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setModalOpen(false);
-                  resetImage();
-                }}
-                className="close-button"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="modal-content">
-              {/* Basic Information */}
-              <div className="form-grid">
-                <div className="form-group full-width">
-                  <label>Nome do item *</label>
-                  <Input
-                    placeholder="Introduza o nome do item"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                  />
+      {/* Modal - Rendered via Portal to bypass stacking context */}
+      {modalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="modal-overlay">
+            <div className="modal-container">
+              {/* Modal Header */}
+              <div className="modal-header">
+                <div className="header-text">
+                  <h2>
+                    {editingItem
+                      ? "Editar item do menu"
+                      : "Adicionar item ao menu"}
+                  </h2>
+                  <p>
+                    {editingItem
+                      ? "Atualize os detalhes abaixo"
+                      : "Preencha as informações abaixo"}
+                  </p>
                 </div>
-
-                <div className="form-group">
-                  <label>Preço (€) *</label>
-                  <Input
-                    placeholder="0,00"
-                    type="number"
-                    step="0.01"
-                    value={preco}
-                    onChange={(e) => setPreco(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Categoria</label>
-                  <Select
-                    value={selectedCategory}
-                    onChange={setSelectedCategory}
-                    placeholder="Selecionar categoria"
-                    style={{ width: "100%" }}
-                  >
-                    <Select.Option value="none">Sem categoria</Select.Option>
-                    {availableCategories.map((category) => (
-                      <Select.Option key={category.$id} value={category.name}>
-                        {category.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="form-group full-width">
-                  <label>Descrição</label>
-                  <TextArea
-                    placeholder="Introduza a descrição do item (opcional)"
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                    rows={4}
-                  />
-                </div>
-              </div>
-
-              {/* Image Upload Section */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "#374151",
-                    marginBottom: "12px",
+                <button
+                  onClick={() => {
+                    setModalOpen(false);
+                    resetImage();
                   }}
+                  className="close-button"
                 >
-                  Imagem do Item
-                </label>
+                  <X size={20} />
+                </button>
+              </div>
 
-                {/* Existing Image Display (when editing) */}
-                {editingItem && editingItem.image_id && !imagePreview && (
-                  <div style={{ marginBottom: "16px" }}>
+              {/* Modal Content */}
+              <div className="modal-content">
+                {/* Basic Information */}
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label>Nome do item *</label>
+                    <Input
+                      placeholder="Introduza o nome do item"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Preço (€) *</label>
+                    <Input
+                      placeholder="0,00"
+                      type="number"
+                      step="0.01"
+                      value={preco}
+                      onChange={(e) => setPreco(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Categoria</label>
+                    <Select
+                      value={selectedCategory}
+                      onChange={setSelectedCategory}
+                      placeholder="Selecionar categoria"
+                      style={{ width: "100%" }}
+                    >
+                      <Select.Option value="none">Sem categoria</Select.Option>
+                      {availableCategories.map((category) => (
+                        <Select.Option key={category.id} value={category.name}>
+                          {category.name}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label>Descrição</label>
+                    <TextArea
+                      placeholder="Introduza a descrição do item (opcional)"
+                      value={descricao}
+                      onChange={(e) => setDescricao(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                </div>
+
+                {/* Image Upload Section */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      color: "#374151",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Imagem do Item
+                  </label>
+
+                  {/* Existing Image Display (when editing) */}
+                  {editingItem && editingItem.image_id && !imagePreview && (
+                    <div style={{ marginBottom: "16px" }}>
+                      <div
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
+                          padding: "16px",
+                          backgroundColor: "#ffffff",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "200px",
+                            backgroundColor: "#ffffff",
+                            backgroundImage:
+                              editingItem.image_id &&
+                              getImageUrl(editingItem.image_id)
+                                ? `url(${getImageUrl(editingItem.image_id)})`
+                                : "none",
+                            backgroundSize: "contain",
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "center",
+                            borderRadius: "6px",
+                            marginBottom: "12px",
+                            border: "1px solid #e5e7eb",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            justifyContent: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: "#3b82f6",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Upload size={16} />
+                            Substituir Imagem
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentImageId(null);
+                              setImagePreview(null);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: "#dc2626",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Trash2 size={16} />
+                            Remover Imagem
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image Upload Area */}
+                  {!imagePreview && (!editingItem || !editingItem.image_id) && (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        border: "2px dashed #d1d5db",
+                        borderRadius: "8px",
+                        padding: "32px",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        backgroundColor: "#ffffff",
+                      }}
+                    >
+                      <Upload
+                        size={48}
+                        style={{
+                          color: "#9ca3af",
+                          margin: "0 auto 16px",
+                          display: "block",
+                        }}
+                      />
+                      <h4
+                        style={{
+                          fontSize: "16px",
+                          fontWeight: "500",
+                          color: "#374151",
+                          margin: "0 0 8px 0",
+                        }}
+                      >
+                        Selecionar Imagem
+                      </h4>
+                      <p
+                        style={{
+                          fontSize: "14px",
+                          color: "#6b7280",
+                          margin: 0,
+                        }}
+                      >
+                        PNG, JPG ou WEBP até 5MB
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Image Preview */}
+                  {imagePreview && (
                     <div
                       style={{
-                        border: "1px solid #e5e7eb",
+                        backgroundColor: "#ffffff",
                         borderRadius: "8px",
                         padding: "16px",
-                        backgroundColor: "#ffffff",
+                        border: "1px solid #e5e7eb",
                       }}
                     >
                       <div
                         style={{
+                          position: "relative",
+                          display: "inline-block",
+                          marginBottom: "16px",
                           width: "100%",
-                          height: "200px",
-                          backgroundColor: "#ffffff",
-                          backgroundImage:
-                            editingItem.image_id &&
-                            getImageUrl(editingItem.image_id)
-                              ? `url(${getImageUrl(editingItem.image_id)})`
-                              : "none",
-                          backgroundSize: "contain",
-                          backgroundRepeat: "no-repeat",
-                          backgroundPosition: "center",
-                          borderRadius: "6px",
-                          marginBottom: "12px",
-                          border: "1px solid #e5e7eb",
+                          textAlign: "center",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
                         }}
-                      ></div>
+                      >
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          style={{
+                            maxWidth: "300px",
+                            maxHeight: "300px",
+                            objectFit: "contain",
+                            borderRadius: "8px",
+                            border: "1px solid #e5e7eb",
+                            backgroundColor: backgroundRemovalPreview
+                              ? "transparent"
+                              : "#ffffff",
+                          }}
+                        />
+                        {backgroundRemovalPreview && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "8px",
+                              left: "8px",
+                              backgroundColor: "#10b981",
+                              color: "white",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                            }}
+                          >
+                            <Wand2 size={12} />
+                            Fundo Removido
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={resetImage}
+                          style={{
+                            position: "absolute",
+                            top: "8px",
+                            right: "8px",
+                            width: "32px",
+                            height: "32px",
+                            backgroundColor: "#dc2626",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "50%",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      {selectedImage && (
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            color: "#6b7280",
+                            textAlign: "center",
+                            marginBottom: "16px",
+                          }}
+                        >
+                          <div>
+                            Tamanho: {(selectedImage.size / 1024).toFixed(1)} KB
+                          </div>
+                          <div>Nome: {selectedImage.name}</div>
+                        </div>
+                      )}
                       <div
                         style={{
                           display: "flex",
                           gap: "8px",
                           justifyContent: "center",
+                          flexWrap: "wrap",
                         }}
                       >
+                        {!backgroundRemovalPreview ? (
+                          <button
+                            type="button"
+                            onClick={removeBackground}
+                            disabled={removingBackground}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: removingBackground
+                                ? "#9ca3af"
+                                : "#8b5cf6",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                              cursor: removingBackground
+                                ? "not-allowed"
+                                : "pointer",
+                              transition: "all 0.2s ease",
+                            }}
+                            title="Remover fundo da imagem usando IA"
+                          >
+                            <Wand2
+                              size={16}
+                              className={
+                                removingBackground ? "animate-spin" : ""
+                              }
+                            />
+                            {removingBackground
+                              ? "A processar..."
+                              : "Remover Fundo"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={undoBackgroundRemoval}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: "#f59e0b",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                            }}
+                            title="Restaurar imagem original"
+                          >
+                            <RefreshCw size={16} />
+                            Desfazer Remoção
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
+                          disabled={removingBackground}
                           style={{
                             display: "flex",
                             alignItems: "center",
                             gap: "6px",
                             padding: "8px 16px",
-                            backgroundColor: "#3b82f6",
-                            color: "white",
-                            border: "none",
+                            backgroundColor: "#f3f4f6",
+                            color: "#374151",
+                            border: "1px solid #d1d5db",
                             borderRadius: "6px",
                             fontSize: "14px",
-                            cursor: "pointer",
+                            cursor: removingBackground
+                              ? "not-allowed"
+                              : "pointer",
                           }}
                         >
                           <Upload size={16} />
-                          Substituir Imagem
+                          Trocar Imagem
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={handleImageSelect}
+                    style={{ display: "none" }}
+                  />
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      color: "#374151",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Tags
+                  </label>
+                  <div
+                    style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
+                  >
+                    {availableTags.map((tag) => {
+                      const isSelected = selectedTags.includes(tag.name);
+                      return (
                         <button
+                          key={tag.id}
                           type="button"
-                          onClick={() => {
-                            setCurrentImageId(null);
-                            setImagePreview(null);
-                          }}
+                          onClick={() => toggleTag(tag.name)}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "8px 16px",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
+                            padding: "6px 12px",
                             fontSize: "14px",
+                            borderRadius: "6px",
+                            border: isSelected
+                              ? "1px solid #3b82f6"
+                              : "1px solid #d1d5db",
+                            backgroundColor: isSelected ? "#dbeafe" : "white",
+                            color: isSelected ? "#1d4ed8" : "#374151",
                             cursor: "pointer",
                           }}
                         >
-                          <Trash2 size={16} />
-                          Remover Imagem
+                          {tag.name}
                         </button>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                )}
-
-                {/* Image Upload Area */}
-                {!imagePreview && (!editingItem || !editingItem.image_id) && (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      border: "2px dashed #d1d5db",
-                      borderRadius: "8px",
-                      padding: "32px",
-                      textAlign: "center",
-                      cursor: "pointer",
-                      backgroundColor: "#ffffff",
-                    }}
-                  >
-                    <Upload
-                      size={48}
-                      style={{
-                        color: "#9ca3af",
-                        margin: "0 auto 16px",
-                        display: "block",
-                      }}
-                    />
-                    <h4
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        margin: "0 0 8px 0",
-                      }}
-                    >
-                      Selecionar Imagem
-                    </h4>
-                    <p
-                      style={{
-                        fontSize: "14px",
-                        color: "#6b7280",
-                        margin: 0,
-                      }}
-                    >
-                      PNG, JPG ou WEBP até 5MB
-                    </p>
-                  </div>
-                )}
-
-                {/* Image Preview */}
-                {imagePreview && (
-                  <div
-                    style={{
-                      backgroundColor: "#ffffff",
-                      borderRadius: "8px",
-                      padding: "16px",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
+                  {selectedTags.length > 0 && (
                     <div
                       style={{
-                        position: "relative",
-                        display: "inline-block",
-                        marginBottom: "16px",
-                        width: "100%",
-                        textAlign: "center",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
+                        marginTop: "12px",
+                        padding: "12px",
+                        backgroundColor: "#f8fafc",
+                        borderRadius: "6px",
                       }}
                     >
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        style={{
-                          maxWidth: "300px",
-                          maxHeight: "300px",
-                          objectFit: "contain",
-                          borderRadius: "8px",
-                          border: "1px solid #e5e7eb",
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={resetImage}
-                        style={{
-                          position: "absolute",
-                          top: "8px",
-                          right: "8px",
-                          width: "32px",
-                          height: "32px",
-                          backgroundColor: "#dc2626",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "50%",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                    {selectedImage && (
                       <div
                         style={{
-                          fontSize: "14px",
-                          color: "#6b7280",
-                          textAlign: "center",
-                          marginBottom: "16px",
+                          fontSize: "12px",
+                          color: "#64748b",
+                          marginBottom: "8px",
                         }}
                       >
-                        <div>
-                          Tamanho: {(selectedImage.size / 1024).toFixed(1)} KB
-                        </div>
-                        <div>Nome: {selectedImage.name}</div>
+                        Selecionadas ({selectedTags.length})
                       </div>
-                    )}
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                      <div
                         style={{
                           display: "flex",
-                          alignItems: "center",
+                          flexWrap: "wrap",
                           gap: "6px",
-                          padding: "8px 16px",
-                          backgroundColor: "#f3f4f6",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "6px",
-                          fontSize: "14px",
-                          cursor: "pointer",
                         }}
                       >
-                        <Upload size={16} />
-                        Trocar Imagem
-                      </button>
+                        {selectedTags.map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              padding: "4px 8px",
+                              fontSize: "14px",
+                              backgroundColor: "#dbeafe",
+                              color: "#1d4ed8",
+                              borderRadius: "6px",
+                              border: "1px solid #bfdbfe",
+                            }}
+                          >
+                            {tag}
+                            <button
+                              onClick={() => removeTag(tag)}
+                              style={{
+                                marginLeft: "6px",
+                                padding: "2px",
+                                backgroundColor: "transparent",
+                                border: "none",
+                                color: "#1d4ed8",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={handleImageSelect}
-                  style={{ display: "none" }}
-                />
-              </div>
-
-              {/* Tags */}
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "#374151",
-                    marginBottom: "12px",
-                  }}
-                >
-                  Tags
-                </label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                  {availableTags.map((tag) => {
-                    const isSelected = selectedTags.includes(tag.name);
-                    return (
-                      <button
-                        key={tag.$id}
-                        type="button"
-                        onClick={() => toggleTag(tag.name)}
-                        style={{
-                          padding: "6px 12px",
-                          fontSize: "14px",
-                          borderRadius: "6px",
-                          border: isSelected
-                            ? "1px solid #3b82f6"
-                            : "1px solid #d1d5db",
-                          backgroundColor: isSelected ? "#dbeafe" : "white",
-                          color: isSelected ? "#1d4ed8" : "#374151",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
+                  )}
                 </div>
-                {selectedTags.length > 0 && (
+
+                {/* Ingredients */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      color: "#374151",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Ingredientes
+                  </label>
                   <div
                     style={{
-                      marginTop: "12px",
-                      padding: "12px",
-                      backgroundColor: "#f8fafc",
-                      borderRadius: "6px",
+                      display: "flex",
+                      gap: "8px",
+                      marginBottom: "12px",
                     }}
                   >
-                    <div
+                    <Input
+                      placeholder="Adicionar ingrediente"
+                      value={ingredienteInput}
+                      onChange={(e) => setIngredienteInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addIngrediente()}
                       style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                        marginBottom: "8px",
+                        flex: 1,
+                        height: "40px",
+                        padding: "0 12px",
+                        backgroundColor: "white",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "6px",
+                        fontSize: "14px",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={addIngrediente}
+                      style={{
+                        height: "40px",
+                        padding: "0 16px",
+                        backgroundColor: "#3b82f6",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        fontWeight: "500",
+                        cursor: "pointer",
                       }}
                     >
-                      Selecionadas ({selectedTags.length})
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "6px",
-                      }}
-                    >
-                      {selectedTags.map((tag) => (
-                        <span
-                          key={tag}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "4px 8px",
-                            fontSize: "14px",
-                            backgroundColor: "#dbeafe",
-                            color: "#1d4ed8",
-                            borderRadius: "6px",
-                            border: "1px solid #bfdbfe",
-                          }}
-                        >
-                          {tag}
-                          <button
-                            onClick={() => removeTag(tag)}
+                      Adicionar
+                    </button>
+                  </div>
+                  {ingredientes.length > 0 && (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#64748b",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Adicionados ({ingredientes.length})
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "6px",
+                        }}
+                      >
+                        {ingredientes.map((ing) => (
+                          <span
+                            key={ing}
                             style={{
-                              marginLeft: "6px",
-                              padding: "2px",
-                              backgroundColor: "transparent",
-                              border: "none",
-                              color: "#1d4ed8",
-                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              padding: "4px 8px",
+                              fontSize: "14px",
+                              backgroundColor: "#f1f5f9",
+                              color: "#475569",
+                              borderRadius: "6px",
+                              border: "1px solid #cbd5e1",
                             }}
                           >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
+                            {ing}
+                            <button
+                              onClick={() => removeIngrediente(ing)}
+                              style={{
+                                marginLeft: "6px",
+                                padding: "2px",
+                                backgroundColor: "transparent",
+                                border: "none",
+                                color: "#475569",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* Ingredients */}
-              <div>
-                <label
+              {/* Modal Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: "12px",
+                  padding: "24px",
+                  borderTop: "1px solid #e2e8f0",
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setModalOpen(false);
+                    resetImage();
+                  }}
                   style={{
-                    display: "block",
+                    padding: "8px 16px",
                     fontSize: "14px",
                     fontWeight: "500",
                     color: "#374151",
-                    marginBottom: "12px",
+                    backgroundColor: "white",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    cursor: "pointer",
                   }}
                 >
-                  Ingredientes
-                </label>
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={
+                    loadingCollections ||
+                    !nome.trim() ||
+                    !preco ||
+                    uploadingImage
+                  }
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor:
+                      loadingCollections ||
+                      !nome.trim() ||
+                      !preco ||
+                      uploadingImage
+                        ? "not-allowed"
+                        : "pointer",
+                    backgroundColor:
+                      loadingCollections ||
+                      !nome.trim() ||
+                      !preco ||
+                      uploadingImage
+                        ? "#9ca3af"
+                        : "#3b82f6",
+                    color: "white",
+                  }}
+                >
+                  {uploadingImage
+                    ? "A carregar imagem..."
+                    : loadingCollections
+                    ? "A guardar..."
+                    : editingItem
+                    ? "Atualizar item"
+                    : "Criar item"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Image Cropper Modal (via Portal) */}
+      {showCropper &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="image-cropper-overlay">
+            <div className="image-cropper-modal">
+              {/* Cropper Header */}
+              <div className="cropper-header">
+                <div className="header-content">
+                  <h2>Recortar Imagem</h2>
+                  <p>
+                    Use a área de corte para recortar a imagem. O cropper é
+                    responsivo e funciona em dispositivos móveis.
+                  </p>
+                </div>
+                <button onClick={handleCropperClose} className="close-button">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Crop Container */}
+              <div className="crop-container">
                 <div
                   style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginBottom: "12px",
+                    width: "100%",
+                    height: "400px",
+                    maxHeight: "50vh",
+                    minHeight: "300px",
                   }}
                 >
-                  <Input
-                    placeholder="Adicionar ingrediente"
-                    value={ingredienteInput}
-                    onChange={(e) => setIngredienteInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addIngrediente()}
-                    style={{
-                      flex: 1,
-                      height: "40px",
-                      padding: "0 12px",
-                      backgroundColor: "white",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
+                  <Cropper
+                    ref={cropperRef}
+                    src={cropImage}
+                    className="cropper"
+                    stencilProps={{
+                      handlers: true,
+                      lines: true,
+                      movable: true,
+                      resizable: true,
+                    }}
+                    backgroundWrapperProps={{
+                      scaleImage: true,
+                      moveImage: true,
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={addIngrediente}
-                    style={{
-                      height: "40px",
-                      padding: "0 16px",
-                      backgroundColor: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Adicionar
-                  </button>
                 </div>
-                {ingredientes.length > 0 && (
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Adicionados ({ingredientes.length})
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "6px",
-                      }}
-                    >
-                      {ingredientes.map((ing) => (
-                        <span
-                          key={ing}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "4px 8px",
-                            fontSize: "14px",
-                            backgroundColor: "#f1f5f9",
-                            color: "#475569",
-                            borderRadius: "6px",
-                            border: "1px solid #cbd5e1",
-                          }}
-                        >
-                          {ing}
-                          <button
-                            onClick={() => removeIngrediente(ing)}
-                            style={{
-                              marginLeft: "6px",
-                              padding: "2px",
-                              backgroundColor: "transparent",
-                              border: "none",
-                              color: "#475569",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              </div>
+
+              {/* Cropper Actions */}
+              <div className="cropper-actions">
+                <button
+                  onClick={handleCropperClose}
+                  className="action-btn cancel-btn"
+                >
+                  Cancelar
+                </button>
+                <button onClick={applyCrop} className="action-btn apply-btn">
+                  Aplicar Corte
+                </button>
               </div>
             </div>
+          </div>,
+          document.body
+        )}
 
-            {/* Modal Footer */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: "12px",
-                padding: "24px",
-                borderTop: "1px solid #e2e8f0",
-              }}
-            >
-              <button
-                onClick={() => {
-                  setModalOpen(false);
-                  resetImage();
-                }}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  color: "#374151",
-                  backgroundColor: "white",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={
-                  loadingCollections || !nome.trim() || !preco || uploadingImage
-                }
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  borderRadius: "6px",
-                  border: "none",
-                  cursor:
-                    loadingCollections ||
-                    !nome.trim() ||
-                    !preco ||
-                    uploadingImage
-                      ? "not-allowed"
-                      : "pointer",
-                  backgroundColor:
-                    loadingCollections ||
-                    !nome.trim() ||
-                    !preco ||
-                    uploadingImage
-                      ? "#9ca3af"
-                      : "#3b82f6",
-                  color: "white",
-                }}
-              >
-                {uploadingImage
-                  ? "A carregar imagem..."
-                  : loadingCollections
-                  ? "A guardar..."
-                  : editingItem
-                  ? "Atualizar item"
-                  : "Criar item"}
-              </button>
+      {/* Toast Notification - Rendered via Portal to bypass stacking context */}
+      {toast &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className={`toast-notification toast-${toast.type}`}>
+            <div className="toast-content">
+              {toast.type === "success" && <Check size={20} />}
+              {toast.type === "error" && <X size={20} />}
+              {toast.type === "info" && <RefreshCw size={20} />}
+              <span>{toast.message}</span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image Cropper Modal */}
-      {showCropper && (
-        <div className="image-cropper-overlay">
-          <div className="image-cropper-modal">
-            {/* Cropper Header */}
-            <div className="cropper-header">
-              <div className="header-content">
-                <h2>Recortar Imagem</h2>
-                <p>
-                  Use a área de corte para recortar a imagem. O cropper é
-                  responsivo e funciona em dispositivos móveis.
-                </p>
-              </div>
-              <button onClick={handleCropperClose} className="close-button">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Crop Container */}
-            <div className="crop-container">
-              <div
-                style={{
-                  width: "100%",
-                  height: "400px",
-                  maxHeight: "50vh",
-                  minHeight: "300px",
-                }}
-              >
-                <Cropper
-                  ref={cropperRef}
-                  src={cropImage}
-                  className="cropper"
-                  stencilProps={{
-                    handlers: true,
-                    lines: true,
-                    movable: true,
-                    resizable: true,
-                  }}
-                  backgroundWrapperProps={{
-                    scaleImage: true,
-                    moveImage: true,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Cropper Actions */}
-            <div className="cropper-actions">
-              <button
-                onClick={handleCropperClose}
-                className="action-btn cancel-btn"
-              >
-                Cancelar
-              </button>
-              <button onClick={applyCrop} className="action-btn apply-btn">
-                Aplicar Corte
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
