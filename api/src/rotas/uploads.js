@@ -2,10 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
 const pool = require("../../db");
-const {
-  autenticarToken,
-  requerGestor,
-} = require("../intermediarios/autenticacao");
+const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
 const { garantirDiretorioUploads } = require("../utilitarios/sistemaFicheiros");
 const { removeBackground } = require("@imgly/background-removal-node");
@@ -32,9 +29,7 @@ router.post("/profile-image", autenticarToken, async (req, res) => {
     );
 
     if (verificarUtilizador.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "Utilizador autenticado não encontrado" });
+      return res.status(404).json({ error: "Utilizador autenticado não encontrado" });
     }
 
     const labelsUtilizador = verificarUtilizador.rows[0].labels || [];
@@ -44,8 +39,7 @@ router.post("/profile-image", autenticarToken, async (req, res) => {
     // Verificar se pode editar: apenas o próprio utilizador ou gestor
     if (!eGestor && !eProprioUtilizador) {
       return res.status(403).json({
-        error:
-          "Acesso negado. Apenas pode alterar a sua própria imagem de perfil ou se for gestor.",
+        error: "Acesso negado. Apenas pode alterar a sua própria imagem de perfil ou se for gestor.",
       });
     }
 
@@ -114,59 +108,61 @@ router.post("/profile-image", autenticarToken, async (req, res) => {
 });
 
 // Upload de imagem de menu
-router.post("/menu-image", autenticarToken, requerGestor, async (req, res) => {
-  try {
-    const { imageData, filename } = req.body;
+router.post(
+  "/menu-image",
+  autenticarToken,
+  requerGestor,
+  async (req, res) => {
+    try {
+      const { imageData, filename } = req.body;
 
-    console.log("[UPLOAD] Recebido pedido de upload de imagem de menu");
-    console.log("[UPLOAD] Filename:", filename);
-    console.log("[UPLOAD] ImageData presente:", !!imageData);
-    console.log("[UPLOAD] ImageData length:", imageData ? imageData.length : 0);
+      console.log("[UPLOAD] Recebido pedido de upload de imagem de menu");
+      console.log("[UPLOAD] Filename:", filename);
+      console.log("[UPLOAD] ImageData presente:", !!imageData);
+      console.log("[UPLOAD] ImageData length:", imageData ? imageData.length : 0);
 
-    if (!imageData) {
-      return res.status(400).json({ error: "Dados da imagem obrigatórios" });
+      if (!imageData) {
+        return res.status(400).json({ error: "Dados da imagem obrigatórios" });
+      }
+
+      // Garantir que o diretório uploads existe
+      await garantirDiretorioUploads();
+      console.log("[UPLOAD] Diretórios verificados/criados");
+
+      // Remover prefixo de data URL se presente
+      const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
+      console.log("[UPLOAD] Base64 após remover prefixo, length:", dadosBase64.length);
+
+      // Gerar nome de ficheiro único
+      const extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
+      const nomeFicheiroUnico = `${Date.now()}_menu_${Math.random()
+        .toString(36)
+        .substr(2, 9)}${extensaoFicheiro}`;
+      const caminhoFicheiro = path.join(
+        __dirname,
+        "../../uploads",
+        "imagens-menu",
+        nomeFicheiroUnico
+      );
+
+      console.log("[UPLOAD] Caminho do ficheiro:", caminhoFicheiro);
+
+      // Guardar ficheiro
+      await fs.writeFile(caminhoFicheiro, dadosBase64, "base64");
+      console.log("[UPLOAD] Ficheiro guardado com sucesso!");
+
+      res.json({
+        $id: nomeFicheiroUnico,
+        filename: nomeFicheiroUnico,
+        url: `/files/imagens-menu/${nomeFicheiroUnico}`,
+        message: "Imagem de menu carregada com sucesso",
+      });
+    } catch (erro) {
+      console.error("[UPLOAD] Erro ao fazer upload:", erro);
+      tratarErro(erro, res);
     }
-
-    // Garantir que o diretório uploads existe
-    await garantirDiretorioUploads();
-    console.log("[UPLOAD] Diretórios verificados/criados");
-
-    // Remover prefixo de data URL se presente
-    const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
-    console.log(
-      "[UPLOAD] Base64 após remover prefixo, length:",
-      dadosBase64.length
-    );
-
-    // Gerar nome de ficheiro único
-    const extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
-    const nomeFicheiroUnico = `${Date.now()}_menu_${Math.random()
-      .toString(36)
-      .substr(2, 9)}${extensaoFicheiro}`;
-    const caminhoFicheiro = path.join(
-      __dirname,
-      "../../uploads",
-      "imagens-menu",
-      nomeFicheiroUnico
-    );
-
-    console.log("[UPLOAD] Caminho do ficheiro:", caminhoFicheiro);
-
-    // Guardar ficheiro
-    await fs.writeFile(caminhoFicheiro, dadosBase64, "base64");
-    console.log("[UPLOAD] Ficheiro guardado com sucesso!");
-
-    res.json({
-      $id: nomeFicheiroUnico,
-      filename: nomeFicheiroUnico,
-      url: `/files/imagens-menu/${nomeFicheiroUnico}`,
-      message: "Imagem de menu carregada com sucesso",
-    });
-  } catch (erro) {
-    console.error("[UPLOAD] Erro ao fazer upload:", erro);
-    tratarErro(erro, res);
   }
-});
+);
 
 // Remover fundo de imagem
 router.post("/remove-background", autenticarToken, async (req, res) => {
@@ -187,10 +183,7 @@ router.post("/remove-background", autenticarToken, async (req, res) => {
 
     // Log do tamanho original
     console.log("[REMOVE-BG] Tamanho total do imageData:", imageData.length);
-    console.log(
-      "[REMOVE-BG] Primeiros 100 chars:",
-      imageData.substring(0, 100)
-    );
+    console.log("[REMOVE-BG] Primeiros 100 chars:", imageData.substring(0, 100));
 
     // Extrair tipo de imagem e dados base64
     let tipoImagem = "png";
@@ -210,29 +203,22 @@ router.post("/remove-background", autenticarToken, async (req, res) => {
       dadosBase64 = imageData;
     }
 
-    console.log(
-      "[REMOVE-BG] Tamanho do base64 após remoção do prefixo:",
-      dadosBase64.length
-    );
+    console.log("[REMOVE-BG] Tamanho do base64 após remoção do prefixo:", dadosBase64.length);
 
     const bufferImagem = Buffer.from(dadosBase64, "base64");
     console.log("[REMOVE-BG] Buffer criado, tamanho:", bufferImagem.length);
 
     // Validar se o buffer tem tamanho razoável
     if (bufferImagem.length < 1000) {
-      console.error(
-        "[REMOVE-BG] Buffer muito pequeno! Provavelmente dados inválidos."
-      );
+      console.error("[REMOVE-BG] Buffer muito pequeno! Provavelmente dados inválidos.");
       return res.status(400).json({
         error: "Dados da imagem inválidos ou corrompidos",
-        details: `Buffer size: ${bufferImagem.length} bytes`,
+        details: `Buffer size: ${bufferImagem.length} bytes`
       });
     }
 
     // Criar ficheiro temporário
-    const nomeFicheiroTemp = `temp_${Date.now()}_${
-      req.utilizador.userId
-    }.${tipoImagem}`;
+    const nomeFicheiroTemp = `temp_${Date.now()}_${req.utilizador.userId}.${tipoImagem}`;
     ficheiroTemp = path.join(__dirname, "../../uploads", nomeFicheiroTemp);
 
     console.log("[REMOVE-BG] Guardando ficheiro temporário:", ficheiroTemp);
@@ -254,10 +240,7 @@ router.post("/remove-background", autenticarToken, async (req, res) => {
     const arrayBuffer = await blobResultado.arrayBuffer();
     const bufferResultado = Buffer.from(arrayBuffer);
 
-    console.log(
-      "[REMOVE-BG] Buffer de resultado criado, tamanho:",
-      bufferResultado.length
-    );
+    console.log("[REMOVE-BG] Buffer de resultado criado, tamanho:", bufferResultado.length);
 
     // Eliminar ficheiro temporário
     try {
@@ -303,14 +286,7 @@ router.delete(
       const { pasta, ficheiro } = req.params;
 
       // Apenas permitir eliminação de pastas autorizadas
-      if (
-        ![
-          "imagens-menu",
-          "imagens-perfil",
-          "menu-images",
-          "imagens-perfil",
-        ].includes(pasta)
-      ) {
+      if (!["imagens-menu", "imagens-perfil", "menu-images", "profile-images"].includes(pasta)) {
         return res.status(400).json({ error: "Pasta inválida" });
       }
 

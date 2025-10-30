@@ -10,8 +10,12 @@ import { isAuthenticated } from "../../lib/auth";
 import ManagerView from "../components/ManagerView";
 import StaffView from "../components/StaffView";
 import MenuComponent from "../components/MenuComponent";
+import StockComponent from "../components/StockComponent";
 import TableLayoutManager from "../components/TableLayout";
-import { WebSocketProvider, useWebSocketContext } from "../../contexts/WebSocketContext";
+import {
+  WebSocketProvider,
+  useWebSocketContext,
+} from "../../contexts/WebSocketContext";
 
 const RestaurantDashboardContent = () => {
   const { socket, connected, reconnecting } = useWebSocketContext();
@@ -32,6 +36,70 @@ const RestaurantDashboardContent = () => {
   const [userLabels, setUserLabels] = useState([]);
   const [currentView, setCurrentView] = useState(null); // null initially, set after user loads
   const [activeNavItem, setActiveNavItem] = useState("Painel"); // Track active navigation item
+
+  // Random color for username - refreshed on every load
+  const [usernameColor, setUsernameColor] = useState("");
+
+  // Big list of vibrant colors for username
+  const USERNAME_COLORS = [
+    "#FF6B6B", // Coral Red
+    "#4ECDC4", // Turquoise
+    "#45B7D1", // Sky Blue
+    "#FFA07A", // Light Salmon
+    "#98D8C8", // Mint
+    "#F7DC6F", // Golden Yellow
+    "#BB8FCE", // Lavender
+    "#85C1E2", // Powder Blue
+    "#F8B739", // Amber
+    "#52B788", // Emerald Green
+    "#F06292", // Pink
+    "#7C4DFF", // Deep Purple
+    "#FF7043", // Deep Orange
+    "#26C6DA", // Cyan
+    "#9CCC65", // Light Green
+    "#AB47BC", // Purple
+    "#EC407A", // Hot Pink
+    "#5C6BC0", // Indigo
+    "#FFCA28", // Amber Yellow
+    "#66BB6A", // Green
+    "#EF5350", // Red
+    "#42A5F5", // Blue
+    "#FF6B35", // Orange (Mesa+ brand)
+    "#8E44AD", // Violet
+    "#3498DB", // Dodger Blue
+    "#E74C3C", // Alizarin
+    "#1ABC9C", // Turquoise
+    "#F39C12", // Orange
+    "#9B59B6", // Amethyst
+    "#2ECC71", // Nephritis
+    "#E67E22", // Carrot
+    "#16A085", // Green Sea
+    "#D35400", // Pumpkin
+    "#C0392B", // Pomegranate
+    "#27AE60", // Green
+    "#2980B9", // Belize Blue
+    "#8E44AD", // Wisteria
+    "#FF6348", // Tomato
+    "#FF4757", // Radical Red
+    "#5F27CD", // Purple
+    "#00D2D3", // Bright Cyan
+    "#FF9FF3", // Fuchsia Pink
+    "#54A0FF", // French Sky Blue
+    "#48DBFB", // Bright Turquoise
+    "#1DD1A1", // Caribbean Green
+    "#10AC84", // Green Darner Tail
+    "#FF9F43", // Orange Yellow
+    "#EE5A6F", // Watermelon
+    "#C44569", // Blush Pink
+    "#F8B739", // Saffron
+  ];
+
+  // Select random color on component mount
+  useEffect(() => {
+    const randomColor =
+      USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
+    setUsernameColor(randomColor);
+  }, []);
 
   // Mock chart data for manager view - Daily revenue for the week
   const chartData = [
@@ -62,8 +130,8 @@ const RestaurantDashboardContent = () => {
     setActiveNavItem(navItem);
     // Reset scroll to top when changing tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
-    // Reset to dashboard view when clicking on navigation items (except Ementa)
-    if (navItem !== "Ementa" && currentView) {
+    // Reset to dashboard view when clicking on navigation items (except Ementa and Stock)
+    if (navItem !== "Ementa" && navItem !== "Stock" && currentView) {
       // Keep the current view type but show dashboard
       // currentView will be used to determine which dashboard to show
     }
@@ -292,6 +360,8 @@ const RestaurantDashboardContent = () => {
           <>
             {activeNavItem === "Ementa" ? (
               <MenuComponent />
+            ) : activeNavItem === "Stock" ? (
+              <StockComponent />
             ) : activeNavItem === "Mesas" ? (
               <TableLayoutManager user={user} />
             ) : (
@@ -300,13 +370,21 @@ const RestaurantDashboardContent = () => {
                   <>
                     <h1 className="welcome-title slide-in-up">
                       <BlurText
-                        text={`Bem-vindo, ${username}.`}
+                        text="Bem-vindo,"
                         delay={150}
                         animateBy="words"
                         direction="top"
-                        onAnimationComplete={handleAnimationComplete}
                         className="welcome-greeting"
-                        style={{ color: "#ff6b35" }}
+                        style={{ color: "#2d3748" }}
+                      />
+                      <BlurText
+                        text={`${username}.`}
+                        delay={250}
+                        animateBy="words"
+                        direction="top"
+                        onAnimationComplete={handleAnimationComplete}
+                        className="welcome-greeting username-highlight"
+                        style={{ color: usernameColor }}
                       />
                     </h1>
                     <ManagerView

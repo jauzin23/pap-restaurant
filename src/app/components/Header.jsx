@@ -1,20 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Settings,
-  Bell,
   User,
   UserCircle,
   Menu,
   X,
-  Eye,
   Users,
   LogOut,
 } from "lucide-react";
-import "./Header.scss";
+import "./header.scss";
 import { logout } from "../../lib/auth";
 
 const Header = ({
@@ -40,21 +38,33 @@ const Header = ({
     isCircular = false,
   }) => {
     const [hasError, setHasError] = useState(false);
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-    if (hasError || !src) {
+    // Handle custom API URLs for profile images
+    const getImageUrl = (imageSrc) => {
+      if (!imageSrc) return null;
+      if (imageSrc.startsWith("http")) return imageSrc;
+      return `${API_BASE_URL}/files/imagens-perfil/${imageSrc}`;
+    };
+
+    const imageUrl = getImageUrl(src);
+
+    if (hasError || !imageUrl) {
       return (
         <div
-          className={`${className} bg-gray-100 flex items-center justify-center ${
+          className={`${className} flex items-center justify-center ${
             isCircular ? "rounded-full" : "rounded-lg"
           }`}
           style={{
             width: typeof size === "number" ? `${size}px` : size,
             height: typeof size === "number" ? `${size}px` : size,
+            background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
           }}
         >
           <UserCircle
-            size={typeof size === "number" ? Math.floor(size * 0.7) : 24}
-            className="text-gray-400"
+            size={typeof size === "number" ? Math.floor(size * 0.65) : 24}
+            style={{ color: "#94a3b8" }}
           />
         </div>
       );
@@ -68,17 +78,14 @@ const Header = ({
         style={{
           width: typeof size === "number" ? `${size}px` : size,
           height: typeof size === "number" ? `${size}px` : size,
-          backgroundColor: "#f8fafc", // Light grayish-white background for transparent images
+          background: "#ffffff",
         }}
       >
         <img
-          src={src}
+          src={imageUrl}
           alt={alt}
           className="w-full h-full object-cover"
           onError={() => setHasError(true)}
-          style={{
-            backgroundColor: "transparent", // Ensure the img itself doesn't add background
-          }}
         />
       </div>
     );
@@ -87,13 +94,17 @@ const Header = ({
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    right: 0,
+  });
   const userButtonRef = useRef(null);
 
   // Navigation items
   const navItems = [
     "Painel",
     "Ementa",
+    "Stock",
     "Reservas",
     "Mesas",
     "Financeiro",
@@ -234,82 +245,105 @@ const Header = ({
             <div className="ws-indicator pulsing" />
           </div>
         )}
-        {/* View Switcher for Managers */}
-        {showViewToggle && isManager && currentView && (
+
+        {/* Profile Dropdown */}
+        <div className="user-menu-container" ref={userButtonRef}>
           <button
-            className="icon-btn view-toggle"
-            onClick={handleViewToggle}
-            title={`Mudar para Vista ${
-              currentView === "manager" ? "Funcionário" : "Gestor"
-            }`}
-          >
-            {currentView === "manager" ? (
-              <Eye size={18} />
-            ) : (
-              <Users size={18} />
-            )}
-          </button>
-        )}
-        <button className="icon-btn">
-          <Settings size={18} />
-        </button>
-        <button className="icon-btn">
-          <Bell size={18} />
-        </button>
-        <div className="user-menu-container">
-          <button
-            ref={userButtonRef}
-            className="icon-btn user-menu-trigger"
+            className="header-profile-button"
             onClick={toggleUserMenu}
-            title="Menu do Usuário"
+            title={username || "Menu de utilizador"}
           >
-            <User size={18} />
+            <div className="header-profile-avatar">
+              <ProfileImage
+                src={profileImg}
+                alt={username || "Utilizador"}
+                size={32}
+                isCircular={true}
+              />
+            </div>
           </button>
-        </div>
-        {isUserMenuOpen && typeof document !== 'undefined' && createPortal(
-          <div
-            className="user-dropdown"
-            style={{
-              position: 'fixed',
-              top: `${dropdownPosition.top}px`,
-              right: `${dropdownPosition.right}px`,
-            }}
-          >
-            <div className="user-dropdown-header">
-              <div className="user-avatar">
-                <ProfileImage
-                  src={profileImg}
-                  alt={username || "Usuário"}
-                  size={40}
-                  isCircular={true}
-                />
-              </div>
-              <div className="user-info">
-                <div className="user-name">{username || "Usuário"}</div>
-                <div className="user-role">
-                  {userLabels.length > 0
-                    ? userLabels.join(", ")
-                    : "Sem Cargo"}
-                </div>
-              </div>
-            </div>
-            <div className="user-dropdown-divider"></div>
-            <div className="user-dropdown-menu">
-              <button className="dropdown-item" onClick={handleProfileClick}>
-                <User size={16} />
-                <span>Perfil</span>
-              </button>
-              <button
-                className="dropdown-item logout-item"
-                onClick={handleLogout}
+
+          {/* Dropdown Menu */}
+          {isUserMenuOpen &&
+            createPortal(
+              <div
+                className="user-dropdown"
+                style={{
+                  position: "fixed",
+                  top: `${dropdownPosition.top}px`,
+                  right: `${dropdownPosition.right}px`,
+                }}
               >
-                <LogOut size={16} />
-                <span>Sair</span>
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
+                <div className="user-dropdown-header">
+                  <div className="user-dropdown-avatar">
+                    <ProfileImage
+                      src={profileImg}
+                      alt={username || "Utilizador"}
+                      size={32}
+                      isCircular={true}
+                    />
+                  </div>
+                  <div className="user-dropdown-info">
+                    <div className="user-dropdown-name">
+                      {username || "Utilizador"}
+                    </div>
+                    {userLabels && userLabels.length > 0 && (
+                      <div className="user-dropdown-role">
+                        {userLabels.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="user-dropdown-divider" />
+                {showViewToggle && isManager && currentView && (
+                  <>
+                    <button
+                      className="user-dropdown-item"
+                      onClick={() => {
+                        handleViewToggle();
+                        setIsUserMenuOpen(false);
+                      }}
+                    >
+                      <Users size={16} />
+                      <span>
+                        {currentView === "manager"
+                          ? "Mudar para Vista Funcionário"
+                          : "Mudar para Vista Gestor"}
+                      </span>
+                    </button>
+                    <div className="user-dropdown-divider" />
+                  </>
+                )}
+                <button
+                  className="user-dropdown-item"
+                  onClick={handleProfileClick}
+                >
+                  <User size={16} />
+                  <span>O Seu Perfil</span>
+                </button>
+                <button
+                  className="user-dropdown-item"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    router.push("/settings");
+                  }}
+                >
+                  <Settings size={16} />
+                  <span>Definições</span>
+                </button>
+                <div className="user-dropdown-divider" />
+                <button
+                  className="user-dropdown-item danger"
+                  onClick={handleLogout}
+                >
+                  <LogOut size={16} />
+                  <span>Terminar Sessão</span>
+                </button>
+              </div>,
+              document.body
+            )}
+        </div>
+
         <button className="mobile-menu-toggle" onClick={toggleMobileMenu}>
           {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
         </button>

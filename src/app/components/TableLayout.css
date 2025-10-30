@@ -1572,7 +1572,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 20px 16px;
   border-bottom: 2px solid #e2e8f0;
   background: linear-gradient(135deg, #ff6b35, #ff8c42);
 }
@@ -1815,58 +1815,63 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: white;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s ease;
 }
 
 .clean-modal-header {
   background: white;
-  padding: 12px 20px;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .clean-modal-header h2 {
   margin: 0;
   font-size: 18px;
-  font-weight: 700;
-  color: black;
-  letter-spacing: -0.3px;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: -0.2px;
 }
 
 .clean-close-btn {
   width: 32px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #f3f4f6;
   border: none;
   border-radius: 8px;
-  color: white;
+  color: #6b7280;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
 }
 
 .clean-close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.clean-close-btn:active {
+  transform: scale(0.95);
 }
 
 .clean-modal-body {
   padding: 0;
   overflow-y: auto;
   flex: 1;
-  background: #fafafa;
+  background: #f9fafb;
 }
 
 .empty-state {
   padding: 80px 20px;
   text-align: center;
-  color: #999;
-  font-size: 16px;
+  color: #9ca3af;
+  font-size: 15px;
 }
 
 /* Orders List */
@@ -1879,23 +1884,15 @@
 
 .order-item {
   background: white;
-  border: 2px solid #f0f0f0;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 70px;
-  position: relative;
-  overflow: hidden;
+  padding: 16px;
+  transition: all 0.15s ease;
 }
 
 .order-item.editing {
-  border-color: #18181b;
+  border-color: #d1d5db;
   background: #fafafa;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-.order-item.editing::before {
-  opacity: 1;
 }
 
 /* View Mode */
@@ -1905,35 +1902,41 @@
   flex-direction: row !important;
   justify-content: space-between;
   gap: 14px;
+  margin-bottom: 12px;
 }
 
 .order-image {
-  width: 60px;
-  height: 60px;
-  object-fit: contain;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
   border-radius: 8px;
   flex-shrink: 0;
+  border: 1px solid #e5e7eb;
 }
 
 .order-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .order-name {
   font-size: 14px;
-  font-weight: 700;
-  color: #18181b;
-  margin-bottom: 6px;
-  letter-spacing: -0.2px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
 }
 
 .order-details {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: #6b7280;
   flex-wrap: wrap;
 }
 
@@ -1958,62 +1961,62 @@
 }
 
 .order-details .status {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0;
 }
 
 .status-pendente {
-  background: #fff3cd;
-  color: #856404;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .status-aceite {
-  background: #d1ecf1;
-  color: #0c5460;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .status-pronto {
-  background: #d4edda;
-  color: #155724;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .status-entregue {
-  background: #e7e7ff;
-  color: #3d3d8f;
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .status-completo {
   background: #d1f2eb;
-  color: #0f5132;
+  color: #047857;
 }
 
 .status-cancelado {
-  background: #f8d7da;
-  color: #721c24;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .order-notes {
   margin-top: 8px;
-  font-size: 11px;
-  color: #52525b;
+  font-size: 12px;
+  color: #6b7280;
   font-style: italic;
-  background: #fafafa;
+  background: #f9fafb;
   padding: 8px 10px;
   border-radius: 6px;
-  border-left: 3px solid #18181b;
+  border-left: 3px solid #d1d5db;
   line-height: 1.4;
 }
 
 .order-total {
   font-size: 16px;
-  font-weight: 800;
-  color: #18181b;
+  font-weight: 700;
+  color: #111827;
   flex-shrink: 0;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.02em;
 }
 
 .order-actions {
@@ -2024,41 +2027,36 @@
 
 .btn-edit,
 .btn-delete {
-  padding: 6px 12px;
-  border: 2px solid transparent;
-  background: #18181b;
-  color: white;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   gap: 4px;
+  background: white;
 }
 
 .btn-edit {
-  background: #18181b;
+  color: #374151;
 }
 
 .btn-edit:hover {
-  background: #27272a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #f9fafb;
+  border-color: #d1d5db;
 }
 
 .btn-delete {
-  background: transparent;
   color: #dc2626;
-  border-color: #dc2626;
+  border-color: #fecaca;
 }
 
 .btn-delete:hover {
-  background: #dc2626;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  background: #fef2f2;
+  border-color: #fca5a5;
 }
 
 /* Edit Mode */
@@ -2085,21 +2083,19 @@
 }
 
 .edit-group label {
-  font-size: 10px;
-  font-weight: 700;
-  color: #52525b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
 }
 
 .item-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px;
-  background: linear-gradient(135deg, #fafafa, #f5f5f5);
+  background: #f9fafb;
   border-radius: 8px;
-  border: 2px solid #f0f0f0;
+  border: 1px solid #e5e7eb;
 }
 
 .item-thumb {
@@ -2107,41 +2103,39 @@
   height: 40px;
   object-fit: cover;
   border-radius: 6px;
-  border: 2px solid #e5e5e5;
+  border: 1px solid #e5e7eb;
 }
 
 .item-name {
   font-size: 13px;
-  font-weight: 700;
-  color: #18181b;
-  letter-spacing: -0.2px;
+  font-weight: 600;
+  color: #111827;
 }
 
 .edit-group input,
 .edit-group select,
 .edit-group textarea {
-  padding: 8px 10px;
-  border: 2px solid #e5e5e5;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
   font-family: inherit;
   background: white;
-  transition: all 0.2s;
-  font-weight: 500;
+  transition: border-color 0.15s ease;
+  color: #111827;
 }
 
 .edit-group input:focus,
 .edit-group select:focus,
 .edit-group textarea:focus {
   outline: none;
-  border-color: #18181b;
-  box-shadow: 0 0 0 4px rgba(24, 24, 27, 0.1);
+  border-color: #9ca3af;
 }
 
 .edit-group textarea {
   resize: vertical;
-  min-height: 50px;
-  line-height: 1.4;
+  min-height: 60px;
+  line-height: 1.5;
 }
 
 .edit-actions {
@@ -2155,23 +2149,22 @@
 .btn-save,
 .btn-cancel {
   padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .btn-save {
-  background: #18181b;
+  background: #111827;
   color: white;
+  border-color: #111827;
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #27272a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: #1f2937;
 }
 
 .btn-save:disabled {
@@ -2180,24 +2173,24 @@
 }
 
 .btn-cancel {
-  background: #f5f5f5;
-  color: #52525b;
+  background: white;
+  color: #6b7280;
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: #e5e5e5;
-  color: #18181b;
+  background: #f9fafb;
+  border-color: #d1d5db;
 }
 
 /* Footer */
 .clean-modal-footer {
-  background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
-  padding: 14px 20px;
-  border-top: 2px solid #e5e5e5;
+  background: white;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .add-order-btn-modal {
@@ -2206,51 +2199,38 @@
   gap: 6px;
   padding: 8px 16px;
   height: 36px;
-  background: #18181b;
+  background: #111827;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.15s ease;
   white-space: nowrap;
 }
 
 .add-order-btn-modal:hover {
-  background: #27272a;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.add-order-btn-modal:active {
-  background: #3f3f46;
-  transform: scale(0.98);
+  background: #1f2937;
 }
 
 .footer-total-section {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 14px;
-  background: linear-gradient(135deg, #f5f5f5, #fafafa);
-  border-radius: 8px;
-  border: 2px solid #e5e5e5;
 }
 
 .footer-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #71717a;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
 }
 
 .footer-total {
   font-size: 18px;
-  font-weight: 800;
-  color: #18181b;
-  letter-spacing: -0.5px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
 }
 
 /* Mobile Responsive */
@@ -2263,63 +2243,106 @@
   }
 
   .clean-modal-header {
-    padding: 20px 16px;
+    padding: 18px 20px;
   }
 
   .clean-modal-header h2 {
     font-size: 18px;
   }
 
-  .orders-list {
-    padding: 12px;
+  .clean-close-btn {
+    width: 32px;
+    height: 32px;
   }
 
-  .order-item {
+  .orders-list {
     padding: 16px;
   }
 
+  .order-item {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
   .card-order-main {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    gap: 12px;
   }
 
   .order-image {
-    width: 100%;
-    height: 180px;
+    width: 64px;
+    height: 64px;
+  }
+
+  .order-name {
+    font-size: 14px;
+  }
+
+  .order-details {
+    font-size: 12px;
+    gap: 8px;
   }
 
   .order-total {
-    font-size: 20px;
-    align-self: flex-end;
+    font-size: 16px;
+    padding: 6px 12px;
+  }
+
+  .order-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-edit,
+  .btn-delete {
+    font-size: 11px;
+    padding: 7px 14px;
   }
 
   .edit-row {
     flex-direction: column;
   }
 
+  .edit-group input,
+  .edit-group select,
+  .edit-group textarea {
+    font-size: 14px;
+  }
+
   .edit-actions {
-    flex-direction: column;
+    gap: 8px;
   }
 
   .btn-save,
   .btn-cancel {
-    width: 100%;
+    flex: 1;
+    padding: 10px 16px;
   }
 
   .clean-modal-footer {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    flex-direction: column-reverse;
+    gap: 12px;
+    padding: 16px 20px;
   }
 
   .add-order-btn-modal {
     width: 100%;
     justify-content: center;
+    height: 44px;
   }
 
   .footer-total-section {
     width: 100%;
     justify-content: space-between;
+    padding: 12px 16px;
+  }
+
+  .footer-label {
+    font-size: 11px;
+  }
+
+  .footer-total {
+    font-size: 18px;
   }
 }
 
@@ -2778,5 +2801,98 @@
   .action-btn {
     padding: 10px 14px;
     font-size: 12px;
+  }
+}
+
+/* Custom Confirmation Modal */
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.confirm-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease;
+}
+
+.confirm-content {
+  margin-bottom: 20px;
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  padding: 8px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 80px;
+}
+
+.confirm-btn.cancel {
+  background: white;
+  color: #6b7280;
+}
+
+.confirm-btn.cancel:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.confirm-btn.confirm {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+.confirm-btn.confirm:hover {
+  background: #b91c1c;
+}
+
+/* Mobile Responsive for Confirmation Modal */
+@media (max-width: 768px) {
+  .confirm-modal {
+    max-width: 90%;
+    padding: 20px;
+  }
+
+  .confirm-content {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .confirm-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .confirm-btn {
+    width: 100%;
   }
 }

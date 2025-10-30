@@ -5,6 +5,7 @@ import { UserCircle, Plus, UtensilsCrossed, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { API_FILES_URL } from "../../lib/api";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
+import NumberFlow from '@number-flow/react';
 import "./StaffView.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -172,7 +173,7 @@ const StaffView = ({ username, userLabels, profileImg }) => {
           <div key={index} className="stat-item scale-in hover-lift">
             <span className="stat-label">{stat.label}</span>
             <button className={`stat-btn hover-button ${stat.type}`}>
-              {stat.value}
+              <NumberFlow value={parseFloat(stat.value) || 0} />
             </button>
           </div>
         ))}
@@ -214,14 +215,18 @@ const StaffView = ({ username, userLabels, profileImg }) => {
             </div>
             <div className="progress-content">
               <div className="hours-display">
-                <span className="hours">€2.1</span>
+                <span className="hours">
+                  €<NumberFlow value={2.1} />
+                </span>
                 <span className="hours-label">K</span>
               </div>
               <div className="work-time-label">
                 <div>Vendas Totais</div>
                 <div className="week-label">esta semana</div>
               </div>
-              <div className="highlight-badge">+8%</div>
+              <div className="highlight-badge">
+                +<NumberFlow value={8} />%
+              </div>
             </div>
             <div className="week-chart">
               {["D", "S", "T", "Q", "Q", "S", "S"].map((day, index) => (

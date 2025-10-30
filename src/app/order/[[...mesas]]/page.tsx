@@ -14,7 +14,6 @@ import {
   CheckCircle,
   UserCircle,
 } from "lucide-react";
-import Header from "../../components/Header";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth } from "../../../lib/api";
 import { isAuthenticated } from "../../../lib/auth";
@@ -22,6 +21,7 @@ import {
   WebSocketProvider,
   useWebSocketContext,
 } from "../../../contexts/WebSocketContext";
+import NumberFlow from '@number-flow/react';
 import "./page.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -661,18 +661,6 @@ function PedidoPageContent({
           </div>
         </div>
 
-        <Header
-          activeNavItem={activeNavItem}
-          onNavClick={handleNavClick}
-          user={user}
-          username={username}
-          userLabels={userLabels}
-          profileImg={profileImg}
-          isManager={isManager}
-          currentView="staff"
-          showViewToggle={false}
-        />
-
         <div className="order-page">
           <div className="order-main">
             <div className="order-header">
@@ -730,18 +718,6 @@ function PedidoPageContent({
           <BackgroundBeams pathCount={20} />
         </div>
       </div>
-
-      <Header
-        activeNavItem={activeNavItem}
-        onNavClick={handleNavClick}
-        user={user}
-        username={username}
-        userLabels={userLabels}
-        profileImg={profileImg}
-        isManager={isManager}
-        currentView="staff"
-        showViewToggle={false}
-      />
 
       {/* Loading overlay for order submission */}
       {(isOrderSubmitting || orderSuccess) && (
@@ -886,7 +862,7 @@ function PedidoPageContent({
                           )}
                         </div>
                         <div className="menu-item-price">
-                          €{(item.preco || 0).toFixed(2)}
+                          €<NumberFlow value={item.preco || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                         </div>
                       </div>
                     </div>
@@ -909,7 +885,9 @@ function PedidoPageContent({
 
           {/* Cart Overlay */}
           <div
-            className={`mobile-cart-overlay ${cartSidebarOpen ? "active" : ""}`}
+            className={`mobile-cart-overlay ${
+              cartSidebarOpen ? "active" : ""
+            }`}
             onClick={() => setCartSidebarOpen(false)}
           />
 
@@ -974,7 +952,7 @@ function PedidoPageContent({
                         <div className="title-price-row">
                           <h4>{item.nome}</h4>
                           <span className="price">
-                            €{(item.preco || 0).toFixed(2)}
+                            €<NumberFlow value={item.preco || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                           </span>
                         </div>
 
@@ -1036,7 +1014,7 @@ function PedidoPageContent({
             {/* Cart Footer */}
             <div className="cart-footer">
               <div className="cart-total">
-                <strong>Total: €{total.toFixed(2)}</strong>
+                <strong>Total: €<NumberFlow value={total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} /></strong>
               </div>
               <div className="cart-actions">
                 <button
@@ -1069,7 +1047,7 @@ function PedidoPageContent({
         </div>
       </main>
 
-      {/* Note Modal - moved outside order-page to avoid pointer-events issues */}
+      {/* Note Modal */}
       {noteModalOpen !== null && (
         <div
           className="modal-overlay"

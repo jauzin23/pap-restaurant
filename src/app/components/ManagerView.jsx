@@ -7,18 +7,20 @@ import {
   HandCoins,
   Logs,
   UserCircle,
-  ChevronDown,
-  ChevronUp,
   Users,
   ExternalLink,
   Clock,
   Star,
   Grid,
   Edit,
+  Package,
+  Wrench,
+  Wallet,
 } from "lucide-react";
 import { Avatars } from "appwrite";
 import { useApp } from "@/contexts/AppContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
+import NumberFlow from '@number-flow/react';
 import "./ManagerView.scss";
 import WeeklyRevenueChart from "./WeeklyRevenueChart";
 import TableLayoutManager from "./TableLayout";
@@ -196,17 +198,18 @@ const ManagerView = ({
       // Ultimate fallback to icon
       return (
         <div
-          className={`${className} bg-gray-100 flex items-center justify-center ${
+          className={`${className} flex items-center justify-center ${
             isCircular ? "rounded-full" : "rounded-lg"
           }`}
           style={{
             width: typeof size === "number" ? `${size}px` : size,
             height: typeof size === "number" ? `${size}px` : size,
+            background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
           }}
         >
           <UserCircle
-            size={typeof size === "number" ? Math.floor(size * 0.7) : 24}
-            className="text-gray-400"
+            size={typeof size === "number" ? Math.floor(size * 0.65) : 24}
+            style={{ color: "#94a3b8" }}
           />
         </div>
       );
@@ -220,7 +223,7 @@ const ManagerView = ({
         style={{
           width: typeof size === "number" ? `${size}px` : size,
           height: typeof size === "number" ? `${size}px` : size,
-          backgroundColor: "#f8fafc",
+          backgroundColor: "#ffffff",
         }}
       >
         <img
@@ -228,9 +231,6 @@ const ManagerView = ({
           alt={alt}
           className="w-full h-full object-cover"
           onError={() => setHasError(true)}
-          style={{
-            backgroundColor: "transparent",
-          }}
         />
       </div>
     );
@@ -260,7 +260,7 @@ const ManagerView = ({
           <div key={index} className="stat-item scale-innow ">
             <span className="stat-label">{stat.label}</span>
             <button className={`stat-btn hover-button ${stat.type}`}>
-              {stat.value}
+              <NumberFlow value={parseFloat(stat.value) || 0} />
             </button>
           </div>
         ))}
@@ -292,7 +292,7 @@ const ManagerView = ({
                     <item.icon size={12} />
                   </span>
                   <span className="summary-number">
-                    {item.value}
+                    <NumberFlow value={parseFloat(item.value) || 0} />
                     {item.unit && (
                       <span className="summary-unit">{item.unit}</span>
                     )}
@@ -308,278 +308,29 @@ const ManagerView = ({
       {/* Manager Dashboard Grid */}
       <div className="manager-dashboard-grid fade-in-delayed">
         <div className="left-section slide-in-left">
-          <div
-            className="profile-card scale-in"
-            style={{ marginBottom: "8px" }}
+          <button
+            className="nav-card-btn"
+            onClick={() => window.open("/stock", "_blank")}
           >
-            <div className="profile-image">
-              <ProfileImage
-                src={profileImg}
-                alt={username || "Chef Marco"}
-                className="w-full aspect-square object-cover rounded-lg"
-                size="100%"
-                userName={username}
-              />
-              <div className="profile-info">
-                <div className="profile-overlay"></div>
-                <h3>{username ? username : "User"}</h3>
-                {userLabels.length > 0 ? (
-                  <p>{userLabels.join(", ")}</p>
-                ) : (
-                  <p>Sem Cargo</p>
-                )}
-              </div>
-            </div>
-          </div>
+            <span className="nav-card-text">Equipamentos</span>
+            <Wrench size={48} className="nav-card-icon" />
+          </button>
 
-          <div className="accordion-section slide-in-up">
-            <button
-              className={`accordion-header${
-                expandedSections.inventory ? " active" : ""
-              }`}
-              onClick={() => toggleSection("inventory")}
-            >
-              <span>Stock e Inventário</span>
-              {expandedSections.inventory ? (
-                <ChevronUp size={18} />
-              ) : (
-                <ChevronDown size={18} />
-              )}
-            </button>
-            {expandedSections.inventory && (
-              <div
-                className={`accordion-content ${
-                  expandedSections.inventory ? "expanded" : ""
-                }`}
-              >
-                <div className="device-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1519864600265-abb23847ef2c?w=100&h=100&fit=crop"
-                    alt="Geladeira Industrial"
-                    className="device-image"
-                  />
-                  <div className="device-info">
-                    <h4>Geladeira Industrial</h4>
-                    <p>Temperatura OK</p>
-                  </div>
-                  <button className="device-menu">
-                    <MoreVertical size={18} />
-                  </button>
-                </div>
-                <div className="device-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=100&h=100&fit=crop"
-                    alt="Despensa"
-                    className="device-image"
-                  />
-                  <div className="device-info">
-                    <h4>Despensa</h4>
-                    <p>Stock Baixo</p>
-                  </div>
-                  <button className="device-menu">
-                    <MoreVertical size={18} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            className="nav-card-btn"
+            onClick={() => window.open("/staff-management", "_blank")}
+          >
+            <span className="nav-card-text">Gestão de Staff</span>
+            <Users size={48} className="nav-card-icon" />
+          </button>
 
-          <div className="accordion-section">
-            <button
-              className={`accordion-header${
-                expandedSections.kitchen ? " active" : ""
-              }`}
-              onClick={() => toggleSection("kitchen")}
-            >
-              <span>Equipamentos</span>
-              {expandedSections.kitchen ? (
-                <ChevronUp size={18} />
-              ) : (
-                <ChevronDown size={18} />
-              )}
-            </button>
-            {expandedSections.kitchen && (
-              <div
-                className={`accordion-content ${
-                  expandedSections.kitchen ? "expanded" : ""
-                }`}
-              >
-                <div className="device-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop"
-                    alt="Forno Profissional"
-                    className="device-image"
-                  />
-                  <div className="device-info">
-                    <h4>Forno Profissional</h4>
-                    <p>Manutenção OK</p>
-                  </div>
-                  <button className="device-menu">
-                    <MoreVertical size={18} />
-                  </button>
-                </div>
-                <div className="device-item">
-                  <img
-                    src="https://images.unsplash.com/photo-1464306076886-debede6bbf94?w=100&h=100&fit=crop"
-                    alt="Fogão Industrial"
-                    className="device-image"
-                  />
-                  <div className="device-info">
-                    <h4>Fogão Industrial</h4>
-                    <p>Manutenção em breve</p>
-                  </div>
-                  <button className="device-menu">
-                    <MoreVertical size={18} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="accordion-section">
-            <button
-              className={`accordion-header${
-                expandedSections.staff ? " active" : ""
-              }`}
-              onClick={() => toggleSection("staff")}
-            >
-              <span>Gestão de Staff</span>
-              {expandedSections.staff ? (
-                <ChevronUp size={18} />
-              ) : (
-                <ChevronDown size={18} />
-              )}
-            </button>
-            {expandedSections.staff && (
-              <div
-                className={`accordion-content staff-management ${
-                  expandedSections.staff ? "expanded" : ""
-                }`}
-              >
-                {staffUsers.length === 0 ? (
-                  <div className="staff-empty-state">
-                    <div className="empty-state-icon">
-                      <Users size={32} />
-                    </div>
-                    <h4>Nenhum funcionário ativo</h4>
-                    <p>Aguardando entrada de funcionários...</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="staff-header">
-                      <div className="staff-count">
-                        <Users size={16} />
-                        <span>{staffUsers.length} </span>
-                      </div>
-                      <button
-                        className="staff-manage-btn"
-                        onClick={() =>
-                          window.open("/staff-management", "_blank")
-                        }
-                        title="Gerir Staff"
-                      >
-                        <ExternalLink size={12} />
-                      </button>
-                    </div>
-
-                    <div className="staff-list">
-                      {staffUsers.map((user, idx) => (
-                        <div
-                          className="staff-member-card"
-                          key={user.$id || user.id || idx}
-                        >
-                          <div className="staff-member-avatar">
-                            <ProfileImage
-                              src={
-                                user.profileImg ||
-                                user.profile_image ||
-                                user.avatar
-                              }
-                              alt={user.name || user.email || "Funcionário"}
-                              className="staff-avatar"
-                              size={32}
-                              isCircular={true}
-                              userName={user.name || user.email}
-                            />
-                            <div className="online-indicator"></div>
-                          </div>
-
-                          <div className="staff-member-info">
-                            <h4 className="staff-name">
-                              {user.name || user.email || "Funcionário"}
-                            </h4>
-                            <div className="staff-role">
-                              <div className="staff-time-badge">
-                                <Clock size={8} />
-                                <span>2h</span>
-                              </div>
-                              {user.labels && user.labels.length > 0 ? (
-                                <span
-                                  className={`role-badge ${user.labels[0].toLowerCase()}`}
-                                >
-                                  {user.labels[0]}
-                                </span>
-                              ) : user.roles && user.roles.length > 0 ? (
-                                <span className="role-badge default">
-                                  {user.roles[0]}
-                                </span>
-                              ) : (
-                                <span className="role-badge default">
-                                  Sem Cargo
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="staff-member-actions">
-                            <button className="staff-menu-btn">
-                              <MoreVertical size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="accordion-section">
-            <button
-              className={`accordion-header${
-                expandedSections.finances ? " active" : ""
-              }`}
-              onClick={() => toggleSection("finances")}
-            >
-              <span>Resumo Financeiro</span>
-              {expandedSections.finances ? (
-                <ChevronUp size={18} />
-              ) : (
-                <ChevronDown size={18} />
-              )}
-            </button>
-            {expandedSections.finances && (
-              <div
-                className={`accordion-content ${
-                  expandedSections.finances ? "expanded" : ""
-                }`}
-              >
-                <div className="finance-item">
-                  <h4>Receita Mensal</h4>
-                  <p>€78.2K</p>
-                </div>
-                <div className="finance-item">
-                  <h4>Despesas</h4>
-                  <p>€54.6K</p>
-                </div>
-                <div className="finance-item">
-                  <h4>Lucro</h4>
-                  <p>€23.6K</p>
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            className="nav-card-btn"
+            onClick={() => window.open("/dash2", "_blank")}
+          >
+            <span className="nav-card-text">Resumo Financeiro</span>
+            <Wallet size={48} className="nav-card-icon" />
+          </button>
         </div>
 
         <div className="center-section">
@@ -654,7 +405,6 @@ const ManagerView = ({
             </div>
           </div>
         </div>
-
         <div className="right-section">
           <div className="time-tracker-card card">
             <div className="card-header">
@@ -662,21 +412,33 @@ const ManagerView = ({
             </div>
             <div className="time-circle">
               <svg viewBox="0 0 200 200" className="circle-svg">
+                <defs>
+                  <linearGradient
+                    id="orangeGradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stopColor="#ff6b35" />
+                    <stop offset="100%" stopColor="#ff8c5a" />
+                  </linearGradient>
+                </defs>
                 <circle
                   cx="100"
                   cy="100"
                   r="85"
                   fill="none"
-                  stroke="#f0f0f0"
-                  strokeWidth="8"
+                  stroke="#f1f5f9"
+                  strokeWidth="10"
                 />
                 <circle
                   cx="100"
                   cy="100"
                   r="85"
                   fill="none"
-                  stroke="#FF6B35"
-                  strokeWidth="8"
+                  stroke="url(#orangeGradient)"
+                  strokeWidth="10"
                   strokeDasharray="534"
                   strokeDashoffset="150"
                   strokeLinecap="round"

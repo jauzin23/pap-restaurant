@@ -19,6 +19,12 @@ const garantirDiretorioUploads = async () => {
   } catch {
     await fs.mkdir("./uploads/imagens-menu", { recursive: true });
   }
+
+  try {
+    await fs.access("./uploads/imagens-stock");
+  } catch {
+    await fs.mkdir("./uploads/imagens-stock", { recursive: true });
+  }
 };
 
 module.exports = { garantirDiretorioUploads };

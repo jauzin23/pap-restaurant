@@ -34,6 +34,7 @@ import {
 } from "../../lib/api";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import { throttle } from "../../lib/throttle";
+import NumberFlow from '@number-flow/react';
 import "./TableLayout.css";
 
 // API Configuration
@@ -202,6 +203,11 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   const [selectedTableOrders, setSelectedTableOrders] = useState<any[]>([]);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    show: boolean;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -1769,6 +1775,11 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [editingStatus, setEditingStatus] = useState<string>("pendente");
   const [editingPrice, setEditingPrice] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    show: boolean;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   // Helper function to get menu item by ID
   const getMenuItem = (menuItemId: string) => {
@@ -1853,27 +1864,33 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   // Delete order
   const deleteOrder = async (order: any) => {
-    if (!confirm("Tem certeza que deseja eliminar este item?")) return;
-
     const orderId = order.$id || order.id;
 
-    try {
-      await ordersApi.delete(orderId);
+    setConfirmDialog({
+      show: true,
+      message: "Tem a certeza?",
+      onConfirm: async () => {
+        setConfirmDialog(null);
 
-      // Update local state immediately
-      onOrderDelete(orderId);
+        try {
+          await ordersApi.delete(orderId);
 
-      // Refetch orders in background
-      onRefresh();
+          // Update local state immediately
+          onOrderDelete(orderId);
 
-      // Close modal if no orders left
-      if (orders.length <= 1) {
-        onClose();
-      }
-    } catch (error) {
-      console.error("Error deleting order:", error);
-      alert("Erro ao eliminar pedido");
-    }
+          // Refetch orders in background
+          onRefresh();
+
+          // Close modal if no orders left
+          if (orders.length <= 1) {
+            onClose();
+          }
+        } catch (error) {
+          console.error("Error deleting order:", error);
+          alert("Erro ao eliminar pedido");
+        }
+      },
+    });
   };
 
   // Get status color
@@ -2069,7 +2086,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                             </div>
                             <div className="order-details">
                               <span className="price">
-                                €{currentPrice.toFixed(2)}
+                                €<NumberFlow value={currentPrice} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                               </span>
                               <span className="separator">•</span>
                               <span
@@ -2085,7 +2102,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                             )}
                           </div>
                           <div className="order-total">
-                            €{itemTotal.toFixed(2)}
+                            €<NumberFlow value={itemTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                           </div>
                         </div>
                         <div className="order-actions">
@@ -2124,7 +2141,36 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             </button>
             <div className="footer-total-section">
               <span className="footer-label">Total</span>
-              <span className="footer-total">€{total.toFixed(2)}</span>
+              <span className="footer-total">€<NumberFlow value={total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} /></span>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm Dialog */}
+        {confirmDialog?.show && (
+          <div
+            className="confirm-overlay"
+            onClick={() => setConfirmDialog(null)}
+          >
+            <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="confirm-content">
+                <h3>Confirmar</h3>
+                <p>{confirmDialog.message}</p>
+              </div>
+              <div className="confirm-actions">
+                <button
+                  className="confirm-btn cancel"
+                  onClick={() => setConfirmDialog(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="confirm-btn confirm"
+                  onClick={confirmDialog.onConfirm}
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2263,7 +2309,7 @@ const TableComponent: React.FC<TableComponentProps> = ({
         <div className="table-content">
           <span className="table-number">{table.number}</span>
           {mode === "view" && orderTotal > 0 && (
-            <span className="table-order-total">€{orderTotal.toFixed(2)}</span>
+            <span className="table-order-total">€<NumberFlow value={orderTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} /></span>
           )}
         </div>
       </div>

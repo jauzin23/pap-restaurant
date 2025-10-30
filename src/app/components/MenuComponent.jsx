@@ -16,6 +16,7 @@ import {
 import { Input, Button, Select } from "antd";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
+import NumberFlow from '@number-flow/react';
 
 const { TextArea } = Input;
 import "./MenuComponent.scss";
@@ -67,6 +68,7 @@ export default function MenuComponent() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [authError, setAuthError] = useState(false);
+  const [expandedTags, setExpandedTags] = useState(new Set());
 
   // Collections data
   const [availableTags, setAvailableTags] = useState([]);
@@ -687,6 +689,18 @@ export default function MenuComponent() {
     setSelectedTags((prev) => prev.filter((tag) => tag !== tagName));
   }
 
+  function toggleTagsExpanded(itemId) {
+    setExpandedTags((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  }
+
   return (
     <div className="menu-component">
       {/* Header */}
@@ -781,6 +795,16 @@ export default function MenuComponent() {
           </div>
         ) : (
           <div className="menu-items-grid">
+            {/* Table Header */}
+            <div className="menu-table-header">
+              <div className="header-cell">Imagem</div>
+              <div className="header-cell">Item</div>
+              <div className="header-cell align-right">Preço</div>
+              <div className="header-cell">Categoria & Tags</div>
+              <div className="divider"></div>
+              <div className="header-cell">Ações</div>
+            </div>
+
             {menuItems.map((item) => {
               const imageUrl = imageUrls[item.$id] || null;
 
@@ -793,11 +817,6 @@ export default function MenuComponent() {
                         src={imageUrl}
                         alt={item.nome}
                         className="menu-item-image"
-                        style={{
-                          width: "100%",
-                          height: "200px",
-                          borderRadius: "8px 8px 0 0",
-                        }}
                         onError={(e) => {
                           e.target.style.display = "none";
                           e.target.nextSibling.style.display = "flex";
@@ -828,84 +847,62 @@ export default function MenuComponent() {
 
                   {/* Content */}
                   <div className="card-content">
+                    {/* Column 2: Item Name & Description */}
                     <div className="card-info">
-                      {/* Title and Price */}
                       <div className="title-price-row">
                         <h3>{item.nome}</h3>
-                        <span className="price">€{item.preco?.toFixed(2)}</span>
                       </div>
-
-                      {/* Description */}
                       {item.description && (
                         <p className="description">{item.description}</p>
                       )}
+                    </div>
 
-                      {/* Category */}
+                    {/* Column 3: Price */}
+                    <span className="price">
+                      €<NumberFlow value={parseFloat(item.preco) || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                    </span>
+
+                    {/* Column 4: Category & Tags */}
+                    <div className="category-tags-column">
                       {item.category && (
-                        <div style={{ marginBottom: "8px" }}>
-                          <span className="category-tag">{item.category}</span>
-                        </div>
+                        <span className="category-tag">{item.category}</span>
                       )}
-
-                      {/* Tags */}
                       {item.tags && item.tags.length > 0 && (
                         <div className="tags-container">
-                          {item.tags.slice(0, 3).map((tag) => (
+                          {(expandedTags.has(item.$id)
+                            ? item.tags
+                            : item.tags.slice(0, 3)
+                          ).map((tag) => (
                             <span key={tag} className="tag">
                               {tag}
                             </span>
                           ))}
                           {item.tags.length > 3 && (
-                            <span className="more-tags">
-                              +{item.tags.length - 3}
-                            </span>
+                            <button
+                              className="more-tags"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTagsExpanded(item.$id);
+                              }}
+                              title={
+                                expandedTags.has(item.$id)
+                                  ? "Mostrar menos"
+                                  : `Mostrar mais ${item.tags.length - 3} tags`
+                              }
+                            >
+                              {expandedTags.has(item.$id)
+                                ? "Mostrar menos"
+                                : `+${item.tags.length - 3}`}
+                            </button>
                           )}
-                        </div>
-                      )}
-
-                      {/* Ingredients */}
-                      {item.ingredientes && item.ingredientes.length > 0 && (
-                        <div style={{ marginTop: "8px" }}>
-                          <div
-                            style={{
-                              fontSize: "11px",
-                              color: "#6b7280",
-                              marginBottom: "4px",
-                              fontWeight: "500",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.5px",
-                            }}
-                          >
-                            Ingredientes
-                          </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "4px",
-                            }}
-                          >
-                            {item.ingredientes.map((ing) => (
-                              <span
-                                key={ing}
-                                style={{
-                                  fontSize: "12px",
-                                  padding: "2px 6px",
-                                  backgroundColor: "#f1f5f9",
-                                  color: "#475569",
-                                  borderRadius: "4px",
-                                  border: "1px solid #cbd5e1",
-                                }}
-                              >
-                                {ing}
-                              </span>
-                            ))}
-                          </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Vertical Divider */}
+                    <div className="vertical-divider"></div>
+
+                    {/* Column 5: Action Buttons */}
                     <div className="action-buttons">
                       <button
                         onClick={(e) => {
@@ -913,9 +910,9 @@ export default function MenuComponent() {
                           openEditModal(item);
                         }}
                         className="edit-btn"
+                        title="Editar"
                       >
-                        <Edit size={14} />
-                        Editar
+                        <Edit />
                       </button>
                       <button
                         onClick={(e) => {
@@ -923,9 +920,9 @@ export default function MenuComponent() {
                           handleDelete(item.$id);
                         }}
                         className="delete-btn"
+                        title="Excluir"
                       >
-                        <Trash2 size={14} />
-                        Excluir
+                        <Trash2 />
                       </button>
                     </div>
                   </div>
@@ -1126,7 +1123,7 @@ export default function MenuComponent() {
                         padding: "32px",
                         textAlign: "center",
                         cursor: "pointer",
-                        backgroundColor: "#ffffff",
+                        backgroundColor: "transparent",
                       }}
                     >
                       <Upload

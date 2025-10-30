@@ -29,6 +29,7 @@ import {
   COL_TABLES,
   PAYMENT_METHODS,
 } from "@/lib/appwrite";
+import NumberFlow from '@number-flow/react';
 
 const DB_ID = DBRESTAURANTE;
 const MENU_COLLECTION_ID = COL_MENU;
@@ -1275,7 +1276,7 @@ export default function OrdersPage() {
                                   )}
                                 </span>
                                 <span className="text-xl font-bold text-green-400">
-                                  {order.total?.toFixed(2)}€
+                                  <NumberFlow value={order.total || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />€
                                 </span>
                               </div>
                             </div>
@@ -1508,7 +1509,7 @@ export default function OrdersPage() {
                                           </p>
                                         </div>
                                         <span className="text-sm font-bold text-green-400">
-                                          €{order.total.toFixed(2)}
+                                          €<NumberFlow value={order.total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                                         </span>
                                       </div>
 
@@ -1982,7 +1983,7 @@ export default function OrdersPage() {
                                   </div>
                                   <div className="text-right">
                                     <span className="text-lg font-bold text-green-400">
-                                      €{order.total.toFixed(2)}
+                                      €<NumberFlow value={order.total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                                     </span>
                                     <div className="text-xs text-green-400 font-medium flex items-center gap-1">
                                       <CheckCircle className="w-3 h-3" />
@@ -2492,7 +2493,7 @@ export default function OrdersPage() {
 
                                         <div className="mt-2 text-right">
                                           <span className="text-white font-medium text-sm">
-                                            €{item.preco.toFixed(2)}
+                                            €<NumberFlow value={item.preco} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                                           </span>
                                         </div>
                                       </div>
@@ -2698,8 +2699,7 @@ export default function OrdersPage() {
                                         </div>
                                         <div className="flex items-center gap-2 ml-3">
                                           <span className="font-bold text-green-400 text-lg sm:text-base">
-                                            €
-                                            {Number(item.preco || 0).toFixed(2)}
+                                            €<NumberFlow value={Number(item.preco || 0)} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
                                           </span>
                                           <Plus className="w-6 h-6 sm:w-5 sm:h-5 text-white/70 hover:text-white transition-colors" />
                                         </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useApp } from "@/contexts/AppContext";
-import { Button } from "@/components/ui/button";
+import { createPortal } from "react-dom";
+import { Button } from "antd";
 import {
   Plus,
   AlertTriangle,
@@ -25,16 +25,49 @@ import {
   Trash2,
   Image as ImageIcon,
   Crop,
+  Wand2,
+  MapPin,
+  Truck,
+  Check,
 } from "lucide-react";
-import {
-  COL_STOCK,
-  DBRESTAURANTE,
-  COL_CATEGORY_STOCK,
-  COL_SUPPLIER,
-  LOCATION_STOCK,
-  BUCKET_STOCK_IMG,
-} from "@/lib/appwrite";
+import { Cropper } from "react-advanced-cropper";
+import "react-advanced-cropper/dist/style.css";
+import NumberFlow from '@number-flow/react';
 import "./StockComponent.scss";
+
+// Import auth from your API module
+import { getAuthToken } from "@/lib/api";
+
+// Import WebSocket hook
+import { useStockWebSocket } from "@/hooks/useStockWebSocket";
+
+// API Configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+// API call helper with authentication
+const apiCall = async (endpoint, options = {}) => {
+  const token = getAuthToken();
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
 
 export default function StockComponent() {
   const [stockItems, setStockItems] = useState([]);
@@ -43,7 +76,7 @@ export default function StockComponent() {
   const [editingRows, setEditingRows] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCartExpanded, setIsCartExpanded] = useState(false);
+  const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
@@ -61,27 +94,18 @@ export default function StockComponent() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [currentImageId, setCurrentImageId] = useState(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [croppedImageBlob, setCroppedImageBlob] = useState(null);
-  const [imageCache, setImageCache] = useState({});
   const fileInputRef = useRef(null);
-  const canvasRef = useRef(null);
-  const imageRef = useRef(null);
 
-  // Crop states
-  const [cropArea, setCropArea] = useState({
-    x: 0,
-    y: 0,
-    width: 200,
-    height: 200,
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [originalImageDimensions, setOriginalImageDimensions] = useState({
-    width: 0,
-    height: 0,
-  });
+  // Image cropper states - simplified for react-advanced-cropper
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropImage, setCropImage] = useState(null);
+  const [croppedImageBlob, setCroppedImageBlob] = useState(null);
+  const cropperRef = useRef(null);
+
+  // Background removal states
+  const [removingBackground, setRemovingBackground] = useState(false);
+  const [backgroundRemovalPreview, setBackgroundRemovalPreview] = useState(null);
+  const [originalImageBeforeRemoval, setOriginalImageBeforeRemoval] = useState(null);
 
   // Dropdown data states
   const [categories, setCategories] = useState([]);
@@ -89,32 +113,23 @@ export default function StockComponent() {
   const [locations, setLocations] = useState([]);
   const [dropdownsLoading, setDropdownsLoading] = useState(false);
 
+  // WebSocket connection state
+  const [wsConnected, setWsConnected] = useState(false);
+
   const ITEMS_PER_PAGE = 50;
-  const { databases, storage } = useApp();
 
   // Image handling functions
-  const getImageUrl = useCallback(
-    (imageId) => {
-      if (!storage || !imageId) return null;
+  const getImageUrl = useCallback((imageId) => {
+    if (!imageId) return null;
 
-      if (imageCache[imageId]) {
-        return imageCache[imageId];
-      }
-
-      try {
-        const url = storage.getFileView(BUCKET_STOCK_IMG, imageId);
-        setImageCache((prev) => ({
-          ...prev,
-          [imageId]: url,
-        }));
-        return url;
-      } catch (error) {
-        console.error("Error getting image URL:", error);
-        return null;
-      }
-    },
-    [storage, imageCache]
-  );
+    // Simply return the URL without state updates to avoid setState during render
+    try {
+      return `${API_BASE_URL}/files/imagens-stock/${imageId}`;
+    } catch (error) {
+      console.error("Error getting image URL:", error);
+      return null;
+    }
+  }, []);
 
   const handleImageSelect = useCallback((e) => {
     const file = e.target.files[0];
@@ -135,185 +150,306 @@ export default function StockComponent() {
 
     setSelectedImage(file);
 
+    // Show cropper with the selected image
     const reader = new FileReader();
     reader.onload = (e) => {
-      setImagePreview(e.target.result);
-      setCropModalOpen(true);
-
-      // Create image to get dimensions
-      const img = new Image();
-      img.onload = () => {
-        setOriginalImageDimensions({ width: img.width, height: img.height });
-        // Set initial crop area to center
-        const size = Math.min(img.width, img.height, 300);
-        setCropArea({
-          x: (img.width - size) / 2,
-          y: (img.height - size) / 2,
-          width: size,
-          height: size,
-        });
-      };
-      img.src = e.target.result;
+      setCropImage(e.target.result);
+      setShowCropper(true);
     };
     reader.readAsDataURL(file);
   }, []);
 
-  const handleCropMouseDown = useCallback(
-    (e, action) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (action === "drag") {
-        setIsDragging(true);
-        setDragStart({
-          x: e.clientX - cropArea.x,
-          y: e.clientY - cropArea.y,
-        });
-      } else if (action === "resize") {
-        setIsResizing(true);
-        setDragStart({
-          x: e.clientX - cropArea.width,
-          y: e.clientY - cropArea.height,
-        });
-      }
-    },
-    [cropArea]
-  );
-
-  const handleCropMouseMove = useCallback(
-    (e) => {
-      if (isDragging) {
-        const newX = Math.max(
-          0,
-          Math.min(
-            e.clientX - dragStart.x,
-            originalImageDimensions.width - cropArea.width
-          )
-        );
-        const newY = Math.max(
-          0,
-          Math.min(
-            e.clientY - dragStart.y,
-            originalImageDimensions.height - cropArea.height
-          )
-        );
-
-        setCropArea((prev) => ({
-          ...prev,
-          x: newX,
-          y: newY,
-        }));
-      } else if (isResizing) {
-        const newWidth = Math.max(
-          50,
-          Math.min(
-            e.clientX - dragStart.x,
-            originalImageDimensions.width - cropArea.x
-          )
-        );
-        const newHeight = Math.max(
-          50,
-          Math.min(
-            e.clientY - dragStart.y,
-            originalImageDimensions.height - cropArea.y
-          )
-        );
-
-        setCropArea((prev) => ({
-          ...prev,
-          width: newWidth,
-          height: newHeight,
-        }));
-      }
-    },
-    [isDragging, isResizing, dragStart, originalImageDimensions, cropArea]
-  );
-
-  const handleCropMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setIsResizing(false);
-  }, []);
-
-  useEffect(() => {
-    if (cropModalOpen) {
-      document.addEventListener("mousemove", handleCropMouseMove);
-      document.addEventListener("mouseup", handleCropMouseUp);
-
-      return () => {
-        document.removeEventListener("mousemove", handleCropMouseMove);
-        document.removeEventListener("mouseup", handleCropMouseUp);
-      };
+  // Cropper functions using react-advanced-cropper
+  const handleCropperClose = () => {
+    setShowCropper(false);
+    setCropImage(null);
+    setSelectedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
-  }, [cropModalOpen, handleCropMouseMove, handleCropMouseUp]);
+  };
 
-  const applyCrop = useCallback(() => {
-    if (!imagePreview || !canvasRef.current || !imageRef.current) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const img = imageRef.current;
-
-    // Set canvas size
-    canvas.width = cropArea.width;
-    canvas.height = cropArea.height;
-
-    // Draw cropped image
-    ctx.drawImage(
-      img,
-      cropArea.x,
-      cropArea.y,
-      cropArea.width,
-      cropArea.height,
-      0,
-      0,
-      cropArea.width,
-      cropArea.height
-    );
-
-    canvas.toBlob(
-      (blob) => {
-        setCroppedImageBlob(blob);
-
-        const croppedUrl = URL.createObjectURL(blob);
-        setImagePreview(croppedUrl);
-        setCropModalOpen(false);
-      },
-      "image/jpeg",
-      0.9
-    );
-  }, [imagePreview, cropArea]);
+  const handleCropComplete = () => {
+    if (cropperRef.current) {
+      const canvas = cropperRef.current.getCanvas();
+      if (canvas) {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            setCroppedImageBlob(blob);
+            const url = URL.createObjectURL(blob);
+            setImagePreview(url);
+            setShowCropper(false);
+          }
+        }, "image/png");
+      }
+    }
+  };
 
   const resetImage = useCallback(() => {
     setSelectedImage(null);
     setImagePreview(null);
     setCroppedImageBlob(null);
     setCurrentImageId(null);
-    setCropModalOpen(false);
+    setShowCropper(false);
+    setCropImage(null);
+    setBackgroundRemovalPreview(null);
+    setOriginalImageBeforeRemoval(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   }, []);
 
-  const uploadImage = useCallback(async () => {
-    if (!storage || !croppedImageBlob) return null;
+  // Background removal function
+  const removeBackground = async () => {
+    if (!imagePreview) {
+      alert("Por favor, selecione uma imagem primeiro");
+      return;
+    }
 
     try {
-      const fileName = `stock-${Date.now()}.jpg`;
-      const file = new File([croppedImageBlob], fileName, {
-        type: "image/jpeg",
+      setRemovingBackground(true);
+
+      // Get the image data
+      let imageDataToSend;
+
+      if (croppedImageBlob) {
+        // Convert blob to base64
+        const reader = new FileReader();
+        imageDataToSend = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(croppedImageBlob);
+        });
+      } else if (imagePreview) {
+        // If it's a data URL or blob URL
+        if (imagePreview.startsWith("data:")) {
+          imageDataToSend = imagePreview;
+        } else if (imagePreview.startsWith("blob:")) {
+          const response = await fetch(imagePreview);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          imageDataToSend = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      }
+
+      // Save original image before removal (for undo)
+      setOriginalImageBeforeRemoval({
+        preview: imagePreview,
+        blob: croppedImageBlob,
       });
 
-      const uploadResult = await storage.createFile(
-        BUCKET_STOCK_IMG,
-        "unique()",
-        file
-      );
-      return uploadResult.$id;
+      // Call the background removal API
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/upload/remove-background`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          imageData: imageDataToSend,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao remover fundo");
+      }
+
+      const data = await response.json();
+
+      // Convert the returned base64 to blob
+      const base64Response = data.imageData;
+      const base64Data = base64Response.replace(/^data:image\/[^;]+;base64,/, "");
+      const binaryData = atob(base64Data);
+      const arrayBuffer = new Uint8Array(binaryData.length);
+
+      for (let i = 0; i < binaryData.length; i++) {
+        arrayBuffer[i] = binaryData.charCodeAt(i);
+      }
+
+      const blob = new Blob([arrayBuffer], { type: "image/png" });
+
+      // Update the preview and blob
+      const previewUrl = URL.createObjectURL(blob);
+      setImagePreview(previewUrl);
+      setCroppedImageBlob(blob);
+      setBackgroundRemovalPreview(previewUrl);
+
+      alert("Fundo removido com sucesso!");
+    } catch (error) {
+      console.error("Error removing background:", error);
+      alert("Erro ao remover fundo da imagem");
+    } finally {
+      setRemovingBackground(false);
+    }
+  };
+
+  const undoBackgroundRemoval = () => {
+    if (originalImageBeforeRemoval) {
+      setImagePreview(originalImageBeforeRemoval.preview);
+      setCroppedImageBlob(originalImageBeforeRemoval.blob);
+      setBackgroundRemovalPreview(null);
+      setOriginalImageBeforeRemoval(null);
+    }
+  };
+
+  const uploadImage = useCallback(async () => {
+    if (!croppedImageBlob) return null;
+
+    try {
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(croppedImageBlob);
+      });
+
+      const imageData = await base64Promise;
+      const fileName = `stock-${Date.now()}.jpg`;
+
+      const response = await apiCall("/stock/upload-image", {
+        method: "POST",
+        body: JSON.stringify({
+          imageData,
+          filename: fileName,
+        }),
+      });
+
+      return response.$id;
     } catch (error) {
       console.error("Error uploading image:", error);
       throw new Error("Erro ao fazer upload da imagem");
     }
-  }, [storage, croppedImageBlob]);
+  }, [croppedImageBlob]);
+
+  // WebSocket event handlers
+  const handleItemCreated = useCallback((item) => {
+    setStockItems((prev) => {
+      // Check if item already exists (avoid duplicates)
+      if (prev.some((i) => i.$id === item.$id)) {
+        return prev;
+      }
+      return [...prev, item].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, []);
+
+  const handleItemUpdated = useCallback((item) => {
+    setStockItems((prev) =>
+      prev.map((i) => (i.$id === item.$id ? item : i))
+    );
+  }, []);
+
+  const handleItemDeleted = useCallback((data) => {
+    setStockItems((prev) => prev.filter((i) => i.$id !== data.id));
+    // Also remove from movement cart if present
+    setMovementCart((prev) => {
+      const { [data.id]: removed, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const handleCategoryCreated = useCallback((category) => {
+    setCategories((prev) => {
+      if (prev.some((c) => c.$id === category.$id)) {
+        return prev;
+      }
+      return [...prev, category].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, []);
+
+  const handleCategoryUpdated = useCallback((category) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.$id === category.$id ? category : c))
+    );
+  }, []);
+
+  const handleCategoryDeleted = useCallback((data) => {
+    setCategories((prev) => prev.filter((c) => c.$id !== data.id));
+  }, []);
+
+  const handleSupplierCreated = useCallback((supplier) => {
+    setSuppliers((prev) => {
+      if (prev.some((s) => s.$id === supplier.$id)) {
+        return prev;
+      }
+      return [...prev, supplier].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, []);
+
+  const handleSupplierUpdated = useCallback((supplier) => {
+    setSuppliers((prev) =>
+      prev.map((s) => (s.$id === supplier.$id ? supplier : s))
+    );
+  }, []);
+
+  const handleSupplierDeleted = useCallback((data) => {
+    setSuppliers((prev) => prev.filter((s) => s.$id !== data.id));
+  }, []);
+
+  const handleLocationCreated = useCallback((location) => {
+    setLocations((prev) => {
+      if (prev.some((l) => l.$id === location.$id)) {
+        return prev;
+      }
+      return [...prev, location].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, []);
+
+  const handleLocationUpdated = useCallback((location) => {
+    setLocations((prev) =>
+      prev.map((l) => (l.$id === location.$id ? location : l))
+    );
+  }, []);
+
+  const handleLocationDeleted = useCallback((data) => {
+    setLocations((prev) => prev.filter((l) => l.$id !== data.id));
+  }, []);
+
+  const handleAlert = useCallback((alert) => {
+    // You can add toast notifications here if you have a toast library
+    console.log('[Stock Alert]', alert.status, alert.message);
+
+    // Browser notification (if permitted)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Stock Alert', {
+        body: alert.message,
+        icon: '/icon.png',
+        tag: `stock-alert-${alert.$id}`,
+      });
+    }
+  }, []);
+
+  // Initialize WebSocket connection
+  const { socket, isConnected } = useStockWebSocket({
+    onItemCreated: handleItemCreated,
+    onItemUpdated: handleItemUpdated,
+    onItemDeleted: handleItemDeleted,
+    onCategoryCreated: handleCategoryCreated,
+    onCategoryUpdated: handleCategoryUpdated,
+    onCategoryDeleted: handleCategoryDeleted,
+    onSupplierCreated: handleSupplierCreated,
+    onSupplierUpdated: handleSupplierUpdated,
+    onSupplierDeleted: handleSupplierDeleted,
+    onLocationCreated: handleLocationCreated,
+    onLocationUpdated: handleLocationUpdated,
+    onLocationDeleted: handleLocationDeleted,
+    onAlert: handleAlert,
+    onConnected: () => setWsConnected(true),
+    onDisconnected: () => setWsConnected(false),
+    onError: (error) => console.error('[Stock WS Error]', error),
+  });
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Memoized computed values for performance
   const criticalStock = useMemo(
@@ -365,14 +501,12 @@ export default function StockComponent() {
 
   // Fetch dropdown data for the add modal
   const fetchDropdownData = useCallback(async () => {
-    if (!databases) return;
-
     setDropdownsLoading(true);
     try {
       const [categoriesRes, suppliersRes, locationsRes] = await Promise.all([
-        databases.listDocuments(DBRESTAURANTE, COL_CATEGORY_STOCK),
-        databases.listDocuments(DBRESTAURANTE, COL_SUPPLIER),
-        databases.listDocuments(DBRESTAURANTE, LOCATION_STOCK),
+        apiCall("/stock/categories"),
+        apiCall("/stock/suppliers"),
+        apiCall("/stock/locations"),
       ]);
 
       setCategories(categoriesRes.documents || []);
@@ -386,7 +520,7 @@ export default function StockComponent() {
     } finally {
       setDropdownsLoading(false);
     }
-  }, [databases]);
+  }, []);
 
   // Fetch dropdown data when add modal opens
   useEffect(() => {
@@ -396,19 +530,20 @@ export default function StockComponent() {
   }, [isAddModalOpen, categories.length, fetchDropdownData]);
 
   const fetchStock = useCallback(async () => {
-    if (!databases || loading) return;
+    if (loading) return;
 
     setLoading(true);
     try {
-      const res = await databases.listDocuments(DBRESTAURANTE, COL_STOCK);
-      setStockItems(res.documents || []);
+      const response = await apiCall("/stock/items");
+      setStockItems(response.documents || []);
     } catch (err) {
       console.error("Error fetching stock:", err);
+      alert("Erro ao carregar stock. Verifique se está autenticado.");
       setStockItems([]);
     } finally {
       setLoading(false);
     }
-  }, [databases, loading]);
+  }, [loading]);
 
   const addToMovementCart = useCallback((itemId, quantity) => {
     setMovementCart((prev) => {
@@ -440,7 +575,7 @@ export default function StockComponent() {
   }, []);
 
   const processMovements = useCallback(async () => {
-    if (!Object.keys(movementCart).length || loading || !databases) return;
+    if (!Object.keys(movementCart).length || loading) return;
 
     setLoading(true);
     try {
@@ -452,8 +587,9 @@ export default function StockComponent() {
 
         const newQty = Math.max(0, item.qty + qty);
         updates.push(
-          databases.updateDocument(DBRESTAURANTE, COL_STOCK, itemId, {
-            qty: newQty,
+          apiCall(`/stock/items/${itemId}`, {
+            method: "PUT",
+            body: JSON.stringify({ qty: newQty }),
           })
         );
       }
@@ -469,19 +605,22 @@ export default function StockComponent() {
     } finally {
       setLoading(false);
     }
-  }, [movementCart, databases, loading, fetchStock, stockItems]);
+  }, [movementCart, loading, fetchStock, stockItems]);
 
   const handleSaveEdit = useCallback(
     async (itemId) => {
       const edits = editingRows[itemId];
-      if (!edits || loading || !databases) return;
+      if (!edits || loading) return;
 
       setLoading(true);
       try {
-        await databases.updateDocument(DBRESTAURANTE, COL_STOCK, itemId, {
-          qty: Math.max(0, parseInt(edits.qty) || 0),
-          min_qty: Math.max(0, parseInt(edits.min_qty) || 0),
-          cost_price: Math.max(0, parseFloat(edits.cost_price) || 0),
+        await apiCall(`/stock/items/${itemId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            qty: Math.max(0, parseInt(edits.qty) || 0),
+            min_qty: Math.max(0, parseInt(edits.min_qty) || 0),
+            cost_price: Math.max(0, parseFloat(edits.cost_price) || 0),
+          }),
         });
 
         setEditingRows((prev) => {
@@ -497,11 +636,11 @@ export default function StockComponent() {
         setLoading(false);
       }
     },
-    [editingRows, databases, loading, fetchStock]
+    [editingRows, loading, fetchStock]
   );
 
   const handleAddNewItem = useCallback(async () => {
-    if (addItemLoading || !databases) return;
+    if (addItemLoading) return;
 
     const trimmedName = newItem.name?.trim();
     if (!trimmedName) {
@@ -518,16 +657,19 @@ export default function StockComponent() {
         imageId = await uploadImage();
       }
 
-      await databases.createDocument(DBRESTAURANTE, COL_STOCK, "unique()", {
-        name: trimmedName,
-        category: newItem.category?.trim() || null,
-        description: newItem.description?.trim() || null,
-        supplier: newItem.supplier?.trim() || null,
-        location: newItem.location?.trim() || null,
-        cost_price: Math.max(0, parseFloat(newItem.cost_price) || 0),
-        qty: Math.max(0, parseInt(newItem.qty) || 0),
-        min_qty: Math.max(0, parseInt(newItem.min_qty) || 0),
-        image_id: imageId,
+      await apiCall("/stock/items", {
+        method: "POST",
+        body: JSON.stringify({
+          name: trimmedName,
+          category: newItem.category?.trim() || null,
+          description: newItem.description?.trim() || null,
+          supplier: newItem.supplier?.trim() || null,
+          location: newItem.location?.trim() || null,
+          cost_price: Math.max(0, parseFloat(newItem.cost_price) || 0),
+          qty: Math.max(0, parseInt(newItem.qty) || 0),
+          min_qty: Math.max(0, parseInt(newItem.min_qty) || 0),
+          image_id: imageId,
+        }),
       });
 
       setNewItem({
@@ -552,7 +694,6 @@ export default function StockComponent() {
     }
   }, [
     newItem,
-    databases,
     addItemLoading,
     fetchStock,
     croppedImageBlob,
@@ -574,48 +715,24 @@ export default function StockComponent() {
     resetImage();
   }, [resetImage]);
 
-  const ItemCard = ({ item, onClick, isMovementMode = false }) => {
+  const StockTableRow = ({ item }) => {
     if (!item) return null;
 
     const isEditing = editingRows[item.$id];
     const getStatusInfo = (current, minimum) => {
-      if (current <= minimum) return { status: "critical", label: "Crítico" };
-      if (current <= minimum + 5) return { status: "warning", label: "Baixo" };
-      return { status: "ok", label: "OK" };
+      if (current <= minimum) return { status: "critical", label: "Crítico", icon: AlertTriangle };
+      if (current <= minimum + 5) return { status: "warning", label: "Baixo", icon: TrendingDown };
+      return { status: "ok", label: "OK", icon: Check };
     };
 
     const statusInfo = getStatusInfo(item.qty || 0, item.min_qty || 0);
     const itemImageUrl = item.image_id ? getImageUrl(item.image_id) : null;
+    const StatusIcon = statusInfo.icon;
 
     return (
-      <div
-        className={`item-card ${isEditing ? "editable" : ""} ${
-          isMovementMode ? "movement-mode" : ""
-        }`}
-        onClick={
-          isMovementMode
-            ? onClick
-            : !isEditing
-            ? (e) => {
-                if (
-                  !e.target.closest(".edit-actions") &&
-                  !e.target.closest(".movement-controls")
-                ) {
-                  setEditingRows((prev) => ({
-                    ...prev,
-                    [item.$id]: {
-                      qty: item.qty || 0,
-                      min_qty: item.min_qty || 0,
-                      cost_price: item.cost_price || 0,
-                    },
-                  }));
-                }
-              }
-            : undefined
-        }
-      >
-        {/* Item image */}
-        <div className="card-image">
+      <div className={`stock-table-row ${isEditing ? "editing" : ""}`}>
+        {/* Image */}
+        <div className="cell cell-image">
           {itemImageUrl ? (
             <img
               src={itemImageUrl}
@@ -627,251 +744,280 @@ export default function StockComponent() {
               }}
             />
           ) : null}
-          <div
-            className={`item-image-placeholder ${itemImageUrl ? "hidden" : ""}`}
-          >
-            <Package size={32} />
+          <div className={`image-placeholder ${itemImageUrl ? "hidden" : ""}`}>
+            <Package size={20} />
           </div>
         </div>
 
-        {/* Status badge at the top */}
-        <div className={`status-badge ${statusInfo.status}`}>
-          {statusInfo.label}
-        </div>
-
-        {/* Edit overlay icon for hover effect */}
-        {!isMovementMode && !isEditing && (
-          <div className="edit-overlay">
-            <Edit className="edit-icon" />
-          </div>
-        )}
-
-        <div className="card-header">
-          <div className="item-info">
-            <h3 className="item-name">{item.name || "Nome não disponível"}</h3>
-            <p className="item-category">
-              {item.category || item.description || "Sem categoria"}
-            </p>
-          </div>
-        </div>
-
-        <div className="stock-info">
-          <div className="stock-row">
-            <span className="label">Stock atual</span>
-            {isEditing ? (
-              <input
-                type="number"
-                min="0"
-                className="editable-input"
-                value={editingRows[item.$id]?.qty ?? item.qty ?? 0}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setEditingRows((prev) => ({
-                    ...prev,
-                    [item.$id]: {
-                      ...prev[item.$id],
-                      qty: parseInt(e.target.value) || 0,
-                    },
-                  }));
-                }}
-              />
-            ) : (
-              <span className={`value current ${statusInfo.status}`}>
-                {item.qty || 0}
-              </span>
-            )}
-          </div>
-
-          <div className="stock-row">
-            <span className="label">Mínimo</span>
-            {isEditing ? (
-              <input
-                type="number"
-                min="0"
-                className="editable-input"
-                value={editingRows[item.$id]?.min_qty ?? item.min_qty ?? 0}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setEditingRows((prev) => ({
-                    ...prev,
-                    [item.$id]: {
-                      ...prev[item.$id],
-                      min_qty: parseInt(e.target.value) || 0,
-                    },
-                  }));
-                }}
-              />
-            ) : (
-              <span className="value minimum">{item.min_qty || 0}</span>
-            )}
-          </div>
-
-          {(item.cost_price || isEditing) && (
-            <div className="stock-row">
-              <span className="label">Preço</span>
-              {isEditing ? (
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="editable-input"
-                  value={
-                    editingRows[item.$id]?.cost_price ?? item.cost_price ?? 0
-                  }
-                  onClick={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setEditingRows((prev) => ({
-                      ...prev,
-                      [item.$id]: {
-                        ...prev[item.$id],
-                        cost_price: parseFloat(e.target.value) || 0,
-                      },
-                    }));
-                  }}
-                />
-              ) : (
-                <span className="value price">
-                  €{(item.cost_price || 0).toFixed(2)}
-                </span>
-              )}
-            </div>
+        {/* Item Info */}
+        <div className="cell cell-info">
+          <div className="item-name">{item.name || "Nome não disponível"}</div>
+          {item.category && (
+            <div className="item-category">{item.category}</div>
           )}
         </div>
 
-        <div className="card-footer">
-          <span className="supplier">{item.supplier || "N/A"}</span>
-          <span className="location">{item.location || "N/A"}</span>
+        {/* Stock Current */}
+        <div className="cell cell-qty">
+          {isEditing ? (
+            <input
+              type="number"
+              min="0"
+              className="qty-input"
+              value={editingRows[item.$id]?.qty ?? item.qty ?? 0}
+              onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                setEditingRows((prev) => ({
+                  ...prev,
+                  [item.$id]: {
+                    ...prev[item.$id],
+                    qty: parseInt(e.target.value) || 0,
+                  },
+                }));
+              }}
+            />
+          ) : (
+            <span className={`qty-value ${statusInfo.status}`}>
+              <NumberFlow value={item.qty || 0} />
+            </span>
+          )}
         </div>
 
-        {/* Edit buttons in line style at bottom when editing */}
-        {isEditing && (
-          <div className="edit-actions">
-            <button
-              className="action-btn save"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSaveEdit(item.$id);
+        {/* Stock Minimum */}
+        <div className="cell cell-min">
+          {isEditing ? (
+            <input
+              type="number"
+              min="0"
+              className="qty-input"
+              value={editingRows[item.$id]?.min_qty ?? item.min_qty ?? 0}
+              onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                setEditingRows((prev) => ({
+                  ...prev,
+                  [item.$id]: {
+                    ...prev[item.$id],
+                    min_qty: parseInt(e.target.value) || 0,
+                  },
+                }));
               }}
-              disabled={loading}
-            >
-              <Save size={14} />
-              Guardar
-            </button>
-            <button
-              className="action-btn cancel"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingRows((prev) => {
-                  const { [item.$id]: removed, ...rest } = prev;
-                  return rest;
-                });
-              }}
-            >
-              <X size={14} />
-              Cancelar
-            </button>
-          </div>
-        )}
+            />
+          ) : (
+            <span className="qty-value">
+              <NumberFlow value={item.min_qty || 0} />
+            </span>
+          )}
+        </div>
 
-        {/* Movement controls with both add and remove buttons - always visible when not editing */}
-        {!isEditing && (
-          <div className="movement-controls">
-            <div className="movement-buttons">
+        {/* Status */}
+        <div className="cell cell-status">
+          <span className={`status-badge ${statusInfo.status}`}>
+            <StatusIcon size={14} />
+            {statusInfo.label}
+          </span>
+        </div>
+
+        {/* Price */}
+        <div className="cell cell-price">
+          {isEditing ? (
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="price-input"
+              value={editingRows[item.$id]?.cost_price ?? item.cost_price ?? 0}
+              onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                setEditingRows((prev) => ({
+                  ...prev,
+                  [item.$id]: {
+                    ...prev[item.$id],
+                    cost_price: parseFloat(e.target.value) || 0,
+                  },
+                }));
+              }}
+            />
+          ) : (
+            <span className="price-value">
+              €<NumberFlow value={parseFloat(item.cost_price) || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+            </span>
+          )}
+        </div>
+
+        {/* Location & Supplier */}
+        <div className="cell cell-meta">
+          <div className="meta-item">
+            <MapPin size={14} />
+            <span>{item.location || "N/A"}</span>
+          </div>
+          <div className="meta-item">
+            <Truck size={14} />
+            <span>{item.supplier || "N/A"}</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="cell cell-actions">
+          {isEditing ? (
+            <>
               <button
+                className="action-btn save"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSaveEdit(item.$id);
+                }}
+                disabled={loading}
+                title="Guardar"
+              >
+                <Save size={16} />
+              </button>
+              <button
+                className="action-btn cancel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingRows((prev) => {
+                    const { [item.$id]: removed, ...rest } = prev;
+                    return rest;
+                  });
+                }}
+                title="Cancelar"
+              >
+                <X size={16} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="action-btn edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingRows((prev) => ({
+                    ...prev,
+                    [item.$id]: {
+                      qty: item.qty || 0,
+                      min_qty: item.min_qty || 0,
+                      cost_price: item.cost_price || 0,
+                    },
+                  }));
+                }}
+                title="Editar"
+              >
+                <Edit size={16} />
+              </button>
+              <button
+                className="action-btn add"
                 onClick={(e) => {
                   e.stopPropagation();
                   addToMovementCart(item.$id, 1);
                 }}
-                className="movement-btn add"
                 disabled={loading}
+                title="Adicionar stock"
               >
                 <Plus size={16} />
-                Adicionar
               </button>
               <button
+                className="action-btn remove"
                 onClick={(e) => {
                   e.stopPropagation();
                   addToMovementCart(item.$id, -1);
                 }}
-                className="movement-btn remove"
                 disabled={loading}
+                title="Remover stock"
               >
                 <Minus size={16} />
-                Remover
               </button>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     );
   };
 
-  // Early return if databases is not available
-  if (!databases) {
-    return (
-      <div className="stock-component">
-        <div className="loading-state">
-          <div className="loading-text">Inicializando...</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="stock-component">
-      {/* Header */}
-      <div className="stock-header">
-        <h1>
-          <Package className="header-icon" />
-          Gestão de Stock
-        </h1>
-        <div className="header-actions">
-          <button
-            onClick={fetchStock}
-            disabled={loading}
-            className="action-button secondary"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </button>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="action-button primary"
-            disabled={loading}
-          >
-            <Plus size={16} />
-            Adicionar Item
-          </button>
+      {/* Main Container */}
+      <div className="stock-container">
+        {/* Header with Actions */}
+        <div className="stock-page-header">
+          <h1>
+            <Package className="title-icon" />
+            Gestão de Stock
+            {wsConnected && (
+              <span className="ws-indicator connected" title="WebSocket conectado - Updates em tempo real">
+                ●
+              </span>
+            )}
+          </h1>
+          <div className="header-actions">
+            <Button
+              onClick={fetchStock}
+              disabled={loading}
+              className="refresh-button"
+              icon={
+                <RefreshCw
+                  size={16}
+                  className={loading ? "animate-spin" : ""}
+                />
+              }
+            >
+              Atualizar
+            </Button>
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              className="add-button"
+              disabled={loading}
+              icon={<Plus size={16} />}
+            >
+              Adicionar Item
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="stock-content">
-        {/* Stats Overview */}
-        <div className="stats-overview">
-          <div className="stats-grid">
+        {/* Main Grid Layout */}
+        <div className="stock-grid">
+          {/* Stats Cards */}
+          <div className="stats-section">
             <div className="stat-card">
               <div className="stat-header">
                 <span className="stat-title">Total Items</span>
                 <Warehouse className="stat-icon" />
               </div>
-              <div className="stat-value info">{stockItems.length}</div>
+              <div className="stat-value info">
+                <NumberFlow value={stockItems.length} />
+              </div>
               <div className="stat-description">Items em stock</div>
             </div>
 
-            <div className="stat-card">
+            <div className="stat-card critical-card">
               <div className="stat-header">
                 <span className="stat-title">Stock Crítico</span>
                 <AlertTriangle className="stat-icon" />
               </div>
-              <div className="stat-value critical">{criticalStock.length}</div>
+              <div className="stat-value critical">
+                <NumberFlow value={criticalStock.length} />
+              </div>
               <div className="stat-description">Itens abaixo do mínimo</div>
+
+              {criticalStock.length > 0 && (
+                <div className="critical-items-preview">
+                  {criticalStock.slice(0, 3).map((item) => (
+                    <div key={item.$id} className="critical-item-mini">
+                      <span className="item-name">{item.name}</span>
+                      <span className="item-qty">
+                        <NumberFlow value={item.qty} />/<NumberFlow value={item.min_qty} />
+                      </span>
+                    </div>
+                  ))}
+                  {criticalStock.length > 3 && (
+                    <div className="more-items">
+                      +<NumberFlow value={criticalStock.length - 3} /> mais
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="stat-card">
@@ -879,7 +1025,9 @@ export default function StockComponent() {
                 <span className="stat-title">Stock Baixo</span>
                 <TrendingDown className="stat-icon" />
               </div>
-              <div className="stat-value warning">{warningStock.length}</div>
+              <div className="stat-value warning">
+                <NumberFlow value={warningStock.length} />
+              </div>
               <div className="stat-description">Itens próximos do mínimo</div>
             </div>
 
@@ -889,139 +1037,164 @@ export default function StockComponent() {
                 <TrendingUp className="stat-icon" />
               </div>
               <div className="stat-value success">
-                {stockItems.length - criticalStock.length - warningStock.length}
+                <NumberFlow value={stockItems.length - criticalStock.length - warningStock.length} />
               </div>
               <div className="stat-description">Itens com stock adequado</div>
             </div>
           </div>
-        </div>
 
-        {/* Search and Controls */}
-        <div className="content-controls">
-          <div className="search-container">
-            <Search className="search-icon" />
-            <input
-              type="text"
-              placeholder="Pesquisar items..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
-        </div>
-
-        {/* Items Grid */}
-        <div className="items-container">
-          {loading ? (
-            <div className="loading-state">
-              <div className="loading-spinner"></div>
-              <div className="loading-text">A carregar stock...</div>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">
-                <Package size={32} />
-              </div>
-              <div className="empty-title">Nenhum item encontrado</div>
-              <div className="empty-description">
-                {searchTerm
-                  ? "Tente ajustar os termos de pesquisa"
-                  : "Adicione alguns itens para começar a gerir o seu stock"}
+          {/* Main Content Card */}
+          <div className="main-content-card">
+            {/* Search Bar */}
+            <div className="content-controls">
+              <div className="search-wrapper">
+                <Search className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
               </div>
             </div>
-          ) : (
-            <>
-              <div className="items-grid">
-                {paginatedItems.map((item) => (
-                  <ItemCard key={item.$id} item={item} isMovementMode={false} />
-                ))}
-              </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="pagination">
-                  <button
-                    className="page-button"
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={currentPage === 1 || loading}
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-
-                  <span className="page-info">
-                    Página {currentPage} de {totalPages}
+            {/* Cart Banner - Shows when items in cart */}
+            {Object.keys(movementCart).length > 0 && (
+              <div className="cart-banner">
+                <div className="cart-banner-info">
+                  <ShoppingCart size={18} />
+                  <span className="cart-banner-text">
+                    <strong>{Object.values(movementCart).reduce((sum, qty) => sum + Math.abs(qty), 0)}</strong> {Object.values(movementCart).reduce((sum, qty) => sum + Math.abs(qty), 0) === 1 ? "movimento pendente" : "movimentos pendentes"}
                   </span>
-
+                </div>
+                <div className="cart-banner-actions">
+                  <button onClick={() => setIsCartModalOpen(true)} className="cart-banner-btn view">
+                    Ver Detalhes
+                  </button>
+                  <button onClick={clearMovementCart} className="cart-banner-btn clear" disabled={loading}>
+                    Limpar
+                  </button>
                   <button
-                    className="page-button"
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                    }
-                    disabled={currentPage === totalPages || loading}
+                    onClick={() => {
+                      processMovements();
+                    }}
+                    className="cart-banner-btn apply"
+                    disabled={loading}
                   >
-                    <ChevronDown size={16} />
+                    {loading ? "A processar..." : "Aplicar"}
                   </button>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+              </div>
+            )}
 
-      {/* Movement Cart - shows whenever there are items in cart */}
-      {Object.keys(movementCart).length > 0 && (
-        <div className="movement-cart">
-          <div className="cart-header">
-            <div className="cart-info">
-              <div className="cart-icon">
-                <ShoppingCart size={16} />
-              </div>
-              <div className="cart-details">
-                <h3 className="cart-title">Movimentos de Stock</h3>
-                <p className="cart-subtitle">
-                  {Object.keys(movementCart).length}{" "}
-                  {Object.keys(movementCart).length === 1
-                    ? "produto"
-                    : "produtos"}{" "}
-                  •{" "}
-                  {Object.values(movementCart).reduce(
-                    (sum, qty) => sum + Math.abs(qty),
-                    0
-                  )}{" "}
-                  movimentos
-                </p>
-              </div>
+            {/* Stock Table */}
+            <div className="stock-table-container">
+              {loading ? (
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
+                  <div className="loading-text">A carregar stock...</div>
+                </div>
+              ) : filteredItems.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">
+                    <Package size={32} />
+                  </div>
+                  <div className="empty-title">Nenhum item encontrado</div>
+                  <div className="empty-description">
+                    {searchTerm
+                      ? "Tente ajustar os termos de pesquisa"
+                      : "Adicione alguns itens para começar a gerir o seu stock"}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Table Header */}
+                  <div className="stock-table-header">
+                    <div className="header-cell cell-image">Imagem</div>
+                    <div className="header-cell cell-info">Item</div>
+                    <div className="header-cell cell-qty">Stock</div>
+                    <div className="header-cell cell-min">Mínimo</div>
+                    <div className="header-cell cell-status">Estado</div>
+                    <div className="header-cell cell-price">Preço</div>
+                    <div className="header-cell cell-meta">Local & Fornecedor</div>
+                    <div className="header-cell cell-actions">Ações</div>
+                  </div>
+
+                  {/* Table Rows */}
+                  <div className="stock-table-body">
+                    {paginatedItems.map((item) => (
+                      <StockTableRow key={item.$id} item={item} />
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="pagination">
+                      <button
+                        className="page-button"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(1, prev - 1))
+                        }
+                        disabled={currentPage === 1 || loading}
+                      >
+                        <ChevronUp size={16} />
+                      </button>
+
+                      <span className="page-info">
+                        Página <NumberFlow value={currentPage} /> de <NumberFlow value={totalPages} />
+                      </span>
+
+                      <button
+                        className="page-button"
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(totalPages, prev + 1)
+                          )
+                        }
+                        disabled={currentPage === totalPages || loading}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-            <button
-              onClick={() => setIsCartExpanded(!isCartExpanded)}
-              className="cart-toggle"
-            >
-              {isCartExpanded ? <X size={16} /> : <Package size={16} />}
-            </button>
           </div>
 
-          {isCartExpanded && (
-            <div className="cart-content">
-              <div className="cart-items">
-                {Object.entries(movementCart).map(([itemId, quantity]) => {
-                  const item = stockItems.find((i) => i.$id === itemId);
-                  if (!item) return null;
+        </div>
 
-                  return (
-                    <div key={itemId} className="cart-item">
-                      <div className="cart-item-info">
-                        <span className="cart-item-name">{item.name}</span>
-                        <span
-                          className={`cart-item-quantity ${
-                            quantity > 0 ? "positive" : "negative"
-                          }`}
-                        >
-                          {quantity > 0 ? "+" : ""}
-                          {quantity}
-                        </span>
-                      </div>
+      </div>
+
+      {/* Simple Cart Modal */}
+      {isCartModalOpen && Object.keys(movementCart).length > 0 && (
+        <div className="cart-modal-overlay" onClick={() => setIsCartModalOpen(false)}>
+          <div className="cart-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="cart-modal-header">
+              <h3>Movimentos de Stock</h3>
+              <button onClick={() => setIsCartModalOpen(false)} className="cart-close-btn">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Items List */}
+            <div className="cart-modal-body">
+              {Object.entries(movementCart).map(([itemId, quantity]) => {
+                const item = stockItems.find((i) => i.$id === itemId);
+                if (!item) return null;
+
+                return (
+                  <div key={itemId} className="cart-modal-item">
+                    <div className="cart-item-info">
+                      <span className="cart-item-name">{item.name}</span>
+                      <span className="cart-item-category">{item.category || "Sem categoria"}</span>
+                    </div>
+                    <div className="cart-item-actions">
+                      <span className={`cart-item-qty ${quantity > 0 ? "positive" : "negative"}`}>
+                        {quantity > 0 ? "+" : ""}{quantity}
+                      </span>
                       <button
                         onClick={() => removeFromMovementCart(itemId)}
                         className="cart-item-remove"
@@ -1030,35 +1203,35 @@ export default function StockComponent() {
                         <X size={16} />
                       </button>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className="cart-actions">
-                <button
-                  onClick={clearMovementCart}
-                  className="action-button secondary"
-                  disabled={loading}
-                >
-                  Limpar
-                </button>
-                <button
-                  onClick={processMovements}
-                  className="action-button primary"
-                  disabled={Object.keys(movementCart).length === 0 || loading}
-                >
-                  <Save size={16} />
-                  {loading ? "A processar..." : "Aplicar Movimentos"}
-                </button>
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+
+            {/* Footer Actions */}
+            <div className="cart-modal-footer">
+              <button onClick={clearMovementCart} className="cart-btn cart-btn-clear" disabled={loading}>
+                Limpar Tudo
+              </button>
+              <button
+                onClick={() => {
+                  processMovements();
+                  setIsCartModalOpen(false);
+                }}
+                className="cart-btn cart-btn-apply"
+                disabled={loading}
+              >
+                {loading ? "A processar..." : "Aplicar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Add New Item Modal */}
-      {isAddModalOpen && (
-        <div className="modal-overlay">
+      {isAddModalOpen && typeof document !== "undefined" &&
+        createPortal(
+          <div className="modal-overlay">
           <div className="modal-container">
             {/* Modal Header */}
             <div className="modal-header">
@@ -1101,33 +1274,170 @@ export default function StockComponent() {
                 {/* Image Preview */}
                 {imagePreview && (
                   <div className="image-preview-container">
-                    <div className="image-preview-wrapper">
+                    <div
+                      className="image-preview-wrapper"
+                      style={{ position: "relative" }}
+                    >
                       <img
                         src={imagePreview}
                         alt="Preview"
-                        className="image-preview"
+                        style={{
+                          maxWidth: "300px",
+                          maxHeight: "300px",
+                          objectFit: "contain",
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                          backgroundColor: backgroundRemovalPreview
+                            ? "transparent"
+                            : "#ffffff",
+                        }}
                       />
+                      {backgroundRemovalPreview && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "8px",
+                            left: "8px",
+                            padding: "4px 8px",
+                            backgroundColor: "#10b981",
+                            color: "white",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          <Wand2 size={12} />
+                          Fundo Removido
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={resetImage}
-                        className="image-remove-button"
+                        style={{
+                          position: "absolute",
+                          top: "8px",
+                          right: "8px",
+                          width: "32px",
+                          height: "32px",
+                          backgroundColor: "#dc2626",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "50%",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.2s",
+                        }}
                       >
                         <X size={16} />
                       </button>
                     </div>
-                    {selectedImage && (
-                      <div className="image-info">
-                        <div>
-                          Tamanho: {(selectedImage.size / 1024).toFixed(1)} KB
-                        </div>
-                        <div>Nome: {selectedImage.name}</div>
-                      </div>
-                    )}
-                    <div className="image-actions">
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        justifyContent: "center",
+                        flexWrap: "wrap",
+                        marginTop: "16px",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCropImage(imagePreview);
+                          setShowCropper(true);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "8px 16px",
+                          backgroundColor: "#3b82f6",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        <Crop size={16} />
+                        Cortar Imagem
+                      </button>
+                      {!backgroundRemovalPreview ? (
+                        <button
+                          type="button"
+                          onClick={removeBackground}
+                          disabled={removingBackground}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            backgroundColor: "#10b981",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            cursor: removingBackground
+                              ? "not-allowed"
+                              : "pointer",
+                            opacity: removingBackground ? 0.7 : 1,
+                            transition: "all 0.2s ease",
+                          }}
+                          title="Remover fundo da imagem usando IA"
+                        >
+                          <Wand2
+                            size={16}
+                            className={removingBackground ? "animate-spin" : ""}
+                          />
+                          {removingBackground ? "A processar..." : "Remover Fundo"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={undoBackgroundRemoval}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            backgroundColor: "#f59e0b",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                          }}
+                          title="Restaurar imagem original"
+                        >
+                          <RefreshCw size={16} />
+                          Desfazer Remoção
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="image-action-button secondary"
+                        disabled={removingBackground}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "8px 16px",
+                          backgroundColor: "#f3f4f6",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                          cursor: removingBackground ? "not-allowed" : "pointer",
+                        }}
                       >
                         <Upload size={16} />
                         Trocar Imagem
@@ -1340,115 +1650,73 @@ export default function StockComponent() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+  }
 
-      {/* Image Crop Modal */}
-      {cropModalOpen && (
-        <div className="modal-overlay crop-modal-overlay">
-          <div className="crop-modal-container">
-            <div className="crop-modal-header">
-              <h3>Cortar Imagem</h3>
-              <button
-                onClick={() => setCropModalOpen(false)}
-                className="close-button"
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* Image Cropper Modal (via Portal) */}
+      {showCropper &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="image-cropper-overlay">
+            <div className="image-cropper-modal">
+              {/* Cropper Header */}
+              <div className="cropper-header">
+                <div className="header-content">
+                  <h2>Recortar Imagem</h2>
+                  <p>
+                    Arraste para reposicionar. Use os cantos para redimensionar.
+                  </p>
+                </div>
+                <button onClick={handleCropperClose} className="close-button">
+                  <X size={20} />
+                </button>
+              </div>
 
-            <div className="crop-modal-content">
-              <div className="crop-container">
-                <img
-                  ref={imageRef}
-                  src={imagePreview}
-                  alt="Crop preview"
-                  className="crop-image"
-                />
+              {/* Cropper Content */}
+              <div className="cropper-content">
                 <div
-                  className="crop-overlay"
                   style={{
-                    left: cropArea.x,
-                    top: cropArea.y,
-                    width: cropArea.width,
-                    height: cropArea.height,
+                    width: "100%",
+                    maxWidth: "800px",
+                    margin: "0 auto",
+                    minHeight: "300px",
                   }}
-                  onMouseDown={(e) => handleCropMouseDown(e, "drag")}
                 >
-                  <div
-                    className="crop-handle"
-                    onMouseDown={(e) => handleCropMouseDown(e, "resize")}
+                  <Cropper
+                    ref={cropperRef}
+                    src={cropImage}
+                    className="cropper"
+                    stencilProps={{
+                      aspectRatio: undefined,
+                    }}
+                    backgroundClassName="cropper-background"
                   />
                 </div>
               </div>
 
-              <canvas ref={canvasRef} style={{ display: "none" }} />
-            </div>
-
-            <div className="crop-modal-footer">
-              <button
-                onClick={() => setCropModalOpen(false)}
-                className="footer-button cancel"
-              >
-                Cancelar
-              </button>
-              <button onClick={applyCrop} className="footer-button primary">
-                <Crop size={16} />
-                Aplicar Corte
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Critical Stock Warnings */}
-      {criticalStock.length > 0 && (
-        <div className="warning-section">
-          <div className="warning-content">
-            <div className="warning-icon">
-              <AlertTriangle size={20} />
-            </div>
-            <div className="warning-details">
-              <div className="warning-header">
-                <h3 className="warning-title">Stock Crítico</h3>
-                <span className="warning-badge">
-                  {criticalStock.length}{" "}
-                  {criticalStock.length === 1 ? "item" : "itens"}
-                </span>
-              </div>
-              <p className="warning-description">
-                Os seguintes produtos estão com stock crítico e requerem
-                reposição imediata.
-              </p>
-              <div className="warning-list">
-                {criticalStock.slice(0, 5).map((item) => (
-                  <div key={item.$id} className="warning-item">
-                    <div className="warning-item-info">
-                      <span className="warning-item-name">
-                        {item.name || "Nome não disponível"}
-                      </span>
-                      <span className="warning-item-category">
-                        {item.category || "N/A"}
-                      </span>
-                    </div>
-                    <div className="warning-item-stock">
-                      <span className="warning-item-quantity">
-                        {item.qty || 0}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {criticalStock.length > 5 && (
-                  <p className="warning-more">
-                    +{criticalStock.length - 5} outros produtos com stock
-                    crítico
-                  </p>
-                )}
+              {/* Cropper Actions */}
+              <div className="cropper-actions">
+                <button
+                  onClick={handleCropperClose}
+                  className="action-btn cancel-btn"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCropComplete}
+                  className="action-btn apply-btn"
+                >
+                  <Crop size={16} />
+                  Aplicar Recorte
+                </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
+
     </div>
   );
 }

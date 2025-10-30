@@ -10,9 +10,7 @@ const { PORTA } = require("./src/configuracao/constantes");
 const intermediarioCors = require("./src/intermediarios/cors");
 
 // Importar utilitários
-const {
-  garantirDiretorioUploads,
-} = require("./src/utilitarios/sistemaFicheiros");
+const { garantirDiretorioUploads } = require("./src/utilitarios/sistemaFicheiros");
 
 // Importar configuração WebSocket
 const intermediarioAutenticacaoSocket = require("./src/websocket/autenticacaoSocket");
@@ -27,6 +25,7 @@ const rotasMenu = require("./src/rotas/menu");
 const rotasLayoutsMesas = require("./src/rotas/layoutsMesas");
 const rotasMesas = require("./src/rotas/mesas");
 const rotasPedidos = require("./src/rotas/pedidos");
+const rotasStock = require("./src/rotas/stock");
 
 // Inicializar aplicação Express
 const app = express();
@@ -89,6 +88,7 @@ app.use("/menu", rotasMenu);
 app.use("/table-layouts", rotasLayoutsMesas);
 app.use("/tables", rotasMesas);
 app.use("/orders", rotasPedidos);
+app.use("/stock", rotasStock);
 
 // Também montar rota de preview de ficheiros ao nível raiz para compatibilidade
 app.get("/v1/storage/buckets/:bucketId/files/:fileId/preview", (req, res) => {
@@ -98,8 +98,9 @@ app.get("/v1/storage/buckets/:bucketId/files/:fileId/preview", (req, res) => {
     const caminhospossiveis = [
       path.join(__dirname, "uploads", "imagens-menu", fileId),
       path.join(__dirname, "uploads", "imagens-perfil", fileId),
+      path.join(__dirname, "uploads", "imagens-stock", fileId),
       path.join(__dirname, "uploads", "menu-images", fileId),
-      path.join(__dirname, "uploads", "imagens-perfil", fileId),
+      path.join(__dirname, "uploads", "profile-images", fileId),
       path.join(__dirname, "uploads", fileId),
     ];
 

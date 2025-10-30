@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { BackgroundBeams } from "../components/BackgroundBeams";
 import Header from "../components/Header";
+import { useRouter } from "next/navigation";
 import {
   Clock,
   MapPin,
@@ -20,6 +21,7 @@ import {
   User,
   MessageCircle,
   Search,
+  ArrowLeft,
 } from "lucide-react";
 import "./page.scss";
 import { auth, users, profileImages, API_FILES_URL } from "../../lib/api";
@@ -28,23 +30,30 @@ import { isAuthenticated } from "../../lib/auth";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const StaffManagement = () => {
+  const router = useRouter();
+
   // State declarations
   const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState("");
-  const [profileImg, setProfileImg] = useState("");
-  const [user, setUser] = useState(null);
-  const [userLabels, setUserLabels] = useState([]);
-  const [activeNavItem, setActiveNavItem] = useState("Equipe");
-  const [expandedCards, setExpandedCards] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [staffData, setStaffData] = useState([]);
+  const [username, setUsername] = useState("");
+  const [userLabels, setUserLabels] = useState([]);
+  const [profileImg, setProfileImg] = useState("");
+  const [user, setUser] = useState(null);
+  const [activeNavItem, setActiveNavItem] = useState("Gestão de Staff");
 
-  // Function to toggle card details
-  const toggleCardDetails = (staffId) => {
-    setExpandedCards((prev) => ({
-      ...prev,
-      [staffId]: !prev[staffId],
-    }));
+  // Check if current user is manager
+  const isManager =
+    userLabels.includes("manager") ||
+    userLabels.includes("Manager") ||
+    userLabels.includes("gerente") ||
+    userLabels.includes("Gerente");
+
+  // Handle navigation clicks
+  const handleNavClick = (navItem) => {
+    if (navItem === "Painel") {
+      router.push("/pagina-teste-new");
+    }
   };
 
   // Function to filter staff data
@@ -113,21 +122,6 @@ const StaffManagement = () => {
     );
   };
 
-  // Check if user is a manager
-  const isManager =
-    userLabels.includes("manager") ||
-    userLabels.includes("Manager") ||
-    userLabels.includes("gerente") ||
-    userLabels.includes("Gerente");
-
-  // Function to handle navigation clicks
-  const handleNavClick = (navItem) => {
-    setActiveNavItem(navItem);
-    if (navItem === "Painel") {
-      window.location.href = "/pagina-teste-new";
-    }
-  };
-
   // Function to get status color and text
   const getStatusInfo = (status) => {
     switch (status) {
@@ -159,47 +153,14 @@ const StaffManagement = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Get current user
-        const currentUser = await auth.get();
-        setUsername(
-          currentUser.name || currentUser.username || currentUser.email
-        );
-        setUser(currentUser);
-        const labels = currentUser.labels || [];
-        setUserLabels(labels);
+        // Get current logged-in user
+        const userData = await auth.get();
+        setUser(userData);
+        setUsername(userData.name || userData.username || userData.email);
+        setUserLabels(userData.labels || []);
 
-        const userId = currentUser.$id || currentUser.id;
-
-        // Load profile image
-        try {
-          const bucketResult = await profileImages.getBucketInfo(userId);
-          let profileImageFile = "";
-
-          if (bucketResult.documents && bucketResult.documents.length > 0) {
-            profileImageFile = bucketResult.documents[0].bucket_id;
-          }
-
-          if (profileImageFile) {
-            const fileUrl = profileImages.getPreviewUrl(profileImageFile, {
-              width: 400,
-              height: 400,
-              quality: 80,
-            });
-            setProfileImg(fileUrl);
-          } else if (currentUser.profile_image) {
-            const fileUrl = `${API_BASE_URL}/files/imagens-perfil/${currentUser.profile_image}`;
-            setProfileImg(fileUrl);
-          } else {
-            const fallbackUrl = profileImages.getPreviewUrl(userId, {
-              width: 400,
-              height: 400,
-              quality: 80,
-            });
-            setProfileImg(fallbackUrl);
-          }
-        } catch (err) {
-          console.error("Error loading profile image:", err);
-          setProfileImg("");
+        if (userData.profile_image) {
+          setProfileImg(userData.profile_image);
         }
 
         // Fetch all staff users
@@ -270,8 +231,6 @@ const StaffManagement = () => {
         setIsLoading(false);
       } catch (err) {
         console.error("Error loading data:", err);
-        setUsername("");
-        setProfileImg("");
         setStaffData([]);
         setIsLoading(false);
       }
@@ -382,64 +341,32 @@ const StaffManagement = () => {
         showViewToggle={false}
       />
 
-      <main className="main-content fade-in-delayed">
+      <main className="staff-main-content fade-in-delayed">
         <div className="staff-management-container">
-          <h1 className="page-title slide-in-up">Equipa</h1>
+          <div className="staff-header-section">
+            <button
+              onClick={() => window.location.href = "/pagina-teste-new"}
+              className="back-button"
+            >
+              <ArrowLeft size={20} />
+            </button>
+
+            <h1 className="page-title slide-in-up">Equipa</h1>
+          </div>
 
           {/* Search Bar */}
           <div className="search-container fade-in-delayed">
-            <div className="search-input-wrapper">
+            <div className="search-wrapper">
               <Search size={18} className="search-icon" />
               <input
                 type="text"
-                placeholder="Pesquisar por nome, email, telefone ou cargo..."
+                placeholder="Pesquisar funcionário..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="search-input"
               />
-            </div>
-          </div>
-
-          {/* Staff Stats */}
-          <div className="staff-stats-bar fade-in-delayed">
-            <div className="stat-card scale-in">
-              <div className="stat-icon">
-                <Users size={20} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-value">{filteredStaffData.length}</div>
-                <div className="stat-label">Funcionários Ativos</div>
-              </div>
-            </div>
-            <div className="stat-card scale-in">
-              <div className="stat-icon online">
-                <Users size={20} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-value">
-                  {
-                    filteredStaffData.filter((s) => s.status === "online")
-                      .length
-                  }
-                </div>
-                <div className="stat-label">Online</div>
-              </div>
-            </div>
-            <div className="stat-card scale-in">
-              <div className="stat-icon">
-                <Clock size={20} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-value">
-                  {Math.round(
-                    filteredStaffData.reduce(
-                      (sum, s) => sum + s.hoursWorked,
-                      0
-                    ) / filteredStaffData.length
-                  )}
-                  h
-                </div>
-                <div className="stat-label">Horas Médias/Semana</div>
+              <div className="search-results-count">
+                {filteredStaffData.length} {filteredStaffData.length === 1 ? 'resultado' : 'resultados'}
               </div>
             </div>
           </div>
@@ -449,13 +376,13 @@ const StaffManagement = () => {
             {filteredStaffData.map((staff, index) => {
               const statusInfo = getStatusInfo(staff.status);
               const performanceColor = getPerformanceColor(staff.performance);
-              const isExpanded = expandedCards[staff.id];
 
               return (
                 <div
                   key={staff.id}
                   className="staff-card hover-lift"
                   style={{ animationDelay: `${index * 0.1}s` }}
+                  onClick={() => window.location.href = `/profile/${staff.id}`}
                 >
                   <div className="staff-card-header">
                     <div className="staff-avatar-container">
@@ -473,14 +400,18 @@ const StaffManagement = () => {
                     <div className="staff-actions">
                       <button
                         className="message-btn-header"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           console.log(`Sending message to ${staff.name}`);
                         }}
                         title="Enviar mensagem"
                       >
                         <MessageCircle size={16} />
                       </button>
-                      <button className="staff-menu-btn">
+                      <button
+                        className="staff-menu-btn"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreVertical size={16} />
                       </button>
                     </div>
@@ -558,49 +489,6 @@ const StaffManagement = () => {
                         Sem labels
                       </span>
                     )}
-                  </div>
-
-                  <div className="staff-contact-section">
-                    <button
-                      className={`contact-trigger ${
-                        isExpanded ? "expanded" : ""
-                      }`}
-                      onClick={() => toggleCardDetails(staff.id)}
-                    >
-                      <div className="contact-trigger-content">
-                        <span className="contact-label">
-                          Informações de Contacto
-                        </span>
-                      </div>
-                    </button>
-
-                    <div
-                      className={`staff-contact-details ${
-                        isExpanded ? "expanded" : ""
-                      }`}
-                    >
-                      <div className="contact-item">
-                        <User size={12} />
-                        <span>@{staff.username || "N/A"}</span>
-                      </div>
-                      <div className="contact-item">
-                        <Mail size={12} />
-                        <span>{staff.email}</span>
-                      </div>
-                      {staff.telefone && (
-                        <div className="contact-item">
-                          <Phone size={12} />
-                          <span>{staff.telefone}</span>
-                        </div>
-                      )}
-                      <div className="contact-item">
-                        <Calendar size={12} />
-                        <span>
-                          Desde{" "}
-                          {new Date(staff.joinDate).toLocaleDateString("pt-PT")}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               );

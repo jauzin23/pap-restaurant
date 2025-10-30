@@ -66,6 +66,56 @@ const criarEmissores = (io) => {
     itemMenuEliminado: (idItem) => {
       io.to("menu").emit("menu:deleted", { id: idItem });
     },
+
+    // Stock - Items
+    itemStockCriado: (item) => {
+      io.to("stock").emit("stock:item:created", item);
+    },
+    itemStockAtualizado: (item) => {
+      io.to("stock").emit("stock:item:updated", item);
+    },
+    itemStockEliminado: (idItem) => {
+      io.to("stock").emit("stock:item:deleted", { id: idItem });
+    },
+
+    // Stock - Categories
+    categoriaStockCriada: (categoria) => {
+      io.to("stock").emit("stock:category:created", categoria);
+    },
+    categoriaStockAtualizada: (categoria) => {
+      io.to("stock").emit("stock:category:updated", categoria);
+    },
+    categoriaStockEliminada: (idCategoria) => {
+      io.to("stock").emit("stock:category:deleted", { id: idCategoria });
+    },
+
+    // Stock - Suppliers
+    fornecedorCriado: (fornecedor) => {
+      io.to("stock").emit("stock:supplier:created", fornecedor);
+    },
+    fornecedorAtualizado: (fornecedor) => {
+      io.to("stock").emit("stock:supplier:updated", fornecedor);
+    },
+    fornecedorEliminado: (idFornecedor) => {
+      io.to("stock").emit("stock:supplier:deleted", { id: idFornecedor });
+    },
+
+    // Stock - Locations
+    localizacaoStockCriada: (localizacao) => {
+      io.to("stock").emit("stock:location:created", localizacao);
+    },
+    localizacaoStockAtualizada: (localizacao) => {
+      io.to("stock").emit("stock:location:updated", localizacao);
+    },
+    localizacaoStockEliminada: (idLocalizacao) => {
+      io.to("stock").emit("stock:location:deleted", { id: idLocalizacao });
+    },
+
+    // Stock - Alerts (quando item atinge nível crítico/warning)
+    alertaStockCriado: (alerta) => {
+      io.to("stock").emit("stock:alert:created", alerta);
+      io.to("gestores").emit("stock:alert:created", alerta);
+    },
   };
 };
 
