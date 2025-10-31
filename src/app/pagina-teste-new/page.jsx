@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { BackgroundBeams } from "../components/BackgroundBeams";
 import BlurText from "../components/BlurText";
-import Header from "../components/Header";
+import Sidebar from "../components/Sidebar";
+import DashboardCards from "../components/DashboardCards";
+import { BackgroundBeams } from "../components/BackgroundBeams";
 import "./page.scss";
 import { auth, users, profileImages, API_FILES_URL } from "../../lib/api";
 import { isAuthenticated } from "../../lib/auth";
@@ -36,6 +37,7 @@ const RestaurantDashboardContent = () => {
   const [userLabels, setUserLabels] = useState([]);
   const [currentView, setCurrentView] = useState(null); // null initially, set after user loads
   const [activeNavItem, setActiveNavItem] = useState("Painel"); // Track active navigation item
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Random color for username - refreshed on every load
   const [usernameColor, setUsernameColor] = useState("");
@@ -249,22 +251,7 @@ const RestaurantDashboardContent = () => {
 
   if (isLoading) {
     return (
-      <div className="dashboard fade-in">
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: -1,
-          }}
-        >
-          <div className="relative bg-white text-black min-h-screen">
-            <BackgroundBeams pathCount={20} />
-          </div>
-        </div>
-
+      <div className="dashboard fade-in" style={{ background: 'white' }}>
         <div className="loading-screen loading-scale-in">
           <div className="loading-content loading-slide-up">
             <div className="logo-loading loading-logo">Mesa+</div>
@@ -289,30 +276,38 @@ const RestaurantDashboardContent = () => {
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            width: 100%;
             text-align: center;
+            background: white;
           }
-          
+
           .loading-content {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 2rem;
           }
-          
+
           .logo-loading {
             font-size: 2.5rem;
             font-weight: 700;
             color: #1a1a1a;
             letter-spacing: -0.02em;
           }
-          
+
           .spinner {
             width: 60px;
             height: 60px;
             border: 4px solid #f0f0f0;
             border-radius: 50%;
+            animation: spin 1s linear infinite;
           }
-          
+
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
           .loading-text {
             font-size: 1.1rem;
             font-weight: 500;
@@ -325,95 +320,93 @@ const RestaurantDashboardContent = () => {
 
   return (
     <div className="dashboard fade-in">
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: -1,
-        }}
-      >
-        <div className="relative bg-white text-black min-h-screen">
-          <BackgroundBeams pathCount={20} />
-        </div>
+      {/* Background Beams with Overlay */}
+      <div className="background-beams-container">
+        <BackgroundBeams />
+        <div className="background-overlay"></div>
       </div>
-      <Header
+
+      <Sidebar
         activeNavItem={activeNavItem}
         onNavClick={handleNavClick}
+        isCollapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         user={user}
         username={username}
         userLabels={userLabels}
         profileImg={profileImg}
-        isManager={isManager}
-        currentView={currentView}
-        onViewToggle={toggleView}
-        showViewToggle={true}
-        wsConnected={connected}
-        wsReconnecting={reconnecting}
       />
 
-      <main className="main-content fade-in-delayed">
-        {/* Only render views when user data is loaded */}
-        {user && currentView && (
-          <>
-            {activeNavItem === "Ementa" ? (
-              <MenuComponent />
-            ) : activeNavItem === "Stock" ? (
-              <StockComponent />
-            ) : activeNavItem === "Mesas" ? (
-              <TableLayoutManager user={user} />
-            ) : (
-              <>
-                {isManager && currentView === "manager" ? (
-                  <>
-                    <h1 className="welcome-title slide-in-up">
-                      <BlurText
-                        text="Bem-vindo,"
-                        delay={150}
-                        animateBy="words"
-                        direction="top"
-                        className="welcome-greeting"
-                        style={{ color: "#2d3748" }}
+      <div
+        className={`dashboard-content ${
+          sidebarCollapsed ? "sidebar-collapsed" : ""
+        }`}
+      >
+        <main className="main-content fade-in-delayed">
+          {/* Only render views when user data is loaded */}
+          {user && currentView && (
+            <>
+              {activeNavItem === "Ementa" ? (
+                <MenuComponent />
+              ) : activeNavItem === "Stock" ? (
+                <StockComponent />
+              ) : activeNavItem === "Mesas" ? (
+                <TableLayoutManager user={user} />
+              ) : (
+                <>
+                  {isManager && currentView === "manager" ? (
+                    <>
+                      <h1 className="welcome-title slide-in-up">
+                        <BlurText
+                          text="Bem-vindo,"
+                          delay={150}
+                          animateBy="words"
+                          direction="top"
+                          className="welcome-greeting"
+                          style={{ color: "#2d3748" }}
+                        />
+                        <BlurText
+                          text={`${username}.`}
+                          delay={250}
+                          animateBy="words"
+                          direction="top"
+                          onAnimationComplete={handleAnimationComplete}
+                          className="welcome-greeting username-highlight"
+                          style={{ color: usernameColor }}
+                        />
+                      </h1>
+
+                      {/* Dashboard Cards */}
+                      <DashboardCards />
+
+                      <ManagerView
+                        expandedSections={expandedSections}
+                        toggleSection={toggleSection}
+                        staffUsers={staffUsers}
+                        username={username}
+                        userLabels={userLabels}
+                        profileImg={profileImg}
+                        chartData={chartData}
+                        chartConfig={chartConfig}
+                        user={user}
                       />
-                      <BlurText
-                        text={`${username}.`}
-                        delay={250}
-                        animateBy="words"
-                        direction="top"
-                        onAnimationComplete={handleAnimationComplete}
-                        className="welcome-greeting username-highlight"
-                        style={{ color: usernameColor }}
-                      />
-                    </h1>
-                    <ManagerView
+                    </>
+                  ) : (
+                    <StaffView
                       expandedSections={expandedSections}
                       toggleSection={toggleSection}
                       staffUsers={staffUsers}
                       username={username}
                       userLabels={userLabels}
                       profileImg={profileImg}
-                      chartData={chartData}
-                      chartConfig={chartConfig}
-                      user={user}
                     />
-                  </>
-                ) : (
-                  <StaffView
-                    expandedSections={expandedSections}
-                    toggleSection={toggleSection}
-                    staffUsers={staffUsers}
-                    username={username}
-                    userLabels={userLabels}
-                    profileImg={profileImg}
-                  />
-                )}
-              </>
-            )}
-          </>
-        )}
-      </main>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 };

@@ -555,3 +555,22 @@ body:has(.modal-overlay) {
   position: relative !important;
   pointer-events: auto !important;
 }
+
+/* Dashboard Layout - Prevent content from going under sidebar */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* Ensure proper box-sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

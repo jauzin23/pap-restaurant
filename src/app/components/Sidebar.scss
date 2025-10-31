@@ -1,0 +1,380 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
+
+// SB Admin 2 inspired colors
+$primary-color: #4e73df;
+$sidebar-bg: #f8f9fc;
+$text-dark: #5a5c69;
+$text-muted: #858796;
+$border-color: #e3e6f0;
+$hover-bg: #f2f3f8;
+$active-bg: #eaecf4;
+$shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+
+.sidebar {
+  width: 14rem; // SB Admin 2 uses 14rem
+  min-height: 100vh;
+  background: $sidebar-bg;
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: $shadow;
+  border-right: 1px solid $border-color;
+
+  &.collapsed {
+    width: fit-content;
+    .sidebar-brand {
+      justify-content: center;
+      padding: 1.5rem 0.5rem;
+
+      .brand-icon {
+        margin-right: 0;
+      }
+
+      .brand-text {
+        display: none;
+      }
+    }
+
+    .nav-heading {
+      display: none;
+    }
+
+    .nav-item {
+      justify-content: center;
+      padding: 1rem 0.5rem;
+
+      .nav-text {
+        display: none;
+      }
+    }
+
+    .sidebar-topbar {
+      padding: 0.5rem;
+
+      .user-menu-container {
+        .user-profile-btn {
+          justify-content: center;
+
+          .user-info {
+            display: none;
+          }
+        }
+      }
+    }
+  }
+
+  // Sidebar Brand (Logo)
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    text-decoration: none;
+    color: $text-dark;
+    font-size: 1rem;
+    font-weight: 800;
+    transition: all 0.3s;
+    height: 4.375rem; // SB Admin 2 brand height
+    border-bottom: 1px solid $border-color;
+
+    .brand-icon {
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: $primary-color;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 1rem;
+      margin-right: 0.5rem;
+      transform: rotate(-15deg); // SB Admin 2 style rotation
+      transition: transform 0.3s ease;
+
+      &:hover {
+        transform: rotate(0deg);
+      }
+
+      span {
+        color: white;
+      }
+    }
+
+    .brand-text {
+      white-space: nowrap;
+      font-size: 1.1rem;
+      color: $text-dark;
+
+      sup {
+        font-size: 0.6em;
+      }
+    }
+  }
+
+  // Divider
+  .sidebar-divider {
+    border: 0;
+    height: 1px;
+    background: $border-color;
+    margin: 0 1rem;
+  }
+
+  // Navigation
+  .sidebar-nav {
+    flex: 1;
+    padding: 1rem 0;
+    overflow-y: auto;
+
+    .nav-heading {
+      padding: 0.5rem 1rem;
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+      color: $text-muted;
+    }
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1rem;
+    color: $text-muted;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 400;
+    transition: all 0.15s ease;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+
+    svg {
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+    }
+
+    .nav-text {
+      white-space: nowrap;
+    }
+
+    &:hover {
+      color: $primary-color;
+      background: $hover-bg;
+    }
+
+    &.active {
+      color: $primary-color;
+      font-weight: 700;
+      background: $active-bg;
+      border-left-color: $primary-color;
+    }
+  }
+
+  // User Profile section in sidebar
+  .sidebar-topbar {
+    padding: 1rem;
+    border-top: 1px solid $border-color;
+    background: white;
+
+    .user-profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: transparent;
+      border: 1px solid $border-color;
+      color: $text-dark;
+      cursor: pointer;
+      padding: 0.75rem;
+      border-radius: 0.35rem;
+      transition: all 0.15s ease;
+      width: 100%;
+
+      &:hover {
+        background: $hover-bg;
+        border-color: $primary-color;
+      }
+
+      .user-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 0;
+
+        .user-name {
+          font-size: 0.875rem;
+          font-weight: 700;
+          color: $text-dark;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+          text-align: left;
+        }
+
+        .user-role {
+          font-size: 0.75rem;
+          color: $text-muted;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+          text-align: left;
+          text-transform: capitalize;
+        }
+      }
+    }
+  }
+
+  // Profile image styles
+  .profile-image,
+  .profile-placeholder {
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 2px solid $border-color;
+
+    &.circular {
+      border-radius: 50%;
+    }
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .profile-placeholder {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: $primary-color;
+    border-color: $primary-color;
+  }
+
+  // Sidebar Toggle
+  .sidebar-toggle {
+    padding: 0.75rem;
+    background: white;
+    border: none;
+    color: $text-muted;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    border-top: 1px solid $border-color;
+
+    &:hover {
+      background: $hover-bg;
+      color: $primary-color;
+    }
+  }
+}
+
+// User Dropdown (Radix Portal)
+.user-dropdown {
+  background: white;
+  border-radius: 0.35rem;
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+  min-width: 10rem;
+  z-index: 9999;
+  animation: dropdownFadeIn 0.2s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+
+  .user-dropdown-divider {
+    height: 1px;
+    background: #e3e6f0;
+    margin: 0.5rem 0;
+  }
+
+  .user-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    width: 100%;
+    color: #3a3b45;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    outline: none;
+    border-radius: 0;
+
+    svg {
+      flex-shrink: 0;
+      color: #858796;
+    }
+
+    &:hover,
+    &:focus {
+      background: #f8f9fc;
+      color: #4e73df;
+      outline: none;
+
+      svg {
+        color: #4e73df;
+      }
+    }
+
+    &.danger {
+      color: #e74a3b;
+
+      svg {
+        color: #e74a3b;
+      }
+
+      &:hover,
+      &:focus {
+        background: #f8f9fc;
+        color: #e74a3b;
+
+        svg {
+          color: #e74a3b;
+        }
+      }
+    }
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+
+    &.show {
+      transform: translateX(0);
+    }
+  }
+}

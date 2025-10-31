@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
-import Header from "../../components/Header";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth, users, getAuthToken } from "../../../lib/api";
 import { isAuthenticated } from "../../../lib/auth";
@@ -69,7 +68,6 @@ function ProfilePageContent({
   const [username, setUsername] = useState("");
   const [userLabels, setUserLabels] = useState<string[]>([]);
   const [profileImg, setProfileImg] = useState("");
-  const [activeNavItem, setActiveNavItem] = useState("Perfil");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -643,7 +641,7 @@ function ProfilePageContent({
   // Loading state
   if (loading) {
     return (
-      <div className="dashboard fade-in">
+      <div className="dashboard fade-in" style={{ background: 'white' }}>
         <div
           style={{
             position: "fixed",
@@ -652,24 +650,10 @@ function ProfilePageContent({
             width: "100%",
             height: "100%",
             zIndex: -1,
+            background: 'white',
           }}
         >
-          <div className="relative bg-white text-black min-h-screen">
-            <BackgroundBeams pathCount={20} />
-          </div>
         </div>
-
-        <Header
-          activeNavItem={activeNavItem}
-          onNavClick={handleNavClick}
-          user={currentUser}
-          username={username}
-          userLabels={userLabels}
-          profileImg={profileImg}
-          isManager={isManager}
-          currentView="staff"
-          showViewToggle={false}
-        />
 
         <main className="main-content">
           <div className="profile-page">
@@ -685,7 +669,7 @@ function ProfilePageContent({
 
   if (!profileUser) {
     return (
-      <div className="dashboard fade-in">
+      <div className="dashboard fade-in" style={{ background: 'white' }}>
         <div
           style={{
             position: "fixed",
@@ -694,24 +678,13 @@ function ProfilePageContent({
             width: "100%",
             height: "100%",
             zIndex: -1,
+            background: 'white',
           }}
         >
           <div className="relative bg-white text-black min-h-screen">
             <BackgroundBeams pathCount={20} />
           </div>
         </div>
-
-        <Header
-          activeNavItem={activeNavItem}
-          onNavClick={handleNavClick}
-          user={currentUser}
-          username={username}
-          userLabels={userLabels}
-          profileImg={profileImg}
-          isManager={isManager}
-          currentView="staff"
-          showViewToggle={false}
-        />
 
         <main className="main-content">
           <div className="profile-page">
@@ -728,7 +701,7 @@ function ProfilePageContent({
   }
 
   return (
-    <div className="dashboard fade-in">
+    <div className="dashboard fade-in" style={{ background: 'white' }}>
       <div
         style={{
           position: "fixed",
@@ -737,24 +710,10 @@ function ProfilePageContent({
           width: "100%",
           height: "100%",
           zIndex: -1,
+          background: 'white',
         }}
       >
-        <div className="relative bg-white text-black min-h-screen">
-          <BackgroundBeams pathCount={20} />
-        </div>
       </div>
-
-      <Header
-        activeNavItem={activeNavItem}
-        onNavClick={handleNavClick}
-        user={currentUser}
-        username={username}
-        userLabels={userLabels}
-        profileImg={profileImg}
-        isManager={isManager}
-        currentView="staff"
-        showViewToggle={false}
-      />
 
       {/* Success overlay */}
       {saveSuccess && (

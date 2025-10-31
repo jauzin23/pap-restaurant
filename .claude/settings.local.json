@@ -3,7 +3,11 @@
     "allow": [
       "Bash(dir /s /b *.js)",
       "Bash(findstr /i \"server index main\")",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "WebFetch(domain:startbootstrap.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

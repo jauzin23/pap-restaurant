@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "antd";
 import {
@@ -497,6 +497,7 @@ export default function StockComponent() {
   // Initial data fetch
   useEffect(() => {
     fetchStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch dropdown data for the add modal
@@ -522,12 +523,13 @@ export default function StockComponent() {
     }
   }, []);
 
-  // Fetch dropdown data when add modal opens
+  // Fetch dropdown data when add modal opens or when first item is being edited
   useEffect(() => {
-    if (isAddModalOpen && categories.length === 0) {
+    const isEditing = Object.keys(editingRows).length > 0;
+    if ((isAddModalOpen || isEditing) && categories.length === 0) {
       fetchDropdownData();
     }
-  }, [isAddModalOpen, categories.length, fetchDropdownData]);
+  }, [isAddModalOpen, editingRows, categories.length, fetchDropdownData]);
 
   const fetchStock = useCallback(async () => {
     if (loading) return;
@@ -612,11 +614,22 @@ export default function StockComponent() {
       const edits = editingRows[itemId];
       if (!edits || loading) return;
 
+      // Validate name is not empty
+      const trimmedName = edits.name?.trim();
+      if (!trimmedName) {
+        alert("Nome do produto é obrigatório");
+        return;
+      }
+
       setLoading(true);
       try {
         await apiCall(`/stock/items/${itemId}`, {
           method: "PUT",
           body: JSON.stringify({
+            name: trimmedName,
+            category: edits.category?.trim() || null,
+            location: edits.location?.trim() || null,
+            supplier: edits.supplier?.trim() || null,
             qty: Math.max(0, parseInt(edits.qty) || 0),
             min_qty: Math.max(0, parseInt(edits.min_qty) || 0),
             cost_price: Math.max(0, parseFloat(edits.cost_price) || 0),
@@ -715,10 +728,73 @@ export default function StockComponent() {
     resetImage();
   }, [resetImage]);
 
-  const StockTableRow = ({ item }) => {
+  // Memoized callback for updating editing state
+  const updateEditingState = useCallback((itemId, newState) => {
+    if (newState === undefined) {
+      // Cancel editing
+      setEditingRows((prev) => {
+        const { [itemId]: removed, ...rest } = prev;
+        return rest;
+      });
+    } else {
+      // Update editing state
+      setEditingRows((prev) => ({
+        ...prev,
+        [itemId]: newState,
+      }));
+    }
+  }, []);
+
+  const StockTableRow = memo(({ item, editingState, onUpdateEditingState, categories, locations, suppliers, loading, onSave, onAddToCart, itemId }) => {
     if (!item) return null;
 
-    const isEditing = editingRows[item.$id];
+    const isEditing = editingState !== undefined;
+
+    // Local state for editing values - this prevents unfocusing
+    const [localEditState, setLocalEditState] = useState(editingState || {});
+
+    // Sync local state when editing state changes from parent
+    useEffect(() => {
+      if (editingState) {
+        setLocalEditState(editingState);
+      }
+    }, [editingState]);
+
+    // Update parent state on blur or when values change
+    const syncToParent = useCallback(() => {
+      if (isEditing) {
+        onUpdateEditingState(itemId, localEditState);
+      }
+    }, [isEditing, itemId, localEditState, onUpdateEditingState]);
+
+    const handleSave = useCallback(() => {
+      syncToParent(); // Sync before saving
+      onSave(itemId);
+    }, [itemId, onSave, syncToParent]);
+
+    const handleCancel = useCallback(() => {
+      setLocalEditState({});
+      onUpdateEditingState(itemId, undefined);
+    }, [itemId, onUpdateEditingState]);
+
+    const handleStartEdit = useCallback(() => {
+      const initialState = {
+        name: item.name || "",
+        category: item.category || "",
+        location: item.location || "",
+        supplier: item.supplier || "",
+        qty: item.qty || 0,
+        min_qty: item.min_qty || 0,
+        cost_price: item.cost_price || 0,
+      };
+      setLocalEditState(initialState);
+      onUpdateEditingState(itemId, initialState);
+    }, [item, itemId, onUpdateEditingState]);
+
+    const handleAddToCart = useCallback((qty) => {
+      onAddToCart(itemId, qty);
+    }, [itemId, onAddToCart]);
+
     const getStatusInfo = (current, minimum) => {
       if (current <= minimum) return { status: "critical", label: "Crítico", icon: AlertTriangle };
       if (current <= minimum + 5) return { status: "warning", label: "Baixo", icon: TrendingDown };
@@ -751,9 +827,55 @@ export default function StockComponent() {
 
         {/* Item Info */}
         <div className="cell cell-info">
-          <div className="item-name">{item.name || "Nome não disponível"}</div>
-          {item.category && (
-            <div className="item-category">{item.category}</div>
+          {isEditing ? (
+            <div className="edit-info-wrapper">
+              <input
+                type="text"
+                className="name-input"
+                value={localEditState?.name ?? item.name ?? ""}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditState((prev) => ({
+                    ...prev,
+                    name: value,
+                  }));
+                }}
+                onBlur={syncToParent}
+                placeholder="Nome do item"
+              />
+              <select
+                className="category-select"
+                value={localEditState?.category ?? item.category ?? ""}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditState((prev) => ({
+                    ...prev,
+                    category: value,
+                  }));
+                  syncToParent();
+                }}
+              >
+                <option value="">Sem categoria</option>
+                {categories.map((category) => (
+                  <option
+                    key={category.$id}
+                    value={category.name || category.category || ""}
+                  >
+                    {category.name || category.category || "Sem nome"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="item-name">{item.name || "Nome não disponível"}</div>
+              {item.category && (
+                <div className="item-category">{item.category}</div>
+              )}
+            </>
           )}
         </div>
 
@@ -764,18 +886,16 @@ export default function StockComponent() {
               type="number"
               min="0"
               className="qty-input"
-              value={editingRows[item.$id]?.qty ?? item.qty ?? 0}
+              value={localEditState?.qty ?? item.qty ?? 0}
               onClick={(e) => e.stopPropagation()}
               onFocus={(e) => e.target.select()}
               onChange={(e) => {
-                setEditingRows((prev) => ({
+                setLocalEditState((prev) => ({
                   ...prev,
-                  [item.$id]: {
-                    ...prev[item.$id],
-                    qty: parseInt(e.target.value) || 0,
-                  },
+                  qty: parseInt(e.target.value) || 0,
                 }));
               }}
+              onBlur={syncToParent}
             />
           ) : (
             <span className={`qty-value ${statusInfo.status}`}>
@@ -791,18 +911,16 @@ export default function StockComponent() {
               type="number"
               min="0"
               className="qty-input"
-              value={editingRows[item.$id]?.min_qty ?? item.min_qty ?? 0}
+              value={localEditState?.min_qty ?? item.min_qty ?? 0}
               onClick={(e) => e.stopPropagation()}
               onFocus={(e) => e.target.select()}
               onChange={(e) => {
-                setEditingRows((prev) => ({
+                setLocalEditState((prev) => ({
                   ...prev,
-                  [item.$id]: {
-                    ...prev[item.$id],
-                    min_qty: parseInt(e.target.value) || 0,
-                  },
+                  min_qty: parseInt(e.target.value) || 0,
                 }));
               }}
+              onBlur={syncToParent}
             />
           ) : (
             <span className="qty-value">
@@ -827,18 +945,16 @@ export default function StockComponent() {
               step="0.01"
               min="0"
               className="price-input"
-              value={editingRows[item.$id]?.cost_price ?? item.cost_price ?? 0}
+              value={localEditState?.cost_price ?? item.cost_price ?? 0}
               onClick={(e) => e.stopPropagation()}
               onFocus={(e) => e.target.select()}
               onChange={(e) => {
-                setEditingRows((prev) => ({
+                setLocalEditState((prev) => ({
                   ...prev,
-                  [item.$id]: {
-                    ...prev[item.$id],
-                    cost_price: parseFloat(e.target.value) || 0,
-                  },
+                  cost_price: parseFloat(e.target.value) || 0,
                 }));
               }}
+              onBlur={syncToParent}
             />
           ) : (
             <span className="price-value">
@@ -849,14 +965,67 @@ export default function StockComponent() {
 
         {/* Location & Supplier */}
         <div className="cell cell-meta">
-          <div className="meta-item">
-            <MapPin size={14} />
-            <span>{item.location || "N/A"}</span>
-          </div>
-          <div className="meta-item">
-            <Truck size={14} />
-            <span>{item.supplier || "N/A"}</span>
-          </div>
+          {isEditing ? (
+            <div className="edit-meta-wrapper">
+              <select
+                className="meta-select"
+                value={localEditState?.location ?? item.location ?? ""}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditState((prev) => ({
+                    ...prev,
+                    location: value,
+                  }));
+                  syncToParent();
+                }}
+              >
+                <option value="">Sem localização</option>
+                {locations.map((location) => (
+                  <option
+                    key={location.$id}
+                    value={location.name || location.location || ""}
+                  >
+                    {location.name || location.location || "Sem nome"}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="meta-select"
+                value={localEditState?.supplier ?? item.supplier ?? ""}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLocalEditState((prev) => ({
+                    ...prev,
+                    supplier: value,
+                  }));
+                  syncToParent();
+                }}
+              >
+                <option value="">Sem fornecedor</option>
+                {suppliers.map((supplier) => (
+                  <option
+                    key={supplier.$id}
+                    value={supplier.name || supplier.supplier || ""}
+                  >
+                    {supplier.name || supplier.supplier || "Sem nome"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="meta-item">
+                <MapPin size={14} />
+                <span>{item.location || "N/A"}</span>
+              </div>
+              <div className="meta-item">
+                <Truck size={14} />
+                <span>{item.supplier || "N/A"}</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Actions */}
@@ -867,7 +1036,7 @@ export default function StockComponent() {
                 className="action-btn save"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleSaveEdit(item.$id);
+                  handleSave();
                 }}
                 disabled={loading}
                 title="Guardar"
@@ -878,10 +1047,7 @@ export default function StockComponent() {
                 className="action-btn cancel"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setEditingRows((prev) => {
-                    const { [item.$id]: removed, ...rest } = prev;
-                    return rest;
-                  });
+                  handleCancel();
                 }}
                 title="Cancelar"
               >
@@ -894,14 +1060,7 @@ export default function StockComponent() {
                 className="action-btn edit"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setEditingRows((prev) => ({
-                    ...prev,
-                    [item.$id]: {
-                      qty: item.qty || 0,
-                      min_qty: item.min_qty || 0,
-                      cost_price: item.cost_price || 0,
-                    },
-                  }));
+                  handleStartEdit();
                 }}
                 title="Editar"
               >
@@ -911,7 +1070,7 @@ export default function StockComponent() {
                 className="action-btn add"
                 onClick={(e) => {
                   e.stopPropagation();
-                  addToMovementCart(item.$id, 1);
+                  handleAddToCart(1);
                 }}
                 disabled={loading}
                 title="Adicionar stock"
@@ -922,7 +1081,7 @@ export default function StockComponent() {
                 className="action-btn remove"
                 onClick={(e) => {
                   e.stopPropagation();
-                  addToMovementCart(item.$id, -1);
+                  handleAddToCart(-1);
                 }}
                 disabled={loading}
                 title="Remover stock"
@@ -934,7 +1093,19 @@ export default function StockComponent() {
         </div>
       </div>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Only re-render if the item itself changed, or if the editing state for this specific item changed
+    return (
+      prevProps.item.$id === nextProps.item.$id &&
+      prevProps.item.name === nextProps.item.name &&
+      prevProps.item.category === nextProps.item.category &&
+      prevProps.item.qty === nextProps.item.qty &&
+      prevProps.item.min_qty === nextProps.item.min_qty &&
+      prevProps.item.cost_price === nextProps.item.cost_price &&
+      prevProps.editingState === nextProps.editingState &&
+      prevProps.loading === nextProps.loading
+    );
+  });
 
   return (
     <div className="stock-component">
@@ -1124,7 +1295,19 @@ export default function StockComponent() {
                   {/* Table Rows */}
                   <div className="stock-table-body">
                     {paginatedItems.map((item) => (
-                      <StockTableRow key={item.$id} item={item} />
+                      <StockTableRow
+                        key={item.$id}
+                        item={item}
+                        itemId={item.$id}
+                        editingState={editingRows[item.$id]}
+                        onUpdateEditingState={updateEditingState}
+                        categories={categories}
+                        locations={locations}
+                        suppliers={suppliers}
+                        loading={loading}
+                        onSave={handleSaveEdit}
+                        onAddToCart={addToMovementCart}
+                      />
                     ))}
                   </div>
 

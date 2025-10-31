@@ -1,17 +1,13 @@
 "use client";
-import React, { useMemo } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 export interface BackgroundBeamsProps {
   className?: string;
-  // Performance options
-  reducedMotion?: boolean; // Disable animations for better performance
-  pathCount?: number; // Number of animated paths (default: 10, max: 50)
 }
 export const BackgroundBeams = React.memo(
-  ({ className, reducedMotion = false, pathCount = 25 }: BackgroundBeamsProps) => {
-    // Reduced path count for better performance - only use first N paths
-    const allPaths = useMemo(() => [
+  ({ className }: BackgroundBeamsProps) => {
+    const paths = [
       "M-380 -189C-380 -189 -312 216 152 343C616 470 684 875 684 875",
       "M-373 -197C-373 -197 -305 208 159 335C623 462 691 867 691 867",
       "M-366 -205C-366 -205 -298 200 166 327C630 454 698 859 698 859",
@@ -62,18 +58,12 @@ export const BackgroundBeams = React.memo(
       "M-51 -565C-51 -565 17 -160 481 -33C945 94 1013 499 1013 499",
       "M-44 -573C-44 -573 24 -168 488 -41C952 86 1020 491 1020 491",
       "M-37 -581C-37 -581 31 -176 495 -49C959 78 1027 483 1027 483",
-    ], []);
-
-    // Use only the specified number of paths for performance
-    const paths = useMemo(() => {
-      const count = Math.min(Math.max(1, pathCount), 50);
-      return allPaths.slice(0, count);
-    }, [allPaths, pathCount]);
+    ];
 
     return (
       <div
         className={cn(
-          "absolute h-full w-full inset-0 [mask-size:40px] [mask-repeat:no-repeat] flex items-center justify-center",
+          "absolute h-full w-full inset-0 [mask-size:40px] [mask-repeat:no-repeat] flex items-center justify-center bg-white",
           className
         )}
       >
@@ -91,76 +81,46 @@ export const BackgroundBeams = React.memo(
             strokeOpacity="0.05"
             strokeWidth="0.5"
           />
-          {paths.map((path, index) =>
-            reducedMotion ? (
-              <path
-                key={`path-${index}`}
-                d={path}
-                stroke={`url(#staticGradient-${index})`}
-                strokeOpacity="0.4"
-                strokeWidth="0.5"
-              />
-            ) : (
-              <motion.path
-                key={`path-${index}`}
-                d={path}
-                stroke={`url(#linearGradient-${index})`}
-                strokeOpacity="0.4"
-                strokeWidth="0.5"
-              />
-            )
-          )}
+          {paths.map((path, index) => (
+            <motion.path
+              key={`path-${index}`}
+              d={path}
+              stroke={`url(#linearGradient-${index})`}
+              strokeOpacity="0.4"
+              strokeWidth="0.5"
+            />
+          ))}
 
           <defs>
-            {reducedMotion ? (
-              // Static gradients for reduced motion mode - no animation overhead
-              paths.map((path, index) => (
-                <linearGradient
-                  id={`staticGradient-${index}`}
-                  key={`gradient-${index}`}
-                  x1="0%"
-                  x2="100%"
-                  y1="0%"
-                  y2="100%"
-                >
-                  <stop stopColor="#18CCFC" stopOpacity="0" />
-                  <stop stopColor="#18CCFC" />
-                  <stop offset="32.5%" stopColor="#6344F5" />
-                  <stop offset="100%" stopColor="#AE48FF" stopOpacity="0" />
-                </linearGradient>
-              ))
-            ) : (
-              // Animated gradients for normal mode
-              paths.map((path, index) => (
-                <motion.linearGradient
-                  id={`linearGradient-${index}`}
-                  key={`gradient-${index}`}
-                  initial={{
-                    x1: "0%",
-                    x2: "0%",
-                    y1: "0%",
-                    y2: "0%",
-                  }}
-                  animate={{
-                    x1: ["0%", "100%"],
-                    x2: ["0%", "95%"],
-                    y1: ["0%", "100%"],
-                    y2: ["0%", `${93 + Math.random() * 8}%`],
-                  }}
-                  transition={{
-                    duration: Math.random() * 2 + 3, // Faster: 3-5 seconds (was 6-10)
-                    ease: "easeInOut",
-                    repeat: Infinity,
-                    delay: Math.random() * 2, // Shorter delay: 0-2 seconds (was 0-5)
-                  }}
-                >
-                  <stop stopColor="#18CCFC" stopOpacity="0" />
-                  <stop stopColor="#18CCFC" />
-                  <stop offset="32.5%" stopColor="#6344F5" />
-                  <stop offset="100%" stopColor="#AE48FF" stopOpacity="0" />
-                </motion.linearGradient>
-              ))
-            )}
+            {paths.map((path, index) => (
+              <motion.linearGradient
+                id={`linearGradient-${index}`}
+                key={`gradient-${index}`}
+                initial={{
+                  x1: "0%",
+                  x2: "0%",
+                  y1: "0%",
+                  y2: "0%",
+                }}
+                animate={{
+                  x1: ["0%", "100%"],
+                  x2: ["0%", "95%"],
+                  y1: ["0%", "100%"],
+                  y2: ["0%", `${93 + Math.random() * 8}%`],
+                }}
+                transition={{
+                  duration: Math.random() * 10 + 10,
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  delay: Math.random() * 10,
+                }}
+              >
+                <stop stopColor="#18CCFC" stopOpacity="0" />
+                <stop stopColor="#18CCFC" />
+                <stop offset="32.5%" stopColor="#6344F5" />
+                <stop offset="100%" stopColor="#AE48FF" stopOpacity="0" />
+              </motion.linearGradient>
+            ))}
             <radialGradient
               id="paint0_radial_242_278"
               cx="0"

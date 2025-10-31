@@ -1,252 +1,125 @@
-// Main Page Styles - Restaurant Dashboard Redesign
-// Updated to work correctly with fixed header and sidebar
+// Main Page Styles - SB Admin 2 Inspired Dashboard
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
 
-// Variables
-$primary-black: #000000;
-$card-bg: #111111;
-$border-color: #222222;
-$text-primary: #ffffff;
-$text-secondary: #888888;
-$accent-color: #ffffff;
-$hover-bg: #1a1a1a;
-$success-color: #00ff00;
-$error-color: #ff4444;
-$warning-color: #ffaa00;
+// SB Admin 2 Color Scheme
+$primary: #4e73df;
+$success: #1cc88a;
+$info: #36b9cc;
+$warning: #f6c23e;
+$danger: #e74a3b;
+$secondary: #858796;
+$light: #f8f9fc;
+$dark: #5a5c69;
 
-// Fonts
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap");
+$gray-100: #f8f9fc;
+$gray-200: #eaecf4;
+$gray-300: #dddfeb;
+$gray-400: #d1d3e2;
+$gray-500: #b7b9cc;
+$gray-600: #858796;
+$gray-700: #6e707e;
+$gray-800: #5a5c69;
+$gray-900: #3a3b45;
 
-.main-page-container {
+$sidebar-width: 14rem;
+$sidebar-collapsed-width: 6.5rem;
+
+// SB Admin 2 Layout Structure
+.dashboard-wrapper {
   min-height: 100vh;
-  background: $primary-black;
-  color: $text-primary;
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background-color: $gray-100;
+  position: relative;
+}
+
+.content-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  margin-left: $sidebar-width;
+  transition: margin-left 0.3s ease;
+  position: relative;
 
-  .main-page-layout {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
+  // When sidebar is collapsed, adjust margin
+  body:has(.sidebar.collapsed) & {
+    margin-left: $sidebar-collapsed-width;
   }
+}
 
-  .main-page-content {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    min-height: 0;
-    margin-top: 80px; // Space for fixed header
-    margin-left: 280px; // Space for fixed sidebar
+.page-content {
+  flex: 1;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
 
-    .main-content-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 40px;
-      min-height: 0;
+.container-fluid {
+  padding: 1.5rem;
+  max-width: 100%;
+}
 
-      .content-grid {
-        display: grid;
-        gap: 24px;
-        width: 100%;
-        min-height: min-content;
+// Page Heading
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
 
-        // RestLayout as primary component - give it more space
-        .component-wrapper:first-child {
-          grid-column: 1 / -1;
-          min-height: 600px;
-        }
-
-        .component-wrapper {
-          background: $card-bg;
-          border: 1px solid $border-color;
-          border-radius: 8px;
-          padding: 24px;
-          position: relative;
-          transition: all 0.2s ease;
-          overflow: hidden;
-
-          &:hover {
-            border-color: #333;
-            transform: translateY(-1px);
-          }
-
-          // Dashboard-style headers
-          .component-header {
-            padding: 24px;
-            border-bottom: 1px solid $border-color;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-
-            h2,
-            h3 {
-              font-size: 18px;
-              font-weight: 600;
-              margin: 0;
-              color: $text-primary;
-            }
-
-            .component-icon {
-              width: 32px;
-              height: 32px;
-              background: $accent-color;
-              border-radius: 4px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-
-              &::after {
-                content: "";
-                width: 16px;
-                height: 16px;
-                background: $primary-black;
-                border-radius: 2px;
-              }
-            }
-          }
-
-          // Dashboard-style content
-          .component-content {
-            padding: 16px 24px;
-
-            .content-item {
-              display: flex;
-              align-items: center;
-              gap: 16px;
-              padding: 16px 0;
-              border-bottom: 1px solid $border-color;
-              transition: all 0.2s ease;
-
-              &:last-child {
-                border-bottom: none;
-              }
-
-              &:hover {
-                background: rgba(255, 255, 255, 0.02);
-              }
-
-              .item-icon {
-                width: 32px;
-                height: 32px;
-                background: $accent-color;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-
-                &::after {
-                  content: "";
-                  width: 16px;
-                  height: 16px;
-                  background: $primary-black;
-                  border-radius: 2px;
-                }
-              }
-
-              .item-content {
-                flex: 1;
-
-                .item-title {
-                  font-size: 14px;
-                  font-weight: 500;
-                  margin-bottom: 2px;
-                  color: $text-primary;
-                }
-
-                .item-subtitle {
-                  font-size: 12px;
-                  color: $text-secondary;
-                }
-              }
-
-              .item-meta {
-                text-align: right;
-                flex-shrink: 0;
-
-                .meta-value {
-                  font-size: 12px;
-                  color: $text-secondary;
-                  margin-bottom: 2px;
-                }
-
-                .status-dot {
-                  width: 6px;
-                  height: 6px;
-                  border-radius: 50%;
-                  background: $text-secondary;
-                  margin-left: auto;
-
-                  &.active {
-                    background: #00ff00;
-                    box-shadow: 0 0 4px #00ff00;
-                  }
-
-                  &.warning {
-                    background: #ffaa00;
-                    box-shadow: 0 0 4px #ffaa00;
-                  }
-
-                  &.error {
-                    background: #ff4444;
-                    box-shadow: 0 0 4px #ff4444;
-                  }
-                }
-              }
-            }
-          }
-
-          // Legacy styling for non-dashboard styled components
-          h2 {
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0 0 16px 0;
-            color: $text-primary;
-          }
-
-          h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin: 0 0 12px 0;
-            color: $text-primary;
-          }
-
-          p {
-            font-size: 14px;
-            color: $text-secondary;
-            margin: 0 0 16px 0;
-            line-height: 1.5;
-          }
-        }
-      }
-    }
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 400;
+    color: $gray-800;
+    margin: 0;
+    line-height: 1.2;
   }
+}
+
+// Content Row
+.content-row {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.content-section {
+  background: white;
+  border-radius: 0.35rem;
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.2);
+  }
+}
+
+// Legacy loading state container (for compatibility)
+.main-page-container {
+  min-height: 100vh;
+  background: $gray-100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 // Loading state
 .loading-container {
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.5rem;
 
   .loading-spinner {
     position: relative;
-    width: 48px;
-    height: 48px;
+    width: 3rem;
+    height: 3rem;
 
     .spinner-base {
       width: 100%;
       height: 100%;
-      border: 3px solid $border-color;
+      border: 3px solid $gray-300;
       border-radius: 50%;
     }
 
@@ -257,7 +130,7 @@ $warning-color: #ffaa00;
       width: 100%;
       height: 100%;
       border: 3px solid transparent;
-      border-top: 3px solid $accent-color;
+      border-top: 3px solid $primary;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -267,53 +140,15 @@ $warning-color: #ffaa00;
     text-align: center;
 
     .loading-title {
-      font-size: 24px;
+      font-size: 1.5rem;
       font-weight: 700;
-      color: $text-primary;
-      margin: 0 0 8px 0;
+      color: $gray-800;
+      margin: 0 0 0.5rem 0;
     }
 
     .loading-text {
-      font-size: 14px;
-      color: $text-secondary;
-      margin: 0;
-    }
-  }
-}
-
-// Legacy loading state (keeping for compatibility)
-.main-page-loading {
-  min-height: 100vh;
-  background: $primary-black;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 24px;
-  font-family: "JetBrains Mono", monospace;
-
-  .loading-spinner {
-    width: 48px;
-    height: 48px;
-    border: 3px solid $border-color;
-    border-top: 3px solid $accent-color;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  .loading-text {
-    text-align: center;
-
-    h2 {
-      font-size: 24px;
-      font-weight: 700;
-      color: $text-primary;
-      margin: 0 0 8px 0;
-    }
-
-    p {
-      font-size: 14px;
-      color: $text-secondary;
+      font-size: 0.875rem;
+      color: $gray-600;
       margin: 0;
     }
   }
@@ -328,86 +163,47 @@ $warning-color: #ffaa00;
   }
 }
 
-// Scrollbar styling (matching dashboard)
-.main-content-area::-webkit-scrollbar {
-  width: 6px;
+// Scrollbar styling
+.page-content::-webkit-scrollbar {
+  width: 0.5rem;
 }
 
-.main-content-area::-webkit-scrollbar-track {
+.page-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.main-content-area::-webkit-scrollbar-thumb {
-  background: $border-color;
-  border-radius: 3px;
+.page-content::-webkit-scrollbar-thumb {
+  background: $gray-400;
+  border-radius: 0.25rem;
 }
 
-.main-content-area::-webkit-scrollbar-thumb:hover {
-  background: #333;
+.page-content::-webkit-scrollbar-thumb:hover {
+  background: $gray-500;
 }
 
 // Responsive Design
-@media (max-width: 1024px) {
-  .main-page-container {
-    .main-page-content {
-      margin-left: 260px; // Match smaller sidebar width
-    }
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin-left: 0;
+  }
 
-    .main-content-area {
-      padding: 32px;
+  .container-fluid {
+    padding: 1rem;
+  }
 
-      .content-grid {
-        gap: 20px;
-      }
+  .page-heading {
+    margin-bottom: 1rem;
+
+    .page-title {
+      font-size: 1.5rem;
     }
   }
-}
 
-@media (max-width: 768px) {
-  .main-page-container {
-    .main-page-content {
-      margin-left: 0; // No sidebar margin on mobile
-      margin-top: 80px; // Keep header space
-    }
-
-    .main-content-area {
-      padding: 16px;
-
-      .content-grid {
-        gap: 16px;
-
-        .component-wrapper {
-          padding: 16px;
-
-          .component-header {
-            padding: 16px;
-          }
-
-          .component-content {
-            padding: 12px 16px;
-          }
-        }
-      }
-    }
+  .content-row {
+    gap: 1rem;
   }
-}
 
-// Additional mobile styles for when sidebar is shown
-@media (max-width: 768px) {
-  .main-page-container {
-    &.sidebar-open {
-      .main-page-content {
-        &::before {
-          content: "";
-          position: fixed;
-          top: 80px;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 44;
-        }
-      }
-    }
+  .content-section {
+    padding: 1rem;
   }
 }

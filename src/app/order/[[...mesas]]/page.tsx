@@ -645,7 +645,7 @@ function PedidoPageContent({
   // Main loading state
   if (loading || isLoading) {
     return (
-      <div className="dashboard fade-in">
+      <div className="dashboard fade-in" style={{ background: 'white' }}>
         <div
           style={{
             position: "fixed",
@@ -654,11 +654,9 @@ function PedidoPageContent({
             width: "100%",
             height: "100%",
             zIndex: -1,
+            background: 'white',
           }}
         >
-          <div className="relative bg-white text-black min-h-screen">
-            <BackgroundBeams pathCount={20} />
-          </div>
         </div>
 
         <div className="order-page">
@@ -703,7 +701,7 @@ function PedidoPageContent({
   }
 
   return (
-    <div className="dashboard fade-in">
+    <div className="dashboard fade-in" style={{ background: 'white' }}>
       <div
         style={{
           position: "fixed",
@@ -712,6 +710,7 @@ function PedidoPageContent({
           width: "100%",
           height: "100%",
           zIndex: -1,
+          background: 'white',
         }}
       >
         <div className="relative bg-white text-black min-h-screen">

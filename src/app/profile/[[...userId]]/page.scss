@@ -50,8 +50,7 @@
 }
 // Profile Page Styles - Card-Based Layout (Scoped to prevent global conflicts)
 .profile-page {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
   padding: clamp(1rem, 2vw, 2rem);
   position: relative;
   z-index: 1;
