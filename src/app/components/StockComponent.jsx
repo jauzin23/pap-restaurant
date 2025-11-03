@@ -74,6 +74,10 @@ const apiCall = async (endpoint, options = {}) => {
 };
 
 export default function StockComponent() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState("items"); // "items" | "warehouses"
+
+  // Items tab state
   const [stockItems, setStockItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [movementCart, setMovementCart] = useState({});
@@ -86,13 +90,47 @@ export default function StockComponent() {
     name: "",
     category: "",
     description: "",
-    supplier: "",
-    location: "",
+    supplier_id: null,
     cost_price: 0,
-    qty: 0,
     min_qty: 0,
+    inventory: [], // Array of { warehouse_id, qty, position }
   });
   const [addItemLoading, setAddItemLoading] = useState(false);
+
+  // Warehouses tab state
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [warehouseInventory, setWarehouseInventory] = useState([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
+
+  // Warehouse modals
+  const [warehouseModalOpen, setWarehouseModalOpen] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState(null);
+  const [warehouseForm, setWarehouseForm] = useState({
+    name: "",
+    description: "",
+    address: "",
+    is_active: true,
+  });
+
+  // Transfer modal
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    item: null,
+    from_warehouse_id: null,
+    to_warehouse_id: null,
+    qty: 0,
+  });
+
+  // Inventory modal (add item to warehouse)
+  const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
+  const [inventoryForm, setInventoryForm] = useState({
+    item: null,
+    warehouse_id: null,
+    qty: 0,
+    position: "",
+    operation: "set", // "set" or "add"
+  });
 
   // Image states
   const [selectedImage, setSelectedImage] = useState(null);
@@ -494,6 +532,7 @@ export default function StockComponent() {
   // Initial data fetch
   useEffect(() => {
     fetchStock();
+    fetchWarehouses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -543,6 +582,113 @@ export default function StockComponent() {
       setLoading(false);
     }
   }, [loading]);
+
+  // Warehouse API functions
+  const fetchWarehouses = useCallback(async () => {
+    setWarehousesLoading(true);
+    try {
+      const response = await apiCall("/stock/warehouses");
+      setWarehouses(response.documents || []);
+    } catch (err) {
+      console.error("Error fetching warehouses:", err);
+      alert("Erro ao carregar armazéns.");
+      setWarehouses([]);
+    } finally {
+      setWarehousesLoading(false);
+    }
+  }, []);
+
+  const fetchWarehouseInventory = useCallback(async (warehouseId) => {
+    setLoading(true);
+    try {
+      // Get all items and filter by warehouse
+      const response = await apiCall("/stock/items");
+      const items = response.documents || [];
+
+      // Filter items that have inventory in this warehouse
+      const inventoryItems = items
+        .map(item => {
+          const warehouseData = item.warehouses?.find(w => w.warehouse_id === warehouseId);
+          if (!warehouseData) return null;
+          return {
+            ...item,
+            warehouse_qty: warehouseData.qty,
+            warehouse_position: warehouseData.position,
+            inventory_id: warehouseData.inventory_id,
+          };
+        })
+        .filter(Boolean);
+
+      setWarehouseInventory(inventoryItems);
+    } catch (err) {
+      console.error("Error fetching warehouse inventory:", err);
+      alert("Erro ao carregar inventário do armazém.");
+      setWarehouseInventory([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createWarehouse = useCallback(async (data) => {
+    try {
+      const response = await apiCall("/stock/warehouses", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      await fetchWarehouses();
+      return response;
+    } catch (err) {
+      console.error("Error creating warehouse:", err);
+      throw err;
+    }
+  }, [fetchWarehouses]);
+
+  const updateWarehouse = useCallback(async (id, data) => {
+    try {
+      const response = await apiCall(`/stock/warehouses/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      await fetchWarehouses();
+      return response;
+    } catch (err) {
+      console.error("Error updating warehouse:", err);
+      throw err;
+    }
+  }, [fetchWarehouses]);
+
+  const deleteWarehouse = useCallback(async (id) => {
+    try {
+      await apiCall(`/stock/warehouses/${id}`, {
+        method: "DELETE",
+      });
+      await fetchWarehouses();
+    } catch (err) {
+      console.error("Error deleting warehouse:", err);
+      throw err;
+    }
+  }, [fetchWarehouses]);
+
+  const transferStock = useCallback(async (itemId, fromWarehouseId, toWarehouseId, qty) => {
+    try {
+      const response = await apiCall(`/stock/items/${itemId}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({
+          from_warehouse_id: fromWarehouseId,
+          to_warehouse_id: toWarehouseId,
+          qty,
+        }),
+      });
+      await fetchStock();
+      if (selectedWarehouse) {
+        await fetchWarehouseInventory(selectedWarehouse.$id);
+      }
+      return response;
+    } catch (err) {
+      console.error("Error transferring stock:", err);
+      throw err;
+    }
+  }, [fetchStock, selectedWarehouse, fetchWarehouseInventory]);
 
   const addToMovementCart = useCallback((itemId, quantity) => {
     setMovementCart((prev) => {
@@ -915,6 +1061,21 @@ export default function StockComponent() {
         },
       },
       {
+        title: "# Armazéns",
+        key: "num_warehouses",
+        render: (_, record) => {
+          const numWarehouses = record.num_warehouses || 0;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <Warehouse size={16} color="#6b7280" />
+              <span style={{ fontWeight: 500 }}>
+                <NumberFlow value={numWarehouses} />
+              </span>
+            </div>
+          );
+        },
+      },
+      {
         title: "Estado",
         key: "status",
         render: (_, record) => {
@@ -1152,46 +1313,92 @@ export default function StockComponent() {
     <div className="stock-component">
       {/* Main Container */}
       <div className="stock-container">
-        {/* Header with Actions */}
-        <div className="stock-page-header">
-          <h1>
-            <Package className="title-icon" />
-            Gestão de Stock
-            {wsConnected && (
-              <span
-                className="ws-indicator connected"
-                title="WebSocket conectado - Updates em tempo real"
-              >
-                ●
-              </span>
-            )}
-          </h1>
-          <div className="header-actions">
-            <Button
-              onClick={fetchStock}
-              disabled={loading}
-              className="refresh-button"
-              icon={
-                <RefreshCw
-                  size={16}
-                  className={loading ? "animate-spin" : ""}
-                />
-              }
-            >
-              Atualizar
-            </Button>
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="add-button"
-              disabled={loading}
-              icon={<Plus size={16} />}
-            >
-              Adicionar Item
-            </Button>
+        {/* Header Card */}
+        <div className="stock-header-card">
+          <div className="stock-header-card__content">
+            <div className="stock-header-card__left">
+              <h1 className="stock-header-card__title">
+                Gestão de Stock
+                {wsConnected && (
+                  <span
+                    className="ws-indicator connected"
+                    title="WebSocket conectado - Updates em tempo real"
+                  >
+                    ●
+                  </span>
+                )}
+              </h1>
+              <p className="stock-header-card__description">
+                Controla o inventário em múltiplos armazéns e mantém tudo organizado.
+              </p>
+              <div className="stock-header-card__actions">
+                <button
+                  onClick={activeTab === "items" ? fetchStock : fetchWarehouses}
+                  disabled={loading || warehousesLoading}
+                  className="stock-header-card__btn stock-header-card__btn--secondary"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={loading || warehousesLoading ? "animate-spin" : ""}
+                  />
+                  Atualizar
+                </button>
+                {activeTab === "items" ? (
+                  <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="stock-header-card__btn stock-header-card__btn--primary"
+                    disabled={loading}
+                  >
+                    <Plus size={16} />
+                    Adicionar Item
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setWarehouseModalOpen(true)}
+                    className="stock-header-card__btn stock-header-card__btn--primary"
+                    disabled={warehousesLoading}
+                  >
+                    <Plus size={16} />
+                    Criar Armazém
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="stock-header-card__right">
+              <div className="stock-header-card__circles">
+                <div className="circle circle-1"></div>
+                <div className="circle circle-2"></div>
+                <div className="circle circle-3"></div>
+                <div className="circle circle-4"></div>
+                <div className="circle circle-5"></div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Main Grid Layout */}
+        {/* Tab Navigation */}
+        <div className="stock-tabs">
+          <button
+            className={`stock-tab ${activeTab === "items" ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab("items");
+              setSelectedWarehouse(null);
+            }}
+          >
+            <Package size={18} />
+            Visão Geral de Items
+          </button>
+          <button
+            className={`stock-tab ${activeTab === "warehouses" ? "active" : ""}`}
+            onClick={() => setActiveTab("warehouses")}
+          >
+            <Warehouse size={18} />
+            Armazéns
+          </button>
+        </div>
+
+        {/* Items Tab Content */}
+        {activeTab === "items" && (
         <div className="stock-grid">
           {/* Stats Cards */}
           <div className="stats-section">
@@ -1365,7 +1572,7 @@ export default function StockComponent() {
             </div>
           </div>
         </div>
-      </div>
+        )}
 
       {/* Simple Cart Modal */}
       {isCartModalOpen && Object.keys(movementCart).length > 0 && (
@@ -2049,6 +2256,535 @@ export default function StockComponent() {
           document.body
         )}
 
+        {/* Warehouses Tab Content */}
+        {activeTab === "warehouses" && (
+          <div className="warehouses-view">
+            {!selectedWarehouse ? (
+              /* Warehouse Grid View */
+              <div className="warehouse-grid-container">
+                <div className="warehouse-grid">
+                  {warehousesLoading ? (
+                    <div className="loading-state">
+                      <RefreshCw className="animate-spin" size={32} />
+                      <p>A carregar armazéns...</p>
+                    </div>
+                  ) : warehouses.length === 0 ? (
+                    <div className="empty-state">
+                      <Warehouse size={64} />
+                      <h3>Nenhum armazém criado</h3>
+                      <p>Crie o primeiro armazém para começar a gerir inventário</p>
+                      <button
+                        onClick={() => setWarehouseModalOpen(true)}
+                        className="stock-header-card__btn stock-header-card__btn--primary"
+                      >
+                        <Plus size={16} />
+                        Criar Primeiro Armazém
+                      </button>
+                    </div>
+                  ) : (
+                    warehouses.map((warehouse) => (
+                      <div
+                        key={warehouse.$id}
+                        className="warehouse-card"
+                        onClick={() => {
+                          setSelectedWarehouse(warehouse);
+                          fetchWarehouseInventory(warehouse.$id);
+                        }}
+                      >
+                        <div className="warehouse-card-header">
+                          <Warehouse className="warehouse-icon" />
+                          <div className="warehouse-status">
+                            {warehouse.is_active ? (
+                              <span className="status-active">●</span>
+                            ) : (
+                              <span className="status-inactive">●</span>
+                            )}
+                          </div>
+                        </div>
+                        <h3>{warehouse.name}</h3>
+                        <p className="warehouse-description">{warehouse.description || "Sem descrição"}</p>
+                        {warehouse.address && (
+                          <div className="warehouse-address">
+                            <MapPin size={14} />
+                            {warehouse.address}
+                          </div>
+                        )}
+                        <div className="warehouse-card-footer">
+                          <button
+                            className="view-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedWarehouse(warehouse);
+                              fetchWarehouseInventory(warehouse.$id);
+                            }}
+                          >
+                            Ver Items
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Warehouse Inventory View */
+              <div className="warehouse-inventory-view">
+                <div className="warehouse-inventory-header">
+                  <button
+                    className="back-btn"
+                    onClick={() => setSelectedWarehouse(null)}
+                  >
+                    <ArrowLeft size={18} />
+                    Voltar aos Armazéns
+                  </button>
+                  <div className="warehouse-info">
+                    <h2>{selectedWarehouse.name}</h2>
+                    {selectedWarehouse.description && <p>{selectedWarehouse.description}</p>}
+                  </div>
+                </div>
+
+                <div className="warehouse-inventory-content">
+                  {loading ? (
+                    <div className="loading-state">
+                      <RefreshCw className="animate-spin" size={32} />
+                      <p>A carregar inventário...</p>
+                    </div>
+                  ) : warehouseInventory.length === 0 ? (
+                    <div className="empty-state">
+                      <Package size={64} />
+                      <h3>Sem items neste armazém</h3>
+                      <p>Adicione items a este armazém ou transfira de outro armazém</p>
+                    </div>
+                  ) : (
+                    <div className="warehouse-table-container">
+                      <table className="warehouse-inventory-table">
+                        <thead>
+                          <tr>
+                            <th>Item</th>
+                            <th>Categoria</th>
+                            <th>Quantidade</th>
+                            <th>Posição</th>
+                            <th>Min. Qty</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {warehouseInventory.map((item) => {
+                            const status =
+                              item.warehouse_qty <= item.min_qty ? "critical" :
+                              item.warehouse_qty <= item.min_qty + 5 ? "warning" : "ok";
+
+                            return (
+                              <tr key={item.$id}>
+                                <td>
+                                  <div className="item-cell">
+                                    {item.image_id && (
+                                      <AntImage
+                                        src={getImageUrl(item.image_id)}
+                                        alt={item.name}
+                                        width={40}
+                                        height={40}
+                                        style={{ borderRadius: "4px", objectFit: "contain" }}
+                                        preview={false}
+                                      />
+                                    )}
+                                    <span>{item.name}</span>
+                                  </div>
+                                </td>
+                                <td>{item.category}</td>
+                                <td>
+                                  <NumberFlow value={item.warehouse_qty} />
+                                </td>
+                                <td>{item.warehouse_position || "-"}</td>
+                                <td>
+                                  <NumberFlow value={item.min_qty} />
+                                </td>
+                                <td>
+                                  <Tag color={
+                                    status === "critical" ? "error" :
+                                    status === "warning" ? "warning" : "success"
+                                  }>
+                                    {status === "critical" ? "Crítico" :
+                                     status === "warning" ? "Aviso" : "OK"}
+                                  </Tag>
+                                </td>
+                                <td>
+                                  <div className="action-buttons">
+                                    <button
+                                      className="action-btn transfer-btn"
+                                      onClick={() => {
+                                        setTransferForm({
+                                          item,
+                                          from_warehouse_id: selectedWarehouse.$id,
+                                          to_warehouse_id: null,
+                                          qty: 0,
+                                        });
+                                        setTransferModalOpen(true);
+                                      }}
+                                      title="Transferir"
+                                    >
+                                      <Truck size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* Warehouse Modal (Create/Edit) */}
+      {warehouseModalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="modal-overlay" onClick={() => {
+            setWarehouseModalOpen(false);
+            setEditingWarehouse(null);
+            setWarehouseForm({ name: "", description: "", address: "", is_active: true });
+          }}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>{editingWarehouse ? "Editar Armazém" : "Criar Novo Armazém"}</h2>
+                <button
+                  className="close-btn"
+                  onClick={() => {
+                    setWarehouseModalOpen(false);
+                    setEditingWarehouse(null);
+                    setWarehouseForm({ name: "", description: "", address: "", is_active: true });
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="modal-body" style={{ padding: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
+                      Nome do Armazém *
+                    </label>
+                    <AntInput
+                      placeholder="Ex: Armazém Principal"
+                      value={warehouseForm.name}
+                      onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
+                      style={{ height: "44px" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
+                      Descrição
+                    </label>
+                    <textarea
+                      placeholder="Descrição do armazém..."
+                      value={warehouseForm.description}
+                      onChange={(e) => setWarehouseForm({ ...warehouseForm, description: e.target.value })}
+                      style={{
+                        width: "100%",
+                        minHeight: "80px",
+                        padding: "10px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "6px",
+                        fontSize: "14px",
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
+                      Morada
+                    </label>
+                    <AntInput
+                      placeholder="Ex: Rua Principal 123, Lisboa"
+                      value={warehouseForm.address}
+                      onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })}
+                      style={{ height: "44px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="checkbox"
+                      id="warehouse-active"
+                      checked={warehouseForm.is_active}
+                      onChange={(e) => setWarehouseForm({ ...warehouseForm, is_active: e.target.checked })}
+                      style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                    />
+                    <label htmlFor="warehouse-active" style={{ fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
+                      Armazém ativo
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                padding: "20px 24px",
+                borderTop: "1px solid #e5e7eb",
+                backgroundColor: "#f9fafb",
+              }}>
+                <button
+                  onClick={() => {
+                    setWarehouseModalOpen(false);
+                    setEditingWarehouse(null);
+                    setWarehouseForm({ name: "", description: "", address: "", is_active: true });
+                  }}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#374151",
+                    backgroundColor: "white",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!warehouseForm.name.trim()) {
+                      alert("Por favor insira um nome para o armazém");
+                      return;
+                    }
+
+                    try {
+                      if (editingWarehouse) {
+                        await updateWarehouse(editingWarehouse.$id, warehouseForm);
+                      } else {
+                        await createWarehouse(warehouseForm);
+                      }
+                      setWarehouseModalOpen(false);
+                      setEditingWarehouse(null);
+                      setWarehouseForm({ name: "", description: "", address: "", is_active: true });
+                    } catch (err) {
+                      alert(`Erro ao ${editingWarehouse ? "atualizar" : "criar"} armazém: ${err.message}`);
+                    }
+                  }}
+                  disabled={!warehouseForm.name.trim()}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: !warehouseForm.name.trim() ? "not-allowed" : "pointer",
+                    backgroundColor: !warehouseForm.name.trim() ? "#cbd5e1" : "#3b82f6",
+                    color: "white",
+                    opacity: !warehouseForm.name.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {editingWarehouse ? "Atualizar" : "Criar Armazém"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Transfer Stock Modal */}
+      {transferModalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="modal-overlay" onClick={() => {
+            setTransferModalOpen(false);
+            setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
+          }}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Transferir Stock</h2>
+                <button
+                  className="close-btn"
+                  onClick={() => {
+                    setTransferModalOpen(false);
+                    setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="modal-body" style={{ padding: "24px" }}>
+                {transferForm.item && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <div style={{
+                      padding: "16px",
+                      backgroundColor: "#f9fafb",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                    }}>
+                      <div style={{ fontSize: "14px", color: "#6b7280", marginBottom: "4px" }}>Item:</div>
+                      <div style={{ fontSize: "16px", fontWeight: 600, color: "#1f2937" }}>{transferForm.item.name}</div>
+                      <div style={{ fontSize: "14px", color: "#6b7280", marginTop: "8px" }}>
+                        Total disponível: <span style={{ fontWeight: 600 }}>{transferForm.item.qty || 0} unidades</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
+                        De (Armazém) *
+                      </label>
+                      <AntSelect
+                        value={transferForm.from_warehouse_id}
+                        onChange={(value) => setTransferForm({ ...transferForm, from_warehouse_id: value })}
+                        placeholder="Selecione o armazém de origem"
+                        style={{ width: "100%", height: "44px" }}
+                      >
+                        {warehouses.map((warehouse) => {
+                          const warehouseData = transferForm.item.warehouses?.find(w => w.warehouse_id === warehouse.$id);
+                          const qty = warehouseData?.qty || 0;
+                          return (
+                            <AntSelect.Option key={warehouse.$id} value={warehouse.$id} disabled={qty === 0}>
+                              {warehouse.name} ({qty} unidades)
+                            </AntSelect.Option>
+                          );
+                        })}
+                      </AntSelect>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
+                        Para (Armazém) *
+                      </label>
+                      <AntSelect
+                        value={transferForm.to_warehouse_id}
+                        onChange={(value) => setTransferForm({ ...transferForm, to_warehouse_id: value })}
+                        placeholder="Selecione o armazém de destino"
+                        style={{ width: "100%", height: "44px" }}
+                        disabled={!transferForm.from_warehouse_id}
+                      >
+                        {warehouses
+                          .filter(w => w.$id !== transferForm.from_warehouse_id)
+                          .map((warehouse) => (
+                            <AntSelect.Option key={warehouse.$id} value={warehouse.$id}>
+                              {warehouse.name}
+                            </AntSelect.Option>
+                          ))}
+                      </AntSelect>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
+                        Quantidade *
+                      </label>
+                      <AntInput
+                        type="number"
+                        min="1"
+                        max={transferForm.from_warehouse_id ?
+                          transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0
+                          : 0}
+                        value={transferForm.qty}
+                        onChange={(e) => setTransferForm({ ...transferForm, qty: parseInt(e.target.value) || 0 })}
+                        placeholder="Quantidade a transferir"
+                        style={{ height: "44px" }}
+                        suffix="unidades"
+                      />
+                      {transferForm.from_warehouse_id && (
+                        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+                          Máximo disponível: {transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0} unidades
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer" style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                padding: "20px 24px",
+                borderTop: "1px solid #e5e7eb",
+                backgroundColor: "#f9fafb",
+              }}>
+                <button
+                  onClick={() => {
+                    setTransferModalOpen(false);
+                    setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
+                  }}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#374151",
+                    backgroundColor: "white",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    const maxQty = transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0;
+
+                    if (!transferForm.from_warehouse_id || !transferForm.to_warehouse_id) {
+                      alert("Por favor selecione os armazéns de origem e destino");
+                      return;
+                    }
+                    if (transferForm.qty <= 0) {
+                      alert("Por favor insira uma quantidade válida");
+                      return;
+                    }
+                    if (transferForm.qty > maxQty) {
+                      alert(`Quantidade excede o disponível (${maxQty} unidades)`);
+                      return;
+                    }
+
+                    try {
+                      await transferStock(
+                        transferForm.item.$id,
+                        transferForm.from_warehouse_id,
+                        transferForm.to_warehouse_id,
+                        transferForm.qty
+                      );
+                      setTransferModalOpen(false);
+                      setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
+                      alert("✅ Transferência realizada com sucesso!");
+                    } catch (err) {
+                      alert(`Erro ao transferir stock: ${err.message}`);
+                    }
+                  }}
+                  disabled={
+                    !transferForm.from_warehouse_id ||
+                    !transferForm.to_warehouse_id ||
+                    transferForm.qty <= 0 ||
+                    transferForm.qty > (transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0)
+                  }
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    backgroundColor: "#10b981",
+                    color: "white",
+                  }}
+                >
+                  <Truck size={16} style={{ display: "inline", marginRight: "6px" }} />
+                  Transferir
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
       {/* Image Cropper Modal (via Portal) */}
       {showCropper &&
         typeof document !== "undefined" &&
@@ -2110,6 +2846,7 @@ export default function StockComponent() {
           </div>,
           document.body
         )}
+      </div>
     </div>
   );
 }
