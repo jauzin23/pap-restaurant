@@ -236,7 +236,10 @@ function ProfilePageContent({
 
     const handleUserUpdated = (updatedUser: any) => {
       // Only update if it's THIS user's profile
-      if (updatedUser.id === profileUser.id || updatedUser.$id === profileUser.id) {
+      if (
+        updatedUser.id === profileUser.id ||
+        updatedUser.$id === profileUser.id
+      ) {
         console.log("📝 Profile updated via WebSocket:", updatedUser.name);
         setProfileUser(updatedUser);
 
@@ -257,10 +260,10 @@ function ProfilePageContent({
       }
     };
 
-    socket.on("user:updated", handleUserUpdated);
+    (socket as any).on("user:updated", handleUserUpdated);
 
     return () => {
-      socket.off("user:updated", handleUserUpdated);
+      (socket as any).off("user:updated", handleUserUpdated);
     };
   }, [socket, connected, profileUser?.id, isEditing]);
 
@@ -675,7 +678,7 @@ function ProfilePageContent({
           }}
         >
           <div className="relative bg-white text-black min-h-screen">
-            <BackgroundBeams pathCount={20} />
+            <BackgroundBeams />
           </div>
         </div>
 
@@ -705,7 +708,7 @@ function ProfilePageContent({
           }}
         >
           <div className="relative bg-white text-black min-h-screen">
-            <BackgroundBeams pathCount={20} />
+            <BackgroundBeams />
           </div>
         </div>
 
@@ -736,7 +739,7 @@ function ProfilePageContent({
         }}
       >
         <div className="relative bg-white text-black min-h-screen">
-          <BackgroundBeams pathCount={20} />
+          <BackgroundBeams />
         </div>
       </div>
 
