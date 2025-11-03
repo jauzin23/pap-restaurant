@@ -39,7 +39,7 @@ const RestaurantDashboardContent = () => {
   const [userLabels, setUserLabels] = useState([]);
   const [currentView, setCurrentView] = useState(null); // null initially, set after user loads
   const [activeNavItem, setActiveNavItem] = useState("Painel"); // Track active navigation item
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Random color for username - refreshed on every load
   const [usernameColor, setUsernameColor] = useState("");

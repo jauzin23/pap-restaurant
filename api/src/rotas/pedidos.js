@@ -396,7 +396,7 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
 });
 
 // Atualizar estado do pedido
-roteador.put("/:id", autenticarToken, requerGestor, async (req, res) => {
+roteador.put("/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
     let {
@@ -628,7 +628,7 @@ roteador.put("/:id", autenticarToken, requerGestor, async (req, res) => {
 });
 
 // Eliminar pedido
-roteador.delete("/:id", autenticarToken, requerGestor, async (req, res) => {
+roteador.delete("/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
 

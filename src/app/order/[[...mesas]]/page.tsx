@@ -11,8 +11,8 @@ import {
   UtensilsCrossed,
   Loader2,
   CheckCircle,
-  Plus,
-  Minus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth } from "../../../lib/api";
@@ -45,6 +45,7 @@ interface Table {
 interface OrderItem extends MenuItem {
   notes?: string;
   quantity: number;
+  orderItemId: string; // Unique ID for each order item instance
 }
 
 function PedidoPageContent({
@@ -71,6 +72,9 @@ function PedidoPageContent({
   const [menuLoading, setMenuLoading] = useState(false);
   const [noteModalItem, setNoteModalItem] = useState<OrderItem | null>(null);
   const [tempNote, setTempNote] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12); // Default, will be calculated
+  const menuGridRef = React.useRef<HTMLDivElement>(null);
 
   const getAuthToken = () => {
     return localStorage.getItem("auth_token");
@@ -218,44 +222,76 @@ function PedidoPageContent({
     loadUserAndData();
   }, [mesas]);
 
+  // Calculate items per page based on grid size
+  useEffect(() => {
+    const calculateItemsPerPage = () => {
+      if (!menuGridRef.current) return;
+
+      const gridWidth = menuGridRef.current.offsetWidth;
+      const gridHeight = menuGridRef.current.offsetHeight;
+
+      // Menu card dimensions: 180px min width + 16px gap
+      const cardWidth = 196; // 180 + 16 gap
+      const cardHeight = 218; // ~140px image + ~78px info + gap
+
+      const itemsPerRow = Math.floor(gridWidth / cardWidth) || 1;
+      const rows = Math.floor(gridHeight / cardHeight) || 2;
+
+      const calculatedItems = itemsPerRow * rows;
+      setItemsPerPage(Math.max(calculatedItems, 6)); // Minimum 6 items
+    };
+
+    calculateItemsPerPage();
+    window.addEventListener("resize", calculateItemsPerPage);
+    return () => window.removeEventListener("resize", calculateItemsPerPage);
+  }, []);
+
   const filteredMenuItems = useMemo(() => {
-    return activeCategory === "Todos"
-      ? menuItems
-      : menuItems.filter(
-          (item) => (item.category || "outros") === activeCategory
-        );
-  }, [menuItems, activeCategory]);
+    const filtered =
+      activeCategory === "Todos"
+        ? menuItems
+        : menuItems.filter(
+            (item) => (item.category || "outros") === activeCategory
+          );
+
+    // Reset to page 1 if current page is beyond total pages
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+
+    return filtered;
+  }, [menuItems, activeCategory, itemsPerPage, currentPage]);
+
+  // Paginated items
+  const paginatedMenuItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredMenuItems.slice(startIndex, endIndex);
+  }, [filteredMenuItems, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredMenuItems.length / itemsPerPage);
+
+  // Reset to page 1 when category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory]);
 
   const addToOrder = useCallback((item: MenuItem) => {
     setOrderItems((prev) => {
-      const existing = prev.find(
-        (i) => (i.$id || i.id) === (item.$id || item.id)
-      );
-      if (existing) {
-        return prev.map((i) =>
-          (i.$id || i.id) === (item.$id || item.id)
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
-        );
-      }
-      return [...prev, { ...item, notes: "", quantity: 1 }];
+      // Always add as a new individual item with unique orderItemId
+      const newItem: OrderItem = {
+        ...item,
+        notes: "",
+        quantity: 1,
+        orderItemId: `${item.$id || item.id}-${Date.now()}-${Math.random()}`,
+      };
+      return [...prev, newItem];
     });
   }, []);
 
-  const removeFromOrder = useCallback((itemId: string) => {
-    setOrderItems((prev) => prev.filter((i) => (i.$id || i.id) !== itemId));
-  }, []);
-
-  const updateQuantity = useCallback((itemId: string, delta: number) => {
-    setOrderItems((prev) =>
-      prev.map((item) => {
-        if ((item.$id || item.id) === itemId) {
-          const newQty = Math.max(1, item.quantity + delta);
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      })
-    );
+  const removeFromOrder = useCallback((orderItemId: string) => {
+    setOrderItems((prev) => prev.filter((i) => i.orderItemId !== orderItemId));
   }, []);
 
   const openNoteModal = (item: OrderItem) => {
@@ -265,10 +301,11 @@ function PedidoPageContent({
 
   const saveNote = () => {
     if (noteModalItem) {
-      const itemId = noteModalItem.$id || noteModalItem.id;
       setOrderItems((prev) =>
         prev.map((item) =>
-          (item.$id || item.id) === itemId ? { ...item, notes: tempNote } : item
+          item.orderItemId === noteModalItem.orderItemId
+            ? { ...item, notes: tempNote }
+            : item
         )
       );
     }
@@ -277,10 +314,7 @@ function PedidoPageContent({
   };
 
   const total = useMemo(() => {
-    return orderItems.reduce(
-      (sum, item) => sum + (item.preco || 0) * item.quantity,
-      0
-    );
+    return orderItems.reduce((sum, item) => sum + (item.preco || 0), 0);
   }, [orderItems]);
 
   const confirmOrder = async () => {
@@ -289,14 +323,12 @@ function PedidoPageContent({
     try {
       setIsOrderSubmitting(true);
 
-      const orders = orderItems.flatMap((item) =>
-        Array.from({ length: item.quantity }).map(() => ({
-          table_id: validTableIds,
-          menu_item_id: item.$id || item.id,
-          notas: item.notes || "",
-          price: item.preco || 0,
-        }))
-      );
+      const orders = orderItems.map((item) => ({
+        table_id: validTableIds,
+        menu_item_id: item.$id || item.id,
+        notas: item.notes || "",
+        price: item.preco || 0,
+      }));
 
       await apiRequest("/orders/batch", {
         method: "POST",
@@ -320,7 +352,7 @@ function PedidoPageContent({
   if (loading || isLoading) {
     return (
       <div className="order-page-container">
-        <BackgroundBeams pathCount={20} />
+        <BackgroundBeams />
         <div className="order-loading">
           <Loader2 size={48} className="loading-spinner" />
           <p>A carregar...</p>
@@ -331,7 +363,7 @@ function PedidoPageContent({
 
   return (
     <div className="order-page-container">
-      <BackgroundBeams pathCount={20} />
+      <BackgroundBeams />
 
       {(isOrderSubmitting || orderSuccess) && (
         <div className="order-overlay">
@@ -378,28 +410,57 @@ function PedidoPageContent({
               ))}
             </div>
 
-            <div className="menu-grid">
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pagination-controls">
+                <button
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={20} />
+                  Anterior
+                </button>
+                <div className="pagination-info">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <button
+                  className="pagination-btn"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  Próxima
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+
+            <div ref={menuGridRef} className="menu-grid">
               {menuLoading ? (
                 <div className="loading-state">
                   <Loader2 size={32} className="loading-spinner" />
                 </div>
-              ) : filteredMenuItems.length === 0 ? (
+              ) : paginatedMenuItems.length === 0 ? (
                 <div className="empty-state">
                   <UtensilsCrossed size={48} />
                   <p>Nenhum item disponível</p>
                 </div>
               ) : (
-                filteredMenuItems.map((item) => {
+                paginatedMenuItems.map((item) => {
                   const imageUrl = getImageUrl(item.image_id);
                   const itemId = item.$id || item.id;
-                  const inOrder = orderItems.find(
+                  const inOrderCount = orderItems.filter(
                     (i) => (i.$id || i.id) === itemId
-                  );
+                  ).length;
 
                   return (
                     <div
                       key={itemId}
-                      className={`menu-card ${inOrder ? "in-order" : ""}`}
+                      className={`menu-card ${
+                        inOrderCount > 0 ? "in-order" : ""
+                      }`}
                       onClick={() => addToOrder(item)}
                     >
                       <div className="menu-card-image">
@@ -424,8 +485,8 @@ function PedidoPageContent({
                           />
                         </span>
                       </div>
-                      {inOrder && (
-                        <div className="in-order-badge">{inOrder.quantity}</div>
+                      {inOrderCount > 0 && (
+                        <div className="in-order-badge">{inOrderCount}</div>
                       )}
                     </div>
                   );
@@ -439,7 +500,7 @@ function PedidoPageContent({
             <div className="order-header-bar">
               <h2>Pedido</h2>
               <span className="item-count">
-                {orderItems.reduce((sum, item) => sum + item.quantity, 0)} itens
+                {orderItems.length} {orderItems.length === 1 ? "item" : "itens"}
               </span>
             </div>
 
@@ -451,11 +512,10 @@ function PedidoPageContent({
                 </div>
               ) : (
                 orderItems.map((item) => {
-                  const itemId = item.$id || item.id;
                   const imageUrl = getImageUrl(item.image_id);
 
                   return (
-                    <div key={itemId} className="order-item">
+                    <div key={item.orderItemId} className="order-item">
                       <div className="order-item-image">
                         {imageUrl ? (
                           <img src={imageUrl} alt={item.nome} />
@@ -488,7 +548,7 @@ function PedidoPageContent({
                             className="delete-btn"
                             onClick={(e) => {
                               e.stopPropagation();
-                              removeFromOrder(itemId);
+                              removeFromOrder(item.orderItemId);
                             }}
                           >
                             <Trash2 size={14} />
@@ -497,29 +557,10 @@ function PedidoPageContent({
                       </div>
 
                       <div className="order-item-controls">
-                        <div className="quantity-controls">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateQuantity(itemId, -1);
-                            }}
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span>{item.quantity}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateQuantity(itemId, 1);
-                            }}
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
                         <div className="item-price">
                           €
                           <NumberFlow
-                            value={(item.preco || 0) * item.quantity}
+                            value={item.preco || 0}
                             format={{
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,

@@ -61,7 +61,7 @@ router.get("/:id", autenticarToken, async (req, res) => {
 });
 
 // Criar item de menu
-router.post("/", autenticarToken, requerGestor, async (req, res) => {
+router.post("/", autenticarToken, async (req, res) => {
   try {
     const { nome, preco, description, category, tags, ingredientes, image_id } =
       req.body;
@@ -105,7 +105,7 @@ router.post("/", autenticarToken, requerGestor, async (req, res) => {
 });
 
 // Atualizar item de menu
-router.put("/:id", autenticarToken, requerGestor, async (req, res) => {
+router.put("/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { nome, preco, description, category, tags, ingredientes, image_id } =
@@ -181,7 +181,7 @@ router.put("/:id", autenticarToken, requerGestor, async (req, res) => {
 });
 
 // Eliminar item de menu
-router.delete("/:id", autenticarToken, requerGestor, async (req, res) => {
+router.delete("/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
 

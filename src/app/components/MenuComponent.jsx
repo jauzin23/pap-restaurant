@@ -753,34 +753,45 @@ export default function MenuComponent() {
 
   return (
     <div className="menu-component">
-      {/* Header */}
-      <div className="menu-header">
-        <h1>
-          <ClipboardList className="header-icon" />
-          Gestão de Menu
-        </h1>
-        <div className="header-actions">
-          <Button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="refresh-button"
-            icon={
-              <RefreshCw
-                size={16}
-                className={refreshing ? "animate-spin" : ""}
-              />
-            }
-          >
-            Atualizar
-          </Button>
-          <Button
-            onClick={openAddModal}
-            type="primary"
-            className="add-button"
-            icon={<Plus size={16} />}
-          >
-            Adicionar Item
-          </Button>
+      {/* Header Card */}
+      <div className="menu-header-card">
+        <div className="menu-header-card__content">
+          <div className="menu-header-card__left">
+            <h1 className="menu-header-card__title">Gestão de Menu</h1>
+            <p className="menu-header-card__description">
+              Cuide de todos os itens do menu, adicione novos pratos e mantenha
+              tudo sempre atualizado.
+            </p>
+            <div className="menu-header-card__actions">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="menu-header-card__btn menu-header-card__btn--secondary"
+              >
+                <RefreshCw
+                  size={16}
+                  className={refreshing ? "animate-spin" : ""}
+                />
+                Atualizar
+              </button>
+              <button
+                onClick={openAddModal}
+                className="menu-header-card__btn menu-header-card__btn--primary"
+              >
+                <Plus size={16} />
+                Adicionar Item
+              </button>
+            </div>
+          </div>
+          <div className="menu-header-card__right">
+            <div className="menu-header-card__circles">
+              <div className="circle circle-1"></div>
+              <div className="circle circle-2"></div>
+              <div className="circle circle-3"></div>
+              <div className="circle circle-4"></div>
+              <div className="circle circle-5"></div>
+            </div>
+          </div>
         </div>
       </div>
 

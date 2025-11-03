@@ -9,6 +9,7 @@
     BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
     "Noto Color Emoji";
+  min-height: 200px;
 
   // Animation
   opacity: 0;
@@ -187,6 +188,7 @@
 @media (max-width: 640px) {
   .welcome-card {
     padding: 1.5rem;
+    min-height: 180px;
 
     &__title {
       font-size: 1.5rem;

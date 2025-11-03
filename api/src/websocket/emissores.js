@@ -100,7 +100,7 @@ const criarEmissores = (io) => {
       io.to("stock").emit("stock:supplier:deleted", { id: idFornecedor });
     },
 
-    // Stock - Locations
+    // Stock - Locations (deprecated, kept for backwards compatibility)
     localizacaoStockCriada: (localizacao) => {
       io.to("stock").emit("stock:location:created", localizacao);
     },
@@ -109,6 +109,28 @@ const criarEmissores = (io) => {
     },
     localizacaoStockEliminada: (idLocalizacao) => {
       io.to("stock").emit("stock:location:deleted", { id: idLocalizacao });
+    },
+
+    // Stock - Warehouses
+    warehouseCriado: (warehouse) => {
+      io.to("stock").emit("stock:warehouse:created", warehouse);
+    },
+    warehouseAtualizado: (warehouse) => {
+      io.to("stock").emit("stock:warehouse:updated", warehouse);
+    },
+    warehouseEliminado: (idWarehouse) => {
+      io.to("stock").emit("stock:warehouse:deleted", { id: idWarehouse });
+    },
+
+    // Stock - Inventory
+    inventoryAtualizado: (inventory) => {
+      io.to("stock").emit("stock:inventory:updated", inventory);
+    },
+    inventoryEliminado: (data) => {
+      io.to("stock").emit("stock:inventory:deleted", data);
+    },
+    stockTransferido: (transfer) => {
+      io.to("stock").emit("stock:transfer", transfer);
     },
 
     // Stock - Alerts (quando item atinge nível crítico/warning)

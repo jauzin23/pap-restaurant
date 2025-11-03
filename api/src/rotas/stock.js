@@ -9,41 +9,268 @@ const { garantirDiretorioUploads } = require("../utilitarios/sistemaFicheiros");
 const router = express.Router();
 
 // ============================================
-// STOCK ITEMS ENDPOINTS
+// WAREHOUSE ENDPOINTS
 // ============================================
 
-// Get all stock items
-router.get("/items", autenticarToken, async (req, res) => {
+// Get all warehouses
+router.get("/warehouses", autenticarToken, async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT
         id,
         name,
-        category,
         description,
-        supplier,
-        location,
-        cost_price,
-        qty,
-        min_qty,
-        image_id,
+        address,
+        is_active,
         created_at,
         updated_at
-      FROM stock
+      FROM warehouses
       ORDER BY name ASC
     `);
 
-    // Format response to match Appwrite format
+    const documents = resultado.rows.map(row => ({
+      $id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      address: row.address,
+      is_active: row.is_active,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    }));
+
+    res.json({
+      documents: documents,
+      total: documents.length
+    });
+  } catch (erro) {
+    console.error("[STOCK] Erro ao listar warehouses:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Get single warehouse
+router.get("/warehouses/:id", autenticarToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const resultado = await pool.query(
+      `SELECT * FROM warehouses WHERE id = $1`,
+      [id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: "Warehouse não encontrado" });
+    }
+
+    const row = resultado.rows[0];
+    const warehouse = {
+      $id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      address: row.address,
+      is_active: row.is_active,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    };
+
+    res.json(warehouse);
+  } catch (erro) {
+    console.error("[STOCK] Erro ao buscar warehouse:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Create warehouse
+router.post("/warehouses", autenticarToken, async (req, res) => {
+  try {
+    const { name, description, address, is_active } = req.body;
+
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ error: "Nome do warehouse é obrigatório" });
+    }
+
+    const resultado = await pool.query(
+      `INSERT INTO warehouses (name, description, address, is_active)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name.trim(), description || null, address || null, is_active !== undefined ? is_active : true]
+    );
+
+    const row = resultado.rows[0];
+    const warehouse = {
+      $id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      address: row.address,
+      is_active: row.is_active,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    };
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.warehouseCriado(warehouse);
+    }
+
+    res.status(201).json(warehouse);
+  } catch (erro) {
+    if (erro.code === "23505") {
+      return res.status(400).json({ error: "Warehouse com esse nome já existe" });
+    }
+    console.error("[STOCK] Erro ao criar warehouse:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Update warehouse
+router.put("/warehouses/:id", autenticarToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, address, is_active } = req.body;
+
+    const verificar = await pool.query("SELECT id FROM warehouses WHERE id = $1", [id]);
+    if (verificar.rows.length === 0) {
+      return res.status(404).json({ error: "Warehouse não encontrado" });
+    }
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(name.trim());
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description || null);
+    }
+    if (address !== undefined) {
+      updates.push(`address = $${paramIndex++}`);
+      values.push(address || null);
+    }
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      values.push(is_active);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Nenhum campo para atualizar" });
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
+    const query = `
+      UPDATE warehouses
+      SET ${updates.join(", ")}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const resultado = await pool.query(query, values);
+    const row = resultado.rows[0];
+
+    const warehouse = {
+      $id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      address: row.address,
+      is_active: row.is_active,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    };
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.warehouseAtualizado(warehouse);
+    }
+
+    res.json(warehouse);
+  } catch (erro) {
+    console.error("[STOCK] Erro ao atualizar warehouse:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Delete warehouse
+router.delete("/warehouses/:id", autenticarToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if warehouse has inventory
+    const inventoryCheck = await pool.query(
+      "SELECT COUNT(*) as count FROM stock_inventory WHERE warehouse_id = $1",
+      [id]
+    );
+
+    if (parseInt(inventoryCheck.rows[0].count) > 0) {
+      return res.status(400).json({
+        error: "Não é possível eliminar warehouse com inventário. Transfira ou remova os items primeiro."
+      });
+    }
+
+    const resultado = await pool.query("DELETE FROM warehouses WHERE id = $1 RETURNING id", [id]);
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: "Warehouse não encontrado" });
+    }
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.warehouseEliminado(id);
+    }
+
+    res.json({ message: "Warehouse eliminado com sucesso" });
+  } catch (erro) {
+    console.error("[STOCK] Erro ao eliminar warehouse:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// ============================================
+// STOCK ITEMS ENDPOINTS
+// ============================================
+
+// Get all stock items (with aggregated quantities)
+router.get("/items", autenticarToken, async (req, res) => {
+  try {
+    const resultado = await pool.query(`
+      SELECT
+        si.id,
+        si.name,
+        si.category,
+        si.description,
+        si.supplier_id,
+        s.name as supplier_name,
+        si.cost_price,
+        si.min_qty,
+        si.image_id,
+        si.created_at,
+        si.updated_at,
+        COALESCE(SUM(inv.qty), 0) as total_qty,
+        COUNT(DISTINCT inv.warehouse_id) as num_warehouses
+      FROM stock_items si
+      LEFT JOIN supplier s ON si.supplier_id = s.id
+      LEFT JOIN stock_inventory inv ON si.id = inv.stock_item_id
+      GROUP BY si.id, si.name, si.category, si.description, si.supplier_id, s.name, si.cost_price, si.min_qty, si.image_id, si.created_at, si.updated_at
+      ORDER BY si.name ASC
+    `);
+
     const documents = resultado.rows.map(row => ({
       $id: row.id.toString(),
       name: row.name,
       category: row.category,
       description: row.description,
-      supplier: row.supplier,
-      location: row.location,
+      supplier_id: row.supplier_id,
+      supplier_name: row.supplier_name,
       cost_price: parseFloat(row.cost_price) || 0,
-      qty: row.qty || 0,
+      qty: parseInt(row.total_qty) || 0,
       min_qty: row.min_qty || 0,
+      num_warehouses: parseInt(row.num_warehouses) || 0,
       image_id: row.image_id,
       $createdAt: row.created_at,
       $updatedAt: row.updated_at
@@ -59,34 +286,68 @@ router.get("/items", autenticarToken, async (req, res) => {
   }
 });
 
-// Get single stock item
+// Get single stock item (with warehouse breakdown)
 router.get("/items/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const resultado = await pool.query(
-      `SELECT * FROM stock WHERE id = $1`,
+    // Get item details
+    const itemResult = await pool.query(
+      `SELECT
+        si.*,
+        s.name as supplier_name
+      FROM stock_items si
+      LEFT JOIN supplier s ON si.supplier_id = s.id
+      WHERE si.id = $1`,
       [id]
     );
 
-    if (resultado.rows.length === 0) {
+    if (itemResult.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
     }
 
-    const row = resultado.rows[0];
+    // Get inventory breakdown by warehouse
+    const inventoryResult = await pool.query(
+      `SELECT
+        inv.id,
+        inv.warehouse_id,
+        w.name as warehouse_name,
+        inv.qty,
+        inv.position,
+        inv.created_at,
+        inv.updated_at
+      FROM stock_inventory inv
+      JOIN warehouses w ON inv.warehouse_id = w.id
+      WHERE inv.stock_item_id = $1
+      ORDER BY w.name ASC`,
+      [id]
+    );
+
+    const row = itemResult.rows[0];
+    const totalQty = inventoryResult.rows.reduce((sum, inv) => sum + inv.qty, 0);
+
     const item = {
       $id: row.id.toString(),
       name: row.name,
       category: row.category,
       description: row.description,
-      supplier: row.supplier,
-      location: row.location,
+      supplier_id: row.supplier_id,
+      supplier_name: row.supplier_name,
       cost_price: parseFloat(row.cost_price) || 0,
-      qty: row.qty || 0,
+      qty: totalQty,
       min_qty: row.min_qty || 0,
       image_id: row.image_id,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at
+      $updatedAt: row.updated_at,
+      warehouses: inventoryResult.rows.map(inv => ({
+        inventory_id: inv.id.toString(),
+        warehouse_id: inv.warehouse_id.toString(),
+        warehouse_name: inv.warehouse_name,
+        qty: inv.qty,
+        position: inv.position,
+        created_at: inv.created_at,
+        updated_at: inv.updated_at
+      }))
     };
 
     res.json(item);
@@ -97,18 +358,17 @@ router.get("/items/:id", autenticarToken, async (req, res) => {
 });
 
 // Create new stock item
-router.post("/items", autenticarToken, requerGestor, async (req, res) => {
+router.post("/items", autenticarToken, async (req, res) => {
   try {
     const {
       name,
       category,
       description,
-      supplier,
-      location,
+      supplier_id,
       cost_price,
-      qty,
       min_qty,
-      image_id
+      image_id,
+      inventory // Array: [{ warehouse_id, qty, position }]
     } = req.body;
 
     console.log("[STOCK] Criar novo item:", name);
@@ -117,82 +377,137 @@ router.post("/items", autenticarToken, requerGestor, async (req, res) => {
       return res.status(400).json({ error: "Nome do produto é obrigatório" });
     }
 
-    const resultado = await pool.query(
-      `INSERT INTO stock
-        (name, category, description, supplier, location, cost_price, qty, min_qty, image_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
-      [
-        name.trim(),
-        category || null,
-        description || null,
-        supplier || null,
-        location || null,
-        parseFloat(cost_price) || 0,
-        parseInt(qty) || 0,
-        parseInt(min_qty) || 0,
-        image_id || null
-      ]
-    );
+    // Start transaction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const row = resultado.rows[0];
-    const item = {
-      $id: row.id.toString(),
-      name: row.name,
-      category: row.category,
-      description: row.description,
-      supplier: row.supplier,
-      location: row.location,
-      cost_price: parseFloat(row.cost_price) || 0,
-      qty: row.qty || 0,
-      min_qty: row.min_qty || 0,
-      image_id: row.image_id,
-      $createdAt: row.created_at,
-      $updatedAt: row.updated_at
-    };
+      // Insert stock item
+      const itemResult = await client.query(
+        `INSERT INTO stock_items
+          (name, category, description, supplier_id, cost_price, min_qty, image_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          name.trim(),
+          category || null,
+          description || null,
+          supplier_id || null,
+          parseFloat(cost_price) || 0,
+          parseInt(min_qty) || 0,
+          image_id || null
+        ]
+      );
 
-    console.log("[STOCK] Item criado com sucesso:", item.$id);
+      const itemRow = itemResult.rows[0];
+      const itemId = itemRow.id;
 
-    // Emit WebSocket event
-    const emissores = req.app.get("emissoresClientes");
-    if (emissores) {
-      emissores.itemStockCriado(item);
+      // Insert inventory if provided
+      let totalQty = 0;
+      const warehouseData = [];
 
-      // Check if item is at alert level and emit alert
-      if (item.qty <= item.min_qty) {
-        emissores.alertaStockCriado({
-          ...item,
-          status: "critical",
-          message: `Item "${item.name}" está em nível crítico (${item.qty}/${item.min_qty})`
-        });
-      } else if (item.qty <= item.min_qty + 5) {
-        emissores.alertaStockCriado({
-          ...item,
-          status: "warning",
-          message: `Item "${item.name}" está em nível de aviso (${item.qty}/${item.min_qty})`
-        });
+      if (inventory && Array.isArray(inventory) && inventory.length > 0) {
+        for (const inv of inventory) {
+          if (inv.warehouse_id && inv.qty > 0) {
+            const invResult = await client.query(
+              `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, position)
+               VALUES ($1, $2, $3, $4)
+               RETURNING *`,
+              [itemId, inv.warehouse_id, parseInt(inv.qty) || 0, inv.position || null]
+            );
+
+            totalQty += parseInt(inv.qty) || 0;
+
+            const warehouseInfo = await client.query(
+              `SELECT name FROM warehouses WHERE id = $1`,
+              [inv.warehouse_id]
+            );
+
+            warehouseData.push({
+              inventory_id: invResult.rows[0].id.toString(),
+              warehouse_id: inv.warehouse_id.toString(),
+              warehouse_name: warehouseInfo.rows[0]?.name || '',
+              qty: parseInt(inv.qty) || 0,
+              position: inv.position || null
+            });
+          }
+        }
       }
-    }
 
-    res.status(201).json(item);
+      await client.query('COMMIT');
+
+      // Get supplier name
+      let supplierName = null;
+      if (supplier_id) {
+        const supplierResult = await pool.query(
+          `SELECT name FROM supplier WHERE id = $1`,
+          [supplier_id]
+        );
+        supplierName = supplierResult.rows[0]?.name || null;
+      }
+
+      const item = {
+        $id: itemRow.id.toString(),
+        name: itemRow.name,
+        category: itemRow.category,
+        description: itemRow.description,
+        supplier_id: itemRow.supplier_id,
+        supplier_name: supplierName,
+        cost_price: parseFloat(itemRow.cost_price) || 0,
+        qty: totalQty,
+        min_qty: itemRow.min_qty || 0,
+        image_id: itemRow.image_id,
+        $createdAt: itemRow.created_at,
+        $updatedAt: itemRow.updated_at,
+        warehouses: warehouseData
+      };
+
+      console.log("[STOCK] Item criado com sucesso:", item.$id);
+
+      // Emit WebSocket event
+      const emissores = req.app.get("emissoresClientes");
+      if (emissores) {
+        emissores.itemStockCriado(item);
+
+        // Check if item is at alert level
+        if (item.qty <= item.min_qty) {
+          emissores.alertaStockCriado({
+            ...item,
+            status: "critical",
+            message: `Item "${item.name}" está em nível crítico (${item.qty}/${item.min_qty})`
+          });
+        } else if (item.qty <= item.min_qty + 5) {
+          emissores.alertaStockCriado({
+            ...item,
+            status: "warning",
+            message: `Item "${item.name}" está em nível de aviso (${item.qty}/${item.min_qty})`
+          });
+        }
+      }
+
+      res.status(201).json(item);
+    } catch (erro) {
+      await client.query('ROLLBACK');
+      throw erro;
+    } finally {
+      client.release();
+    }
   } catch (erro) {
     console.error("[STOCK] Erro ao criar item:", erro);
     tratarErro(erro, res);
   }
 });
 
-// Update stock item
-router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
+// Update stock item (basic info only, not inventory)
+router.put("/items/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
     const {
       name,
       category,
       description,
-      supplier,
-      location,
+      supplier_id,
       cost_price,
-      qty,
       min_qty,
       image_id
     } = req.body;
@@ -200,12 +515,12 @@ router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
     console.log("[STOCK] Atualizar item:", id);
 
     // Check if item exists
-    const verificar = await pool.query("SELECT id FROM stock WHERE id = $1", [id]);
+    const verificar = await pool.query("SELECT id FROM stock_items WHERE id = $1", [id]);
     if (verificar.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
     }
 
-    // Build dynamic update query based on provided fields
+    // Build dynamic update query
     const updates = [];
     const values = [];
     let paramIndex = 1;
@@ -222,21 +537,13 @@ router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
       updates.push(`description = $${paramIndex++}`);
       values.push(description || null);
     }
-    if (supplier !== undefined) {
-      updates.push(`supplier = $${paramIndex++}`);
-      values.push(supplier || null);
-    }
-    if (location !== undefined) {
-      updates.push(`location = $${paramIndex++}`);
-      values.push(location || null);
+    if (supplier_id !== undefined) {
+      updates.push(`supplier_id = $${paramIndex++}`);
+      values.push(supplier_id || null);
     }
     if (cost_price !== undefined) {
       updates.push(`cost_price = $${paramIndex++}`);
       values.push(parseFloat(cost_price) || 0);
-    }
-    if (qty !== undefined) {
-      updates.push(`qty = $${paramIndex++}`);
-      values.push(Math.max(0, parseInt(qty) || 0));
     }
     if (min_qty !== undefined) {
       updates.push(`min_qty = $${paramIndex++}`);
@@ -251,12 +558,11 @@ router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
       return res.status(400).json({ error: "Nenhum campo para atualizar" });
     }
 
-    // Always update the updated_at timestamp
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
-
     values.push(id);
+
     const query = `
-      UPDATE stock
+      UPDATE stock_items
       SET ${updates.join(", ")}
       WHERE id = $${paramIndex}
       RETURNING *
@@ -265,15 +571,30 @@ router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
     const resultado = await pool.query(query, values);
     const row = resultado.rows[0];
 
+    // Get total quantity and supplier name
+    const totalsResult = await pool.query(
+      `SELECT COALESCE(SUM(qty), 0) as total_qty FROM stock_inventory WHERE stock_item_id = $1`,
+      [id]
+    );
+
+    let supplierName = null;
+    if (row.supplier_id) {
+      const supplierResult = await pool.query(
+        `SELECT name FROM supplier WHERE id = $1`,
+        [row.supplier_id]
+      );
+      supplierName = supplierResult.rows[0]?.name || null;
+    }
+
     const item = {
       $id: row.id.toString(),
       name: row.name,
       category: row.category,
       description: row.description,
-      supplier: row.supplier,
-      location: row.location,
+      supplier_id: row.supplier_id,
+      supplier_name: supplierName,
       cost_price: parseFloat(row.cost_price) || 0,
-      qty: row.qty || 0,
+      qty: parseInt(totalsResult.rows[0].total_qty) || 0,
       min_qty: row.min_qty || 0,
       image_id: row.image_id,
       $createdAt: row.created_at,
@@ -287,7 +608,7 @@ router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
     if (emissores) {
       emissores.itemStockAtualizado(item);
 
-      // Check if item is at alert level and emit alert
+      // Check if item is at alert level
       if (item.qty <= item.min_qty) {
         emissores.alertaStockCriado({
           ...item,
@@ -310,15 +631,15 @@ router.put("/items/:id", autenticarToken, requerGestor, async (req, res) => {
   }
 });
 
-// Delete stock item
-router.delete("/items/:id", autenticarToken, requerGestor, async (req, res) => {
+// Delete stock item (cascades to inventory)
+router.delete("/items/:id", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
 
     console.log("[STOCK] Eliminar item:", id);
 
     // Get item to check for image
-    const item = await pool.query("SELECT image_id FROM stock WHERE id = $1", [id]);
+    const item = await pool.query("SELECT image_id FROM stock_items WHERE id = $1", [id]);
 
     if (item.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
@@ -326,8 +647,8 @@ router.delete("/items/:id", autenticarToken, requerGestor, async (req, res) => {
 
     const imageId = item.rows[0].image_id;
 
-    // Delete from database
-    await pool.query("DELETE FROM stock WHERE id = $1", [id]);
+    // Delete from database (cascades to stock_inventory)
+    await pool.query("DELETE FROM stock_items WHERE id = $1", [id]);
 
     // Delete image file if exists
     if (imageId) {
@@ -357,6 +678,358 @@ router.delete("/items/:id", autenticarToken, requerGestor, async (req, res) => {
     res.json({ message: "Item eliminado com sucesso" });
   } catch (erro) {
     console.error("[STOCK] Erro ao eliminar item:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// ============================================
+// INVENTORY MANAGEMENT ENDPOINTS
+// ============================================
+
+// Get inventory breakdown for an item
+router.get("/items/:id/inventory", autenticarToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if item exists
+    const itemCheck = await pool.query("SELECT id FROM stock_items WHERE id = $1", [id]);
+    if (itemCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    const resultado = await pool.query(
+      `SELECT
+        inv.id,
+        inv.warehouse_id,
+        w.name as warehouse_name,
+        w.description as warehouse_description,
+        inv.qty,
+        inv.position,
+        inv.created_at,
+        inv.updated_at
+      FROM stock_inventory inv
+      JOIN warehouses w ON inv.warehouse_id = w.id
+      WHERE inv.stock_item_id = $1
+      ORDER BY w.name ASC`,
+      [id]
+    );
+
+    const documents = resultado.rows.map(row => ({
+      $id: row.id.toString(),
+      warehouse_id: row.warehouse_id.toString(),
+      warehouse_name: row.warehouse_name,
+      warehouse_description: row.warehouse_description,
+      qty: row.qty,
+      position: row.position,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    }));
+
+    res.json({
+      documents: documents,
+      total: documents.length
+    });
+  } catch (erro) {
+    console.error("[STOCK] Erro ao buscar inventory:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Add or update inventory for an item at a warehouse
+router.post("/items/:id/inventory", autenticarToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { warehouse_id, qty, position, operation } = req.body;
+
+    if (!warehouse_id) {
+      return res.status(400).json({ error: "warehouse_id é obrigatório" });
+    }
+
+    if (qty === undefined || qty < 0) {
+      return res.status(400).json({ error: "qty inválida" });
+    }
+
+    // Check if item exists
+    const itemCheck = await pool.query("SELECT id FROM stock_items WHERE id = $1", [id]);
+    if (itemCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    // Check if warehouse exists
+    const warehouseCheck = await pool.query("SELECT id FROM warehouses WHERE id = $1", [warehouse_id]);
+    if (warehouseCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Warehouse não encontrado" });
+    }
+
+    let resultado;
+
+    if (operation === "add") {
+      // Add to existing quantity
+      resultado = await pool.query(
+        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, position)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (stock_item_id, warehouse_id)
+         DO UPDATE SET
+           qty = stock_inventory.qty + EXCLUDED.qty,
+           position = COALESCE(EXCLUDED.position, stock_inventory.position),
+           updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [id, warehouse_id, parseInt(qty), position || null]
+      );
+    } else {
+      // Set quantity (default)
+      resultado = await pool.query(
+        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, position)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (stock_item_id, warehouse_id)
+         DO UPDATE SET
+           qty = EXCLUDED.qty,
+           position = COALESCE(EXCLUDED.position, stock_inventory.position),
+           updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [id, warehouse_id, parseInt(qty), position || null]
+      );
+    }
+
+    const row = resultado.rows[0];
+
+    // Get warehouse name
+    const warehouseInfo = await pool.query(
+      `SELECT name FROM warehouses WHERE id = $1`,
+      [warehouse_id]
+    );
+
+    const inventory = {
+      $id: row.id.toString(),
+      stock_item_id: row.stock_item_id.toString(),
+      warehouse_id: row.warehouse_id.toString(),
+      warehouse_name: warehouseInfo.rows[0].name,
+      qty: row.qty,
+      position: row.position,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    };
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.inventoryAtualizado(inventory);
+    }
+
+    res.status(201).json(inventory);
+  } catch (erro) {
+    console.error("[STOCK] Erro ao adicionar/atualizar inventory:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Update inventory at specific warehouse
+router.put("/items/:id/inventory/:warehouse_id", autenticarToken, async (req, res) => {
+  try {
+    const { id, warehouse_id } = req.params;
+    const { qty, position } = req.body;
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (qty !== undefined) {
+      if (qty < 0) {
+        return res.status(400).json({ error: "Quantidade não pode ser negativa" });
+      }
+      updates.push(`qty = $${paramIndex++}`);
+      values.push(parseInt(qty));
+    }
+
+    if (position !== undefined) {
+      updates.push(`position = $${paramIndex++}`);
+      values.push(position || null);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Nenhum campo para atualizar" });
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id, warehouse_id);
+
+    const query = `
+      UPDATE stock_inventory
+      SET ${updates.join(", ")}
+      WHERE stock_item_id = $${paramIndex} AND warehouse_id = $${paramIndex + 1}
+      RETURNING *
+    `;
+
+    const resultado = await pool.query(query, values);
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: "Inventory não encontrado neste warehouse" });
+    }
+
+    const row = resultado.rows[0];
+
+    // Get warehouse name
+    const warehouseInfo = await pool.query(
+      `SELECT name FROM warehouses WHERE id = $1`,
+      [warehouse_id]
+    );
+
+    const inventory = {
+      $id: row.id.toString(),
+      stock_item_id: row.stock_item_id.toString(),
+      warehouse_id: row.warehouse_id.toString(),
+      warehouse_name: warehouseInfo.rows[0].name,
+      qty: row.qty,
+      position: row.position,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    };
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.inventoryAtualizado(inventory);
+    }
+
+    res.json(inventory);
+  } catch (erro) {
+    console.error("[STOCK] Erro ao atualizar inventory:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Remove inventory from warehouse
+router.delete("/items/:id/inventory/:warehouse_id", autenticarToken, async (req, res) => {
+  try {
+    const { id, warehouse_id } = req.params;
+
+    const resultado = await pool.query(
+      "DELETE FROM stock_inventory WHERE stock_item_id = $1 AND warehouse_id = $2 RETURNING *",
+      [id, warehouse_id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: "Inventory não encontrado neste warehouse" });
+    }
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.inventoryEliminado({ stock_item_id: id, warehouse_id });
+    }
+
+    res.json({ message: "Inventory removido com sucesso" });
+  } catch (erro) {
+    console.error("[STOCK] Erro ao remover inventory:", erro);
+    tratarErro(erro, res);
+  }
+});
+
+// Transfer stock between warehouses
+router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { from_warehouse_id, to_warehouse_id, qty } = req.body;
+
+    if (!from_warehouse_id || !to_warehouse_id) {
+      return res.status(400).json({ error: "from_warehouse_id e to_warehouse_id são obrigatórios" });
+    }
+
+    if (!qty || qty <= 0) {
+      return res.status(400).json({ error: "Quantidade deve ser maior que zero" });
+    }
+
+    if (from_warehouse_id === to_warehouse_id) {
+      return res.status(400).json({ error: "Warehouses de origem e destino devem ser diferentes" });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check source inventory
+      const sourceCheck = await client.query(
+        `SELECT qty FROM stock_inventory WHERE stock_item_id = $1 AND warehouse_id = $2`,
+        [id, from_warehouse_id]
+      );
+
+      if (sourceCheck.rows.length === 0) {
+        throw new Error("Item não existe no warehouse de origem");
+      }
+
+      if (sourceCheck.rows[0].qty < qty) {
+        throw new Error(`Quantidade insuficiente no warehouse de origem (disponível: ${sourceCheck.rows[0].qty})`);
+      }
+
+      // Decrease from source
+      const newSourceQty = sourceCheck.rows[0].qty - qty;
+      if (newSourceQty === 0) {
+        // Remove completely if zero
+        await client.query(
+          `DELETE FROM stock_inventory WHERE stock_item_id = $1 AND warehouse_id = $2`,
+          [id, from_warehouse_id]
+        );
+      } else {
+        await client.query(
+          `UPDATE stock_inventory SET qty = $1, updated_at = CURRENT_TIMESTAMP
+           WHERE stock_item_id = $2 AND warehouse_id = $3`,
+          [newSourceQty, id, from_warehouse_id]
+        );
+      }
+
+      // Increase at destination (or create new record)
+      await client.query(
+        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (stock_item_id, warehouse_id)
+         DO UPDATE SET
+           qty = stock_inventory.qty + EXCLUDED.qty,
+           updated_at = CURRENT_TIMESTAMP`,
+        [id, to_warehouse_id, qty]
+      );
+
+      await client.query('COMMIT');
+
+      // Get warehouse names for response
+      const warehouseNames = await pool.query(
+        `SELECT id, name FROM warehouses WHERE id IN ($1, $2)`,
+        [from_warehouse_id, to_warehouse_id]
+      );
+
+      const fromWarehouse = warehouseNames.rows.find(w => w.id == from_warehouse_id);
+      const toWarehouse = warehouseNames.rows.find(w => w.id == to_warehouse_id);
+
+      const transfer = {
+        stock_item_id: id,
+        from_warehouse_id: from_warehouse_id.toString(),
+        from_warehouse_name: fromWarehouse?.name || '',
+        to_warehouse_id: to_warehouse_id.toString(),
+        to_warehouse_name: toWarehouse?.name || '',
+        qty: qty,
+        timestamp: new Date().toISOString()
+      };
+
+      // Emit WebSocket event
+      const emissores = req.app.get("emissoresClientes");
+      if (emissores) {
+        emissores.stockTransferido(transfer);
+      }
+
+      res.json({
+        message: "Transferência realizada com sucesso",
+        transfer: transfer
+      });
+    } catch (erro) {
+      await client.query('ROLLBACK');
+      throw erro;
+    } finally {
+      client.release();
+    }
+  } catch (erro) {
+    console.error("[STOCK] Erro ao transferir stock:", erro);
+    if (erro.message.includes("não existe") || erro.message.includes("insuficiente")) {
+      return res.status(400).json({ error: erro.message });
+    }
     tratarErro(erro, res);
   }
 });
@@ -394,7 +1067,7 @@ router.get("/categories", autenticarToken, async (req, res) => {
 });
 
 // Create category
-router.post("/categories", autenticarToken, requerGestor, async (req, res) => {
+router.post("/categories", autenticarToken, async (req, res) => {
   try {
     const { name, description } = req.body;
 
@@ -472,7 +1145,7 @@ router.get("/suppliers", autenticarToken, async (req, res) => {
 });
 
 // Create supplier
-router.post("/suppliers", autenticarToken, requerGestor, async (req, res) => {
+router.post("/suppliers", autenticarToken, async (req, res) => {
   try {
     const { name, contact_name, email, phone, address, notes } = req.body;
 
@@ -525,85 +1198,11 @@ router.post("/suppliers", autenticarToken, requerGestor, async (req, res) => {
 });
 
 // ============================================
-// LOCATIONS ENDPOINTS
-// ============================================
-
-// Get all locations
-router.get("/locations", autenticarToken, async (req, res) => {
-  try {
-    const resultado = await pool.query(`
-      SELECT id, name, description, created_at, updated_at
-      FROM location_stock
-      ORDER BY name ASC
-    `);
-
-    const documents = resultado.rows.map(row => ({
-      $id: row.id.toString(),
-      name: row.name,
-      location: row.name, // for backwards compatibility
-      description: row.description,
-      $createdAt: row.created_at,
-      $updatedAt: row.updated_at
-    }));
-
-    res.json({
-      documents: documents,
-      total: documents.length
-    });
-  } catch (erro) {
-    console.error("[STOCK] Erro ao listar localizações:", erro);
-    tratarErro(erro, res);
-  }
-});
-
-// Create location
-router.post("/locations", autenticarToken, requerGestor, async (req, res) => {
-  try {
-    const { name, description } = req.body;
-
-    if (!name || name.trim() === "") {
-      return res.status(400).json({ error: "Nome da localização é obrigatório" });
-    }
-
-    const resultado = await pool.query(
-      `INSERT INTO location_stock (name, description)
-       VALUES ($1, $2)
-       RETURNING *`,
-      [name.trim(), description || null]
-    );
-
-    const row = resultado.rows[0];
-    const localizacao = {
-      $id: row.id.toString(),
-      name: row.name,
-      location: row.name,
-      description: row.description,
-      $createdAt: row.created_at,
-      $updatedAt: row.updated_at
-    };
-
-    // Emit WebSocket event
-    const emissores = req.app.get("emissoresClientes");
-    if (emissores) {
-      emissores.localizacaoStockCriada(localizacao);
-    }
-
-    res.status(201).json(localizacao);
-  } catch (erro) {
-    if (erro.code === "23505") { // Unique violation
-      return res.status(400).json({ error: "Localização já existe" });
-    }
-    console.error("[STOCK] Erro ao criar localização:", erro);
-    tratarErro(erro, res);
-  }
-});
-
-// ============================================
 // IMAGE UPLOAD ENDPOINT
 // ============================================
 
 // Upload stock image
-router.post("/upload-image", autenticarToken, requerGestor, async (req, res) => {
+router.post("/upload-image", autenticarToken, async (req, res) => {
   try {
     const { imageData, filename } = req.body;
 
@@ -679,7 +1278,7 @@ router.get("/image/:imageId", async (req, res) => {
 });
 
 // Delete stock image
-router.delete("/image/:imageId", autenticarToken, requerGestor, async (req, res) => {
+router.delete("/image/:imageId", autenticarToken, async (req, res) => {
   try {
     const { imageId } = req.params;
 
@@ -715,12 +1314,17 @@ router.get("/stats", autenticarToken, async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT
-        COUNT(*) as total_items,
-        COUNT(*) FILTER (WHERE qty <= min_qty) as critical_stock,
-        COUNT(*) FILTER (WHERE qty > min_qty AND qty <= min_qty + 5) as warning_stock,
-        COUNT(*) FILTER (WHERE qty > min_qty + 5) as ok_stock,
-        SUM(qty * cost_price) as total_stock_value
-      FROM stock
+        COUNT(DISTINCT si.id) as total_items,
+        COUNT(DISTINCT si.id) FILTER (WHERE total_qty.qty <= si.min_qty) as critical_stock,
+        COUNT(DISTINCT si.id) FILTER (WHERE total_qty.qty > si.min_qty AND total_qty.qty <= si.min_qty + 5) as warning_stock,
+        COUNT(DISTINCT si.id) FILTER (WHERE total_qty.qty > si.min_qty + 5) as ok_stock,
+        SUM(total_qty.qty * si.cost_price) as total_stock_value
+      FROM stock_items si
+      LEFT JOIN (
+        SELECT stock_item_id, SUM(qty) as qty
+        FROM stock_inventory
+        GROUP BY stock_item_id
+      ) total_qty ON si.id = total_qty.stock_item_id
     `);
 
     const stats = resultado.rows[0];
@@ -743,31 +1347,36 @@ router.get("/alerts", autenticarToken, async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT
-        id,
-        name,
-        category,
-        supplier,
-        location,
-        qty,
-        min_qty,
-        cost_price,
-        image_id,
-        created_at,
-        updated_at,
+        si.id,
+        si.name,
+        si.category,
+        s.name as supplier_name,
+        si.min_qty,
+        si.cost_price,
+        si.image_id,
+        si.created_at,
+        si.updated_at,
+        COALESCE(total_qty.qty, 0) as qty,
         CASE
-          WHEN qty <= min_qty THEN 'critical'
-          WHEN qty <= min_qty + 5 THEN 'warning'
+          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty THEN 'critical'
+          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty + 5 THEN 'warning'
           ELSE 'ok'
         END AS status
-      FROM stock
-      WHERE qty <= min_qty + 5
+      FROM stock_items si
+      LEFT JOIN supplier s ON si.supplier_id = s.id
+      LEFT JOIN (
+        SELECT stock_item_id, SUM(qty) as qty
+        FROM stock_inventory
+        GROUP BY stock_item_id
+      ) total_qty ON si.id = total_qty.stock_item_id
+      WHERE COALESCE(total_qty.qty, 0) <= si.min_qty + 5
       ORDER BY
         CASE
-          WHEN qty <= min_qty THEN 1
-          WHEN qty <= min_qty + 5 THEN 2
+          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty THEN 1
+          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty + 5 THEN 2
           ELSE 3
         END,
-        name
+        si.name
       LIMIT 50
     `);
 
@@ -775,9 +1384,8 @@ router.get("/alerts", autenticarToken, async (req, res) => {
       $id: row.id.toString(),
       name: row.name,
       category: row.category,
-      supplier: row.supplier,
-      location: row.location,
-      qty: row.qty || 0,
+      supplier_name: row.supplier_name,
+      qty: parseInt(row.qty) || 0,
       min_qty: row.min_qty || 0,
       status: row.status,
       $createdAt: row.created_at,
