@@ -36,11 +36,14 @@ npm run lint
 The project uses **dual authentication systems** (in transition):
 
 ### 1. Appwrite Authentication (Legacy)
+
 - Configured in `src/lib/appwrite.js`
 - Used by older components via `AppContext`
 - Direct Appwrite SDK calls
+- currently being dumped
 
 ### 2. Custom API Authentication (Current)
+
 - Configured in `src/lib/api.js` and `src/lib/auth.js`
 - Token-based authentication with localStorage
 - Automatic token expiration handling
@@ -51,9 +54,11 @@ The project uses **dual authentication systems** (in transition):
 ## Database Architecture
 
 ### Appwrite Collections
+
 Database IDs and collection IDs are defined in `src/lib/appwrite.js`:
 
 - `DBRESTAURANTE` - Main restaurant database
+
   - `COL_MENU` - Menu items
   - `COL_ORDERS` - Orders
   - `COL_TABLES` - Table layouts
@@ -69,6 +74,7 @@ Database IDs and collection IDs are defined in `src/lib/appwrite.js`:
   - `COL_ATTENDANCE` - Staff attendance records
 
 ### Custom Database Design
+
 See `database-design.md` and `order-management-database.md` for complete SQL schemas:
 
 - **Staff Management**: Complex attendance, absence tracking, and points system
@@ -107,25 +113,29 @@ src/
 ## Key Architectural Patterns
 
 ### 1. Component Organization
+
 - Mix of `.jsx` and `.tsx` files (migrating to TypeScript)
 - Styles in separate `.scss` files colocated with components
 - Client components use `"use client"` directive
 
 ### 2. State Management
+
 - `AppContext` for Appwrite-based features
 - Local component state with hooks
 - No Redux/Zustand (kept simple)
 
 ### 3. Routing
+
 - Next.js App Router with file-based routing
 - Catch-all routes: `order/[[...mesas]]` for dynamic table orders
 - Protected routes check authentication in page components
 
 ### 4. API Integration
+
 Use the custom API client from `src/lib/api.js`:
 
 ```javascript
-import { auth, orders, tables, users } from '@/lib/api';
+import { auth, orders, tables, users } from "@/lib/api";
 
 // Authentication
 const result = await auth.login(email, password);
@@ -143,6 +153,7 @@ const layoutTables = await tables.getByLayout(layoutId);
 ```
 
 ### 5. Mobile Responsiveness
+
 - Uses `react-responsive` with `useMediaQuery`
 - Mobile users redirected to `/unsupported`
 - Check: `const isMobile = useMediaQuery({ maxWidth: 640 })`
@@ -150,19 +161,23 @@ const layoutTables = await tables.getByLayout(layoutId);
 ## Important Implementation Notes
 
 ### Order System
+
 - **Single-table architecture**: All order items in one `order_items` table
 - **Frontend grouping**: Group by `table_id` (dine-in) or `takeaway_group_id` (takeaway)
 - **Status workflow**: Orders flow through 7 states from pending to completed
 - See `order-management-database.md` for complete design
 
 ### Staff Gamification
+
 - **Automatic points**: System tracks actions and assigns points automatically
 - **Real-time updates**: Points calculated on every tracked action
 - **Multiple roles**: Chef, waiter, hostess, cleaner, etc.
 - See `sistema-pontos.md` for complete point rules
 
 ### Styling Migration
+
 **Active migration**: Moving from Tailwind CSS to pure SCSS
+
 - Prefer SCSS for new components
 - When editing existing components, consider migrating Tailwind classes to SCSS
 - Tailwind still configured in `tailwind.config.js` for compatibility
@@ -181,6 +196,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 ## Common Workflows
 
 ### Adding a New Feature
+
 1. Use the Custom API client (`src/lib/api.js`), not Appwrite
 2. Create components in `src/app/components/`
 3. Use SCSS for styling (create `.scss` file)
@@ -188,18 +204,21 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 5. Protect routes by checking auth in the page component
 
 ### Working with Orders
+
 - Orders are item-based, not order-based (important!)
 - Each item has its own status and assignment
 - Kitchen sees individual items, waiters see grouped by table
 - Use `orders.createBatch()` for multiple items
 
 ### Working with Tables
+
 - Tables belong to layouts (`table_layouts`)
 - Visual editor at `/RestLayout`
 - Table status reflects order status
 - Tables can be merged (same `table_id` for all items)
 
 ### Staff Management
+
 - Attendance tracked automatically
 - Points calculated by triggers/system events
 - Multiple absence types with different penalties
@@ -208,7 +227,9 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 ## Development Notes
 
 ### TODO List (from README.md)
+
 Active work items to be aware of:
+
 - Checkout functionality needs implementation
 - Calculator for change/tips
 - Notification and messaging system
@@ -224,6 +245,7 @@ Active work items to be aware of:
 - Fix cash display on table orders
 
 ### Known Issues
+
 - Stock component has bugs (see README.md line 29-30)
 - Menu editing during layout edit needs fixing
 - Sidebar doesn't close on click
@@ -241,12 +263,14 @@ Active work items to be aware of:
 ## Integration Points
 
 ### Appwrite Buckets
+
 - `BUCKET_MENU_IMG` - Menu item images
 - `BUCKET_STOCK_IMG` - Stock item images
 - `BUCKET_USER_IMG` - User profile images
 - Use `storage` from `src/lib/appwrite.js`
 
 ### Custom API Endpoints
+
 - `/auth/*` - Authentication
 - `/users/*` - User management
 - `/orders/*` - Order management
@@ -256,11 +280,11 @@ Active work items to be aware of:
 ## Testing Strategy
 
 No formal test suite currently. When adding features:
+
 - Manual testing in development
 - Test authentication flows thoroughly
 - Verify order state transitions
 - Check mobile responsiveness
 - Validate table layout changes don't break existing data
-
 
 APPWRITE IS TO BE DITCHED

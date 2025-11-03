@@ -13,17 +13,20 @@
     margin: 0;
   }
 
-  // New Header Card (WelcomeCard style)
+  // New Header Card (MenuComponent style)
   .stock-header-card {
-    margin: 0 32px 24px 32px;
     border-radius: 1.5rem;
-    background: linear-gradient(to right, #7c3aed 0%, #6366f1 50%, #3b82f6 100%);
+    background: linear-gradient(
+      to right,
+      #7c3aed 0%,
+      #6366f1 50%,
+      #3b82f6 100%
+    );
     padding: 2rem;
     color: white;
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
-    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
-      sans-serif;
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
     min-height: 200px;
 
     // Animation
@@ -94,23 +97,19 @@
       border: none;
       cursor: pointer;
       transition: all 150ms ease;
-      font-family: inherit;
+      font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
 
       &--primary {
         background: white;
         color: #4f46e5;
 
-        &:hover:not(:disabled) {
+        &:hover {
           background: rgba(255, 255, 255, 0.9);
         }
 
-        &:active:not(:disabled) {
+        &:active {
           transform: scale(0.98);
-        }
-
-        &:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
         }
       }
 
@@ -181,11 +180,57 @@
     }
   }
 
+  // Responsive: MD breakpoint (768px)
+  @media (min-width: 768px) {
+    .stock-header-card {
+      &__content {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+  }
+
+  // Responsive: LG breakpoint (1024px)
+  @media (min-width: 1024px) {
+    .stock-header-card {
+      &__right {
+        display: block;
+      }
+    }
+  }
+
+  // Mobile specific
+  @media (max-width: 640px) {
+    .stock-header-card {
+      margin: 0 16px 16px 16px;
+      padding: 1.5rem;
+      min-height: 180px;
+
+      &__title {
+        font-size: 1.5rem;
+      }
+
+      &__description {
+        font-size: 0.875rem;
+      }
+
+      &__actions {
+        flex-direction: column;
+        width: 100%;
+
+        button {
+          width: 100%;
+        }
+      }
+    }
+  }
+
   // Tab Navigation
   .stock-tabs {
     display: flex;
     gap: 12px;
-    margin: 0 32px 24px 32px;
+    margin-top: 24px;
     border-bottom: 2px solid #e5e7eb;
     padding-bottom: 0;
   }
@@ -219,7 +264,7 @@
 
   // Warehouses View
   .warehouses-view {
-    padding: 0 32px 32px 32px;
+    margin-top: 24px;
   }
 
   .warehouse-grid-container {
@@ -617,7 +662,6 @@
 
   // Main Grid Layout
   .stock-grid {
-    padding: 32px;
     padding-top: 24px;
     display: flex;
     flex-direction: column;
@@ -820,7 +864,8 @@
       }
     }
 
-    &.ant-btn-dangerous, &.ant-btn-danger {
+    &.ant-btn-dangerous,
+    &.ant-btn-danger {
       background: white;
       border-color: #fecaca;
       color: #dc2626;
@@ -2018,7 +2063,8 @@
         border-radius: 8px;
         font-size: 14px;
         transition: all 0.2s;
-        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
         color: #2d3748;
 
         &:hover {
@@ -2342,8 +2388,10 @@
     max-height: 600px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
   }
 
   .cart-modal-header {
@@ -2482,7 +2530,8 @@
     font-weight: 600;
     cursor: pointer;
     border: none;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
     transition: all 0.2s ease;
 
     &:disabled {
@@ -2696,7 +2745,8 @@
 
 // Animations
 @keyframes pulse-dot {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -2770,12 +2820,12 @@
   }
 
   .stock-tabs {
-    margin: 0 16px 16px 16px;
+    margin-top: 24px;
     overflow-x: auto;
   }
 
   .warehouses-view {
-    padding: 0 16px 16px 16px;
+    margin-top: 24px;
   }
 
   .warehouse-grid {
@@ -2783,3 +2833,430 @@
   }
 }
 
+// Warehouse CRUD Modal (scoped to avoid conflicts)
+.warehouse-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+
+  .warehouse-modal-container {
+    background-color: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+      0 10px 10px -5px rgba(0, 0, 0, 0.08);
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
+
+    .warehouse-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px;
+      border-bottom: 1px solid #e5e7eb;
+      flex-shrink: 0;
+
+      h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .warehouse-close-btn {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f3f4f6;
+        border: none;
+        border-radius: 8px;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #e5e7eb;
+          color: #374151;
+        }
+      }
+    }
+
+    .warehouse-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      background: #fafafa;
+
+      .warehouse-form-group {
+        margin-bottom: 20px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        label {
+          display: block;
+          margin-bottom: 8px;
+          font-weight: 600;
+          font-size: 14px;
+          color: #374151;
+        }
+
+        .warehouse-input,
+        .warehouse-textarea {
+          width: 100%;
+          padding: 12px 14px;
+          background-color: white;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-size: 14px;
+          font-family: inherit;
+          transition: all 0.2s;
+          color: #1f2937;
+
+          &:hover {
+            border-color: #9ca3af;
+          }
+
+          &:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+
+          &::placeholder {
+            color: #9ca3af;
+          }
+        }
+
+        .warehouse-input {
+          height: 44px;
+        }
+
+        .warehouse-textarea {
+          min-height: 80px;
+          resize: vertical;
+          line-height: 1.5;
+        }
+
+        .warehouse-checkbox-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+          }
+
+          label {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+
+    .warehouse-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 20px 24px;
+      border-top: 1px solid #e5e7eb;
+      background-color: #f9fafb;
+      flex-shrink: 0;
+
+      .warehouse-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        font-family: inherit;
+        min-width: 100px;
+
+        &.warehouse-btn-cancel {
+          background: white;
+          color: #475569;
+          border: 1px solid #d1d5db;
+
+          &:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+          }
+        }
+
+        &.warehouse-btn-submit {
+          background: #3b82f6;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #2563eb;
+          }
+
+          &:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            opacity: 0.6;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Image Cell Hover Effects (scoped to table image cells)
+.image-cell-wrapper {
+  &:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: scale(1.05);
+  }
+
+  .image-actions-overlay {
+    &:hover {
+      opacity: 1 !important;
+    }
+
+    button {
+      transition: transform 0.2s ease;
+
+      &:hover {
+        transform: scale(1.15);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+    }
+  }
+}
+
+// Transfer Modal (scoped to avoid conflicts)
+.transfer-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+
+  .transfer-modal-container {
+    background-color: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 550px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+      0 10px 10px -5px rgba(0, 0, 0, 0.08);
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
+
+    .transfer-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px;
+      border-bottom: 1px solid #e5e7eb;
+      flex-shrink: 0;
+
+      h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+      }
+
+      .transfer-close-btn {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f3f4f6;
+        border: none;
+        border-radius: 8px;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #e5e7eb;
+          color: #374151;
+        }
+      }
+    }
+
+    .transfer-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      background: #fafafa;
+
+      .transfer-item-card {
+        padding: 16px;
+        background-color: #f9fafb;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+
+        .transfer-item-label {
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 4px;
+          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+
+        .transfer-item-name {
+          font-size: 16px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 8px;
+        }
+
+        .transfer-item-qty {
+          font-size: 14px;
+          color: #6b7280;
+
+          span {
+            font-weight: 600;
+            color: #1f2937;
+          }
+        }
+      }
+
+      .transfer-form-group {
+        margin-bottom: 20px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        label {
+          display: block;
+          margin-bottom: 8px;
+          font-weight: 600;
+          font-size: 14px;
+          color: #374151;
+        }
+
+        .transfer-select {
+          width: 100%;
+          height: 44px;
+        }
+
+        .transfer-input {
+          width: 100%;
+          height: 44px;
+          padding: 0 14px;
+          background-color: white;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-size: 14px;
+          font-family: inherit;
+          transition: all 0.2s;
+          color: #1f2937;
+
+          &:hover {
+            border-color: #9ca3af;
+          }
+
+          &:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
+        }
+
+        .transfer-hint {
+          font-size: 12px;
+          color: #6b7280;
+          margin-top: 6px;
+        }
+      }
+    }
+
+    .transfer-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 20px 24px;
+      border-top: 1px solid #e5e7eb;
+      background-color: #f9fafb;
+      flex-shrink: 0;
+
+      .transfer-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        font-family: inherit;
+        min-width: 100px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        &.transfer-btn-cancel {
+          background: white;
+          color: #475569;
+          border: 1px solid #d1d5db;
+
+          &:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+          }
+        }
+
+        &.transfer-btn-submit {
+          background: #10b981;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background: #059669;
+          }
+
+          &:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            opacity: 0.6;
+          }
+        }
+      }
+    }
+  }
+}

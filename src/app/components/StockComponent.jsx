@@ -122,6 +122,10 @@ export default function StockComponent() {
     qty: 0,
   });
 
+  // Warehouse inventory editing
+  const [editingWarehouseItem, setEditingWarehouseItem] = useState(null);
+  const [warehouseItemEditState, setWarehouseItemEditState] = useState({});
+
   // Inventory modal (add item to warehouse)
   const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
   const [inventoryForm, setInventoryForm] = useState({
@@ -143,6 +147,7 @@ export default function StockComponent() {
   const [cropImage, setCropImage] = useState(null);
   const [croppedImageBlob, setCroppedImageBlob] = useState(null);
   const cropperRef = useRef(null);
+  const [editingItemImageId, setEditingItemImageId] = useState(null); // Track which item we're editing image for
 
   // Background removal states
   const [removingBackground, setRemovingBackground] = useState(false);
@@ -208,21 +213,65 @@ export default function StockComponent() {
     setShowCropper(false);
     setCropImage(null);
     setSelectedImage(null);
+    setEditingItemImageId(null); // Reset editing state
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const handleCropComplete = () => {
+  const handleCropComplete = async () => {
     if (cropperRef.current) {
       const canvas = cropperRef.current.getCanvas();
       if (canvas) {
-        canvas.toBlob((blob) => {
+        canvas.toBlob(async (blob) => {
           if (blob) {
             setCroppedImageBlob(blob);
             const url = URL.createObjectURL(blob);
             setImagePreview(url);
             setShowCropper(false);
+
+            // If we're editing an existing item's image, upload and update immediately
+            if (editingItemImageId) {
+              try {
+                setLoading(true);
+                // Temporarily set the blob for upload
+                const tempBlob = blob;
+
+                // Upload the image
+                const reader = new FileReader();
+                const base64Promise = new Promise((resolve, reject) => {
+                  reader.onload = () => resolve(reader.result);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(tempBlob);
+                });
+
+                const imageData = await base64Promise;
+                const fileName = `stock-${Date.now()}.jpg`;
+
+                const response = await apiCall("/stock/upload-image", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    imageData,
+                    filename: fileName,
+                  }),
+                });
+
+                const newImageId = response.$id;
+
+                // Update the item with the new image
+                await updateItemImage(editingItemImageId, newImageId);
+
+                // Reset states
+                setEditingItemImageId(null);
+                resetImage();
+                alert("✅ Imagem atualizada com sucesso!");
+              } catch (error) {
+                console.error("Error updating item image:", error);
+                alert("Erro ao atualizar imagem: " + error.message);
+              } finally {
+                setLoading(false);
+              }
+            }
           }
         }, "image/png");
       }
@@ -583,6 +632,40 @@ export default function StockComponent() {
     }
   }, [loading]);
 
+  // Image management functions for items
+  const updateItemImage = useCallback(async (itemId, imageId) => {
+    try {
+      await apiCall(`/stock/items/${itemId}`, {
+        method: "PUT",
+        body: JSON.stringify({ image_id: imageId }),
+      });
+      await fetchStock();
+    } catch (error) {
+      console.error("Error updating item image:", error);
+      throw error;
+    }
+  }, [fetchStock]);
+
+  const deleteItemImage = useCallback(async (itemId, imageId) => {
+    try {
+      // Delete the image file
+      if (imageId) {
+        await apiCall(`/stock/image/${imageId}`, {
+          method: "DELETE",
+        });
+      }
+      // Update item to remove image_id
+      await apiCall(`/stock/items/${itemId}`, {
+        method: "PUT",
+        body: JSON.stringify({ image_id: null }),
+      });
+      await fetchStock();
+    } catch (error) {
+      console.error("Error deleting item image:", error);
+      throw error;
+    }
+  }, [fetchStock]);
+
   // Warehouse API functions
   const fetchWarehouses = useCallback(async () => {
     setWarehousesLoading(true);
@@ -601,24 +684,41 @@ export default function StockComponent() {
   const fetchWarehouseInventory = useCallback(async (warehouseId) => {
     setLoading(true);
     try {
-      // Get all items and filter by warehouse
-      const response = await apiCall("/stock/items");
-      const items = response.documents || [];
+      // Get all items
+      const itemsResponse = await apiCall("/stock/items");
+      const allItems = itemsResponse.documents || [];
 
-      // Filter items that have inventory in this warehouse
-      const inventoryItems = items
+      // Filter items that might have inventory in this warehouse
+      const itemsWithWarehouses = allItems.filter(item => item.num_warehouses > 0);
+
+      // Fetch detailed info for each item to get warehouse breakdown
+      const detailedItemsPromises = itemsWithWarehouses.map(item =>
+        apiCall(`/stock/items/${item.$id}`).catch(err => {
+          console.error(`Error fetching details for item ${item.$id}:`, err);
+          return null;
+        })
+      );
+
+      const detailedItems = await Promise.all(detailedItemsPromises);
+
+      // Filter to get only items in the selected warehouse
+      const inventoryItems = detailedItems
+        .filter(Boolean) // Remove failed requests
         .map(item => {
-          const warehouseData = item.warehouses?.find(w => w.warehouse_id === warehouseId);
+          // Find warehouse data for this specific warehouse
+          const warehouseData = item.warehouses?.find(w => String(w.warehouse_id) === String(warehouseId));
           if (!warehouseData) return null;
+
           return {
             ...item,
-            warehouse_qty: warehouseData.qty,
-            warehouse_position: warehouseData.position,
-            inventory_id: warehouseData.inventory_id,
+            warehouse_qty: warehouseData.qty || 0,
+            warehouse_position: warehouseData.position || null,
+            inventory_id: warehouseData.inventory_id || null,
           };
         })
-        .filter(Boolean);
+        .filter(Boolean); // Remove items not in this warehouse
 
+      console.log('Warehouse inventory loaded:', inventoryItems);
       setWarehouseInventory(inventoryItems);
     } catch (err) {
       console.error("Error fetching warehouse inventory:", err);
@@ -668,6 +768,22 @@ export default function StockComponent() {
       throw err;
     }
   }, [fetchWarehouses]);
+
+  const updateWarehouseInventory = useCallback(async (itemId, warehouseId, data) => {
+    try {
+      const response = await apiCall(`/stock/items/${itemId}/inventory/${warehouseId}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      if (selectedWarehouse) {
+        await fetchWarehouseInventory(selectedWarehouse.$id);
+      }
+      return response;
+    } catch (err) {
+      console.error("Error updating warehouse inventory:", err);
+      throw err;
+    }
+  }, [selectedWarehouse, fetchWarehouseInventory]);
 
   const transferStock = useCallback(async (itemId, fromWarehouseId, toWarehouseId, qty) => {
     try {
@@ -904,32 +1020,135 @@ export default function StockComponent() {
         dataIndex: "image_id",
         key: "image_id",
         render: (imageId, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
           const imageUrl = imageId ? getImageUrl(imageId) : null;
+
+          // Se não está em modo de edição, apenas mostra a imagem ou placeholder
+          if (!isEditing) {
+            return (
+              <div style={{ width: 60, height: 60 }}>
+                {imageUrl ? (
+                  <AntImage
+                    src={imageUrl}
+                    alt={record.name}
+                    width={60}
+                    height={60}
+                    style={{ objectFit: "contain", borderRadius: "8px" }}
+                    preview={false}
+                    fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNGMUY1RjkiLz48cGF0aCBkPSJNMzAgMjVMMzUgMzVIMjVMMzAgMjVaIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+"
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 60,
+                      height: 60,
+                      backgroundColor: "#f1f5f9",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <Package size={24} color="#94a3b8" />
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Modo de edição - permite editar/adicionar/remover imagem
           return (
-            <div style={{ width: 60, height: 60 }}>
+            <div
+              onClick={() => {
+                setEditingItemImageId(record.$id);
+                if (fileInputRef.current) {
+                  fileInputRef.current.click();
+                }
+              }}
+              style={{
+                position: "relative",
+                width: 60,
+                height: 60,
+                borderRadius: "8px",
+                overflow: "hidden",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                border: "2px dashed #3b82f6"
+              }}
+              className="image-cell-editable"
+              title="Clique para adicionar/editar imagem"
+            >
               {imageUrl ? (
-                <AntImage
-                  src={imageUrl}
-                  alt={record.name}
-                  width={60}
-                  height={60}
-                  style={{ objectFit: "contain", borderRadius: "4px" }}
-                  preview={false}
-                  fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNGMUY1RjkiLz48cGF0aCBkPSJNMzAgMjVMMzUgMzVIMjVMMzAgMjVaIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+"
-                />
+                <>
+                  <AntImage
+                    src={imageUrl}
+                    alt={record.name}
+                    width={60}
+                    height={60}
+                    style={{ objectFit: "contain", borderRadius: "8px" }}
+                    preview={false}
+                    fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNGMUY1RjkiLz48cGF0aCBkPSJNMzAgMjVMMzUgMzVIMjVMMzAgMjVaIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+"
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      background: "#3b82f6",
+                      borderRadius: "4px 0 0 0",
+                      padding: "4px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <ImageIcon size={12} color="white" />
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm("Remover esta imagem?")) {
+                        deleteItemImage(record.$id, imageId).catch(err =>
+                          alert("Erro ao remover: " + err.message)
+                        );
+                      }
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      background: "#ef4444",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "2px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: 0.9
+                    }}
+                    title="Remover imagem"
+                  >
+                    <X size={12} color="white" />
+                  </button>
+                </>
               ) : (
                 <div
                   style={{
-                    width: 60,
-                    height: 60,
-                    backgroundColor: "#f1f5f9",
-                    borderRadius: "4px",
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: "#eff6ff",
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
+                    gap: "4px"
                   }}
                 >
-                  <Package size={24} color="#94a3b8" />
+                  <Upload size={20} color="#3b82f6" />
+                  <span style={{ fontSize: "9px", color: "#3b82f6", fontWeight: 600 }}>
+                    Adicionar
+                  </span>
                 </div>
               )}
             </div>
@@ -1146,87 +1365,49 @@ export default function StockComponent() {
         },
       },
       {
-        title: "Local & Fornecedor",
-        key: "meta",
-        render: (_, record) => {
+        title: "Fornecedor",
+        dataIndex: "supplier_name",
+        key: "supplier_name",
+        render: (supplier_name, record) => {
           const isEditing = editingRows[record.$id] !== undefined;
           const editState = editingRows[record.$id];
 
           if (isEditing) {
             return (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              <AntSelect
+                value={editState?.supplier_id ?? record.supplier_id ?? ""}
+                onChange={(value) => {
+                  updateEditingState(record.$id, {
+                    ...editState,
+                    supplier_id: value,
+                  });
+                }}
+                style={{ width: "100%" }}
               >
-                <AntSelect
-                  value={editState?.location ?? record.location ?? ""}
-                  onChange={(value) => {
-                    updateEditingState(record.$id, {
-                      ...editState,
-                      location: value,
-                    });
-                  }}
-                  style={{ width: "100%" }}
-                >
-                  <AntSelect.Option value="">Sem localização</AntSelect.Option>
-                  {locations.map((location) => (
-                    <AntSelect.Option
-                      key={location.$id}
-                      value={location.name || location.location || ""}
-                    >
-                      {location.name || location.location || "Sem nome"}
-                    </AntSelect.Option>
-                  ))}
-                </AntSelect>
-                <AntSelect
-                  value={editState?.supplier ?? record.supplier ?? ""}
-                  onChange={(value) => {
-                    updateEditingState(record.$id, {
-                      ...editState,
-                      supplier: value,
-                    });
-                  }}
-                  style={{ width: "100%" }}
-                >
-                  <AntSelect.Option value="">Sem fornecedor</AntSelect.Option>
-                  {suppliers.map((supplier) => (
-                    <AntSelect.Option
-                      key={supplier.$id}
-                      value={supplier.name || supplier.supplier || ""}
-                    >
-                      {supplier.name || supplier.supplier || "Sem nome"}
-                    </AntSelect.Option>
-                  ))}
-                </AntSelect>
-              </div>
+                <AntSelect.Option value="">Sem fornecedor</AntSelect.Option>
+                {suppliers.map((supplier) => (
+                  <AntSelect.Option
+                    key={supplier.$id}
+                    value={supplier.$id}
+                  >
+                    {supplier.name || supplier.supplier || "Sem nome"}
+                  </AntSelect.Option>
+                ))}
+              </AntSelect>
             );
           }
 
           return (
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "13px",
+              }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  fontSize: "12px",
-                }}
-              >
-                <MapPin size={14} color="#64748b" />
-                <span>{record.location || "N/A"}</span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  fontSize: "12px",
-                }}
-              >
-                <Truck size={14} color="#64748b" />
-                <span>{record.supplier || "N/A"}</span>
-              </div>
+              <Truck size={14} color="#64748b" />
+              <span>{supplier_name || "N/A"}</span>
             </div>
           );
         },
@@ -2371,6 +2552,8 @@ export default function StockComponent() {
                         </thead>
                         <tbody>
                           {warehouseInventory.map((item) => {
+                            const isEditing = editingWarehouseItem === item.$id;
+                            const editState = warehouseItemEditState;
                             const status =
                               item.warehouse_qty <= item.min_qty ? "critical" :
                               item.warehouse_qty <= item.min_qty + 5 ? "warning" : "ok";
@@ -2379,7 +2562,7 @@ export default function StockComponent() {
                               <tr key={item.$id}>
                                 <td>
                                   <div className="item-cell">
-                                    {item.image_id && (
+                                    {item.image_id ? (
                                       <AntImage
                                         src={getImageUrl(item.image_id)}
                                         alt={item.name}
@@ -2388,17 +2571,56 @@ export default function StockComponent() {
                                         style={{ borderRadius: "4px", objectFit: "contain" }}
                                         preview={false}
                                       />
+                                    ) : (
+                                      <div style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: "4px",
+                                        background: "#f1f5f9",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center"
+                                      }}>
+                                        <Package size={20} color="#94a3b8" />
+                                      </div>
                                     )}
                                     <span>{item.name}</span>
                                   </div>
                                 </td>
-                                <td>{item.category}</td>
+                                <td>{item.category || "-"}</td>
                                 <td>
-                                  <NumberFlow value={item.warehouse_qty} />
+                                  {isEditing ? (
+                                    <AntInput
+                                      type="number"
+                                      min="0"
+                                      value={editState.qty ?? item.warehouse_qty}
+                                      onChange={(e) => setWarehouseItemEditState({
+                                        ...editState,
+                                        qty: parseInt(e.target.value) || 0
+                                      })}
+                                      style={{ width: "80px" }}
+                                    />
+                                  ) : (
+                                    <NumberFlow value={item.warehouse_qty || 0} />
+                                  )}
                                 </td>
-                                <td>{item.warehouse_position || "-"}</td>
                                 <td>
-                                  <NumberFlow value={item.min_qty} />
+                                  {isEditing ? (
+                                    <AntInput
+                                      value={editState.position ?? item.warehouse_position ?? ""}
+                                      onChange={(e) => setWarehouseItemEditState({
+                                        ...editState,
+                                        position: e.target.value
+                                      })}
+                                      placeholder="Ex: A1-B5"
+                                      style={{ width: "100px" }}
+                                    />
+                                  ) : (
+                                    item.warehouse_position || "-"
+                                  )}
+                                </td>
+                                <td>
+                                  <NumberFlow value={item.min_qty || 0} />
                                 </td>
                                 <td>
                                   <Tag color={
@@ -2411,21 +2633,69 @@ export default function StockComponent() {
                                 </td>
                                 <td>
                                   <div className="action-buttons">
-                                    <button
-                                      className="action-btn transfer-btn"
-                                      onClick={() => {
-                                        setTransferForm({
-                                          item,
-                                          from_warehouse_id: selectedWarehouse.$id,
-                                          to_warehouse_id: null,
-                                          qty: 0,
-                                        });
-                                        setTransferModalOpen(true);
-                                      }}
-                                      title="Transferir"
-                                    >
-                                      <Truck size={16} />
-                                    </button>
+                                    {isEditing ? (
+                                      <>
+                                        <button
+                                          className="action-btn"
+                                          onClick={async () => {
+                                            try {
+                                              await updateWarehouseInventory(item.$id, selectedWarehouse.$id, editState);
+                                              setEditingWarehouseItem(null);
+                                              setWarehouseItemEditState({});
+                                            } catch (err) {
+                                              alert(`Erro ao atualizar: ${err.message}`);
+                                            }
+                                          }}
+                                          title="Guardar"
+                                          style={{ color: "#10b981" }}
+                                        >
+                                          <Save size={16} />
+                                        </button>
+                                        <button
+                                          className="action-btn"
+                                          onClick={() => {
+                                            setEditingWarehouseItem(null);
+                                            setWarehouseItemEditState({});
+                                          }}
+                                          title="Cancelar"
+                                          style={{ color: "#6b7280" }}
+                                        >
+                                          <X size={16} />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button
+                                          className="action-btn"
+                                          onClick={() => {
+                                            setEditingWarehouseItem(item.$id);
+                                            setWarehouseItemEditState({
+                                              qty: item.warehouse_qty,
+                                              position: item.warehouse_position || ""
+                                            });
+                                          }}
+                                          title="Editar quantidade e posição"
+                                          style={{ color: "#3b82f6" }}
+                                        >
+                                          <Edit size={16} />
+                                        </button>
+                                        <button
+                                          className="action-btn transfer-btn"
+                                          onClick={() => {
+                                            setTransferForm({
+                                              item,
+                                              from_warehouse_id: selectedWarehouse.$id,
+                                              to_warehouse_id: null,
+                                              qty: 0,
+                                            });
+                                            setTransferModalOpen(true);
+                                          }}
+                                          title="Transferir"
+                                        >
+                                          <Truck size={16} />
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -2445,16 +2715,16 @@ export default function StockComponent() {
       {warehouseModalOpen &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="modal-overlay" onClick={() => {
+          <div className="warehouse-modal-overlay" onClick={() => {
             setWarehouseModalOpen(false);
             setEditingWarehouse(null);
             setWarehouseForm({ name: "", description: "", address: "", is_active: true });
           }}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
+            <div className="warehouse-modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="warehouse-modal-header">
                 <h2>{editingWarehouse ? "Editar Armazém" : "Criar Novo Armazém"}</h2>
                 <button
-                  className="close-btn"
+                  className="warehouse-close-btn"
                   onClick={() => {
                     setWarehouseModalOpen(false);
                     setEditingWarehouse(null);
@@ -2465,96 +2735,68 @@ export default function StockComponent() {
                 </button>
               </div>
 
-              <div className="modal-body" style={{ padding: "24px" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
-                      Nome do Armazém *
-                    </label>
-                    <AntInput
-                      placeholder="Ex: Armazém Principal"
-                      value={warehouseForm.name}
-                      onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
-                      style={{ height: "44px" }}
-                    />
-                  </div>
+              <div className="warehouse-modal-body">
+                <div className="warehouse-form-group">
+                  <label htmlFor="warehouse-name">Nome do Armazém *</label>
+                  <input
+                    id="warehouse-name"
+                    type="text"
+                    className="warehouse-input"
+                    placeholder="Ex: Armazém Principal"
+                    value={warehouseForm.name}
+                    onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
+                  />
+                </div>
 
-                  <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
-                      Descrição
-                    </label>
-                    <textarea
-                      placeholder="Descrição do armazém..."
-                      value={warehouseForm.description}
-                      onChange={(e) => setWarehouseForm({ ...warehouseForm, description: e.target.value })}
-                      style={{
-                        width: "100%",
-                        minHeight: "80px",
-                        padding: "10px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                        fontFamily: "inherit",
-                        resize: "vertical",
-                      }}
-                    />
-                  </div>
+                <div className="warehouse-form-group">
+                  <label htmlFor="warehouse-description">Descrição</label>
+                  <textarea
+                    id="warehouse-description"
+                    className="warehouse-textarea"
+                    placeholder="Descrição do armazém..."
+                    value={warehouseForm.description}
+                    onChange={(e) => setWarehouseForm({ ...warehouseForm, description: e.target.value })}
+                  />
+                </div>
 
-                  <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
-                      Morada
-                    </label>
-                    <AntInput
-                      placeholder="Ex: Rua Principal 123, Lisboa"
-                      value={warehouseForm.address}
-                      onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })}
-                      style={{ height: "44px" }}
-                    />
-                  </div>
+                <div className="warehouse-form-group">
+                  <label htmlFor="warehouse-address">Morada</label>
+                  <input
+                    id="warehouse-address"
+                    type="text"
+                    className="warehouse-input"
+                    placeholder="Ex: Rua Principal 123, Lisboa"
+                    value={warehouseForm.address}
+                    onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })}
+                  />
+                </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="warehouse-form-group">
+                  <div className="warehouse-checkbox-wrapper">
                     <input
                       type="checkbox"
                       id="warehouse-active"
                       checked={warehouseForm.is_active}
                       onChange={(e) => setWarehouseForm({ ...warehouseForm, is_active: e.target.checked })}
-                      style={{ width: "18px", height: "18px", cursor: "pointer" }}
                     />
-                    <label htmlFor="warehouse-active" style={{ fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
-                      Armazém ativo
-                    </label>
+                    <label htmlFor="warehouse-active">Armazém ativo</label>
                   </div>
                 </div>
               </div>
 
-              <div className="modal-footer" style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-                padding: "20px 24px",
-                borderTop: "1px solid #e5e7eb",
-                backgroundColor: "#f9fafb",
-              }}>
+              <div className="warehouse-modal-footer">
                 <button
+                  className="warehouse-btn warehouse-btn-cancel"
                   onClick={() => {
                     setWarehouseModalOpen(false);
                     setEditingWarehouse(null);
                     setWarehouseForm({ name: "", description: "", address: "", is_active: true });
                   }}
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "#374151",
-                    backgroundColor: "white",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
                 >
                   Cancelar
                 </button>
                 <button
+                  className="warehouse-btn warehouse-btn-submit"
                   onClick={async () => {
                     if (!warehouseForm.name.trim()) {
                       alert("Por favor insira um nome para o armazém");
@@ -2575,17 +2817,6 @@ export default function StockComponent() {
                     }
                   }}
                   disabled={!warehouseForm.name.trim()}
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: !warehouseForm.name.trim() ? "not-allowed" : "pointer",
-                    backgroundColor: !warehouseForm.name.trim() ? "#cbd5e1" : "#3b82f6",
-                    color: "white",
-                    opacity: !warehouseForm.name.trim() ? 0.6 : 1,
-                  }}
                 >
                   {editingWarehouse ? "Atualizar" : "Criar Armazém"}
                 </button>
@@ -2599,15 +2830,15 @@ export default function StockComponent() {
       {transferModalOpen &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="modal-overlay" onClick={() => {
+          <div className="transfer-modal-overlay" onClick={() => {
             setTransferModalOpen(false);
             setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
           }}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
+            <div className="transfer-modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="transfer-modal-header">
                 <h2>Transferir Stock</h2>
                 <button
-                  className="close-btn"
+                  className="transfer-close-btn"
                   onClick={() => {
                     setTransferModalOpen(false);
                     setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
@@ -2617,34 +2848,28 @@ export default function StockComponent() {
                 </button>
               </div>
 
-              <div className="modal-body" style={{ padding: "24px" }}>
+              <div className="transfer-modal-body">
                 {transferForm.item && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                    <div style={{
-                      padding: "16px",
-                      backgroundColor: "#f9fafb",
-                      borderRadius: "8px",
-                      border: "1px solid #e5e7eb",
-                    }}>
-                      <div style={{ fontSize: "14px", color: "#6b7280", marginBottom: "4px" }}>Item:</div>
-                      <div style={{ fontSize: "16px", fontWeight: 600, color: "#1f2937" }}>{transferForm.item.name}</div>
-                      <div style={{ fontSize: "14px", color: "#6b7280", marginTop: "8px" }}>
-                        Total disponível: <span style={{ fontWeight: 600 }}>{transferForm.item.qty || 0} unidades</span>
+                  <>
+                    <div className="transfer-item-card">
+                      <div className="transfer-item-label">Item</div>
+                      <div className="transfer-item-name">{transferForm.item.name}</div>
+                      <div className="transfer-item-qty">
+                        Total disponível: <span>{transferForm.item.qty || 0} unidades</span>
                       </div>
                     </div>
 
-                    <div>
-                      <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
-                        De (Armazém) *
-                      </label>
+                    <div className="transfer-form-group">
+                      <label htmlFor="transfer-from">De (Armazém) *</label>
                       <AntSelect
+                        id="transfer-from"
+                        className="transfer-select"
                         value={transferForm.from_warehouse_id}
                         onChange={(value) => setTransferForm({ ...transferForm, from_warehouse_id: value })}
                         placeholder="Selecione o armazém de origem"
-                        style={{ width: "100%", height: "44px" }}
                       >
                         {warehouses.map((warehouse) => {
-                          const warehouseData = transferForm.item.warehouses?.find(w => w.warehouse_id === warehouse.$id);
+                          const warehouseData = transferForm.item.warehouses?.find(w => String(w.warehouse_id) === String(warehouse.$id));
                           const qty = warehouseData?.qty || 0;
                           return (
                             <AntSelect.Option key={warehouse.$id} value={warehouse.$id} disabled={qty === 0}>
@@ -2655,19 +2880,18 @@ export default function StockComponent() {
                       </AntSelect>
                     </div>
 
-                    <div>
-                      <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
-                        Para (Armazém) *
-                      </label>
+                    <div className="transfer-form-group">
+                      <label htmlFor="transfer-to">Para (Armazém) *</label>
                       <AntSelect
+                        id="transfer-to"
+                        className="transfer-select"
                         value={transferForm.to_warehouse_id}
                         onChange={(value) => setTransferForm({ ...transferForm, to_warehouse_id: value })}
                         placeholder="Selecione o armazém de destino"
-                        style={{ width: "100%", height: "44px" }}
                         disabled={!transferForm.from_warehouse_id}
                       >
                         {warehouses
-                          .filter(w => w.$id !== transferForm.from_warehouse_id)
+                          .filter(w => String(w.$id) !== String(transferForm.from_warehouse_id))
                           .map((warehouse) => (
                             <AntSelect.Option key={warehouse.$id} value={warehouse.$id}>
                               {warehouse.name}
@@ -2676,61 +2900,44 @@ export default function StockComponent() {
                       </AntSelect>
                     </div>
 
-                    <div>
-                      <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "14px" }}>
-                        Quantidade *
-                      </label>
-                      <AntInput
+                    <div className="transfer-form-group">
+                      <label htmlFor="transfer-qty">Quantidade *</label>
+                      <input
+                        id="transfer-qty"
                         type="number"
+                        className="transfer-input"
                         min="1"
                         max={transferForm.from_warehouse_id ?
-                          transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0
+                          transferForm.item.warehouses?.find(w => String(w.warehouse_id) === String(transferForm.from_warehouse_id))?.qty || 0
                           : 0}
                         value={transferForm.qty}
                         onChange={(e) => setTransferForm({ ...transferForm, qty: parseInt(e.target.value) || 0 })}
                         placeholder="Quantidade a transferir"
-                        style={{ height: "44px" }}
-                        suffix="unidades"
                       />
                       {transferForm.from_warehouse_id && (
-                        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-                          Máximo disponível: {transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0} unidades
+                        <div className="transfer-hint">
+                          Máximo disponível: {transferForm.item.warehouses?.find(w => String(w.warehouse_id) === String(transferForm.from_warehouse_id))?.qty || 0} unidades
                         </div>
                       )}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
 
-              <div className="modal-footer" style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-                padding: "20px 24px",
-                borderTop: "1px solid #e5e7eb",
-                backgroundColor: "#f9fafb",
-              }}>
+              <div className="transfer-modal-footer">
                 <button
+                  className="transfer-btn transfer-btn-cancel"
                   onClick={() => {
                     setTransferModalOpen(false);
                     setTransferForm({ item: null, from_warehouse_id: null, to_warehouse_id: null, qty: 0 });
-                  }}
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "#374151",
-                    backgroundColor: "white",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
-                    cursor: "pointer",
                   }}
                 >
                   Cancelar
                 </button>
                 <button
+                  className="transfer-btn transfer-btn-submit"
                   onClick={async () => {
-                    const maxQty = transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0;
+                    const maxQty = transferForm.item.warehouses?.find(w => String(w.warehouse_id) === String(transferForm.from_warehouse_id))?.qty || 0;
 
                     if (!transferForm.from_warehouse_id || !transferForm.to_warehouse_id) {
                       alert("Por favor selecione os armazéns de origem e destino");
@@ -2763,20 +2970,10 @@ export default function StockComponent() {
                     !transferForm.from_warehouse_id ||
                     !transferForm.to_warehouse_id ||
                     transferForm.qty <= 0 ||
-                    transferForm.qty > (transferForm.item.warehouses?.find(w => w.warehouse_id === transferForm.from_warehouse_id)?.qty || 0)
+                    transferForm.qty > (transferForm.item.warehouses?.find(w => String(w.warehouse_id) === String(transferForm.from_warehouse_id))?.qty || 0)
                   }
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: "pointer",
-                    backgroundColor: "#10b981",
-                    color: "white",
-                  }}
                 >
-                  <Truck size={16} style={{ display: "inline", marginRight: "6px" }} />
+                  <Truck size={16} />
                   Transferir
                 </button>
               </div>
