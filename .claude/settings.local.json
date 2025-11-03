@@ -12,7 +12,8 @@
       "WebFetch(domain:v0.app)",
       "Bash(npm run dev:*)",
       "Bash(timeout /t 10 /nobreak)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

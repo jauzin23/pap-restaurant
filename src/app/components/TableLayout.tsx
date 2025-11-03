@@ -1,9 +1,9 @@
 "use client";
 
-import type React from "react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import type { Socket } from "socket.io-client";
 import {
   Trash2,
   Save,
@@ -36,8 +36,8 @@ import {
 } from "../../lib/api";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import { throttle } from "../../lib/throttle";
-import NumberFlow from '@number-flow/react';
-import "./TableLayout.css";
+import NumberFlow from "@number-flow/react";
+import "./TableLayout.scss";
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -515,7 +515,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     const layout = layouts[currentLayoutIndex];
     if (layout?.id && mode === "view") {
       console.log(`📡 Subscribing to layout: ${layout.id}`);
-      socket.emit("subscribe:layout", layout.id);
+      (socket as Socket).emit("subscribe:layout", layout.id);
     }
 
     // Order events - refresh table statuses
@@ -567,7 +567,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       }
     };
 
-    const handleTableUpdated = (table) => {
+    const handleTableUpdated = (table: any) => {
       console.log("✏️ Table updated via WebSocket:", table);
       // Update allTables state directly
       setAllTables((prev) =>
@@ -621,15 +621,15 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     };
 
     // Register all event listeners
-    socket.on("order:created", handleOrderCreated);
-    socket.on("order:updated", handleOrderUpdated);
-    socket.on("order:deleted", handleOrderDeleted);
-    socket.on("table:created", handleTableCreated);
-    socket.on("table:updated", handleTableUpdated);
-    socket.on("table:deleted", handleTableDeleted);
-    socket.on("layout:created", handleLayoutCreated);
-    socket.on("layout:updated", handleLayoutUpdated);
-    socket.on("layout:deleted", handleLayoutDeleted);
+    (socket as Socket).on("order:created", handleOrderCreated);
+    (socket as Socket).on("order:updated", handleOrderUpdated);
+    (socket as Socket).on("order:deleted", handleOrderDeleted);
+    (socket as Socket).on("table:created", handleTableCreated);
+    (socket as Socket).on("table:updated", handleTableUpdated);
+    (socket as Socket).on("table:deleted", handleTableDeleted);
+    (socket as Socket).on("layout:created", handleLayoutCreated);
+    (socket as Socket).on("layout:updated", handleLayoutUpdated);
+    (socket as Socket).on("layout:deleted", handleLayoutDeleted);
 
     // Cleanup function
     return () => {
@@ -638,19 +638,19 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       // Unsubscribe from layout
       if (layout?.id && mode === "view") {
         console.log(`📡 Unsubscribing from layout: ${layout.id}`);
-        socket.emit("unsubscribe:layout", layout.id);
+        (socket as Socket).emit("unsubscribe:layout", layout.id);
       }
 
       // Remove all event listeners
-      socket.off("order:created", handleOrderCreated);
-      socket.off("order:updated", handleOrderUpdated);
-      socket.off("order:deleted", handleOrderDeleted);
-      socket.off("table:created", handleTableCreated);
-      socket.off("table:updated", handleTableUpdated);
-      socket.off("table:deleted", handleTableDeleted);
-      socket.off("layout:created", handleLayoutCreated);
-      socket.off("layout:updated", handleLayoutUpdated);
-      socket.off("layout:deleted", handleLayoutDeleted);
+      (socket as Socket).off("order:created", handleOrderCreated);
+      (socket as Socket).off("order:updated", handleOrderUpdated);
+      (socket as Socket).off("order:deleted", handleOrderDeleted);
+      (socket as Socket).off("table:created", handleTableCreated);
+      (socket as Socket).off("table:updated", handleTableUpdated);
+      (socket as Socket).off("table:deleted", handleTableDeleted);
+      (socket as Socket).off("layout:created", handleLayoutCreated);
+      (socket as Socket).off("layout:updated", handleLayoutUpdated);
+      (socket as Socket).off("layout:deleted", handleLayoutDeleted);
     };
   }, [socket, connected, currentLayoutIndex, layouts, mode]);
 
@@ -1923,7 +1923,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   // Get next status in workflow
   const getNextStatus = (currentStatus: string): string | null => {
-    const workflow = ["pendente", "aceite", "pronto", "a ser entregue", "entregue"];
+    const workflow = [
+      "pendente",
+      "aceite",
+      "pronto",
+      "a ser entregue",
+      "entregue",
+    ];
     const currentIndex = workflow.indexOf(currentStatus);
 
     // If status is not in workflow or is the last one, return null (no next status)
@@ -2188,10 +2194,14 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                               {menuItem?.nome || "Item desconhecido"}
                             </div>
                             {order.notas && (
-                              <div className="order-item-notes">{order.notas}</div>
+                              <div className="order-item-notes">
+                                {order.notas}
+                              </div>
                             )}
                             {/* Staff workflow - professional display */}
-                            {(order.aceite_por_user || order.preparado_por_user || order.entregue_por_user) && (
+                            {(order.aceite_por_user ||
+                              order.preparado_por_user ||
+                              order.entregue_por_user) && (
                               <div className="order-staff-workflow">
                                 {order.aceite_por_user && (
                                   <div className="staff-member">
@@ -2201,7 +2211,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                       className="staff-pfp"
                                     />
                                     <div className="staff-details">
-                                      <span className="staff-name">{order.aceite_por_user.nome}</span>
+                                      <span className="staff-name">
+                                        {order.aceite_por_user.nome}
+                                      </span>
                                       <span className="staff-role">Aceite</span>
                                     </div>
                                   </div>
@@ -2214,8 +2226,12 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                       className="staff-pfp"
                                     />
                                     <div className="staff-details">
-                                      <span className="staff-name">{order.preparado_por_user.nome}</span>
-                                      <span className="staff-role">Preparado</span>
+                                      <span className="staff-name">
+                                        {order.preparado_por_user.nome}
+                                      </span>
+                                      <span className="staff-role">
+                                        Preparado
+                                      </span>
                                     </div>
                                   </div>
                                 )}
@@ -2227,8 +2243,12 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                       className="staff-pfp"
                                     />
                                     <div className="staff-details">
-                                      <span className="staff-name">{order.entregue_por_user.nome}</span>
-                                      <span className="staff-role">Entregue</span>
+                                      <span className="staff-name">
+                                        {order.entregue_por_user.nome}
+                                      </span>
+                                      <span className="staff-role">
+                                        Entregue
+                                      </span>
                                     </div>
                                   </div>
                                 )}
@@ -2239,15 +2259,26 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
                         {/* Price Cell */}
                         <div className="order-cell order-cell-price">
-                          €<NumberFlow value={itemTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                          €
+                          <NumberFlow
+                            value={itemTotal}
+                            format={{
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }}
+                          />
                         </div>
 
                         {/* Status Cell */}
                         <div className="order-cell order-cell-status">
                           <span
-                            className={`status-badge status-${
-                              (order.status || "pendente").replace(/\s+/g, "-")
-                            } ${getNextStatus(order.status || "pendente") ? "clickable" : ""}`}
+                            className={`status-badge status-${(
+                              order.status || "pendente"
+                            ).replace(/\s+/g, "-")} ${
+                              getNextStatus(order.status || "pendente")
+                                ? "clickable"
+                                : ""
+                            }`}
                             onClick={() => {
                               if (getNextStatus(order.status || "pendente")) {
                                 cycleStatusForward(order);
@@ -2255,7 +2286,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                             }}
                             title={
                               getNextStatus(order.status || "pendente")
-                                ? `Clicar para mudar para: ${getNextStatus(order.status || "pendente")}`
+                                ? `Clicar para mudar para: ${getNextStatus(
+                                    order.status || "pendente"
+                                  )}`
                                 : "Estado final"
                             }
                           >
@@ -2303,7 +2336,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             </button>
             <div className="footer-total-section">
               <span className="footer-label">Total</span>
-              <span className="footer-total">€<NumberFlow value={total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} /></span>
+              <span className="footer-total">
+                €
+                <NumberFlow
+                  value={total}
+                  format={{
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }}
+                />
+              </span>
             </div>
           </div>
         )}
@@ -2314,7 +2356,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             className="delete-modal-overlay"
             onClick={() => setConfirmDialog(null)}
           >
-            <div className="delete-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="delete-modal-content"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="delete-modal-icon">
                 <Trash2 size={24} />
               </div>
@@ -2476,7 +2521,13 @@ const TableComponent: React.FC<TableComponentProps> = ({
         <div className="table-content">
           <span className="table-number">{table.number}</span>
           {mode === "view" && orderTotal > 0 && (
-            <span className="table-order-total">€<NumberFlow value={orderTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} /></span>
+            <span className="table-order-total">
+              €
+              <NumberFlow
+                value={orderTotal}
+                format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+              />
+            </span>
           )}
         </div>
       </div>

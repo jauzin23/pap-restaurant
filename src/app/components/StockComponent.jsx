@@ -1473,17 +1473,65 @@ export default function StockComponent() {
               <div className="modal-content">
                 {/* Image Upload Section */}
                 <div className="image-upload-section">
-                  <label className="image-upload-label">Imagem do Item</label>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      color: "#374151",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Imagem do Item
+                  </label>
 
                   {/* Image Upload Area */}
                   {!imagePreview && (
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="image-upload-area"
+                      style={{
+                        border: "2px dashed #d1d5db",
+                        borderRadius: "8px",
+                        padding: "32px",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        backgroundColor: "transparent",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "#ff6b35";
+                        e.currentTarget.style.backgroundColor = "#fff5f2";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#d1d5db";
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
                     >
-                      <Upload size={48} className="upload-icon" />
-                      <h4 className="upload-title">Selecionar Imagem</h4>
-                      <p className="upload-description">
+                      <Upload
+                        size={48}
+                        style={{
+                          color: "#9ca3af",
+                          margin: "0 auto 16px",
+                          display: "block",
+                        }}
+                      />
+                      <h4
+                        style={{
+                          fontSize: "16px",
+                          fontWeight: "500",
+                          color: "#374151",
+                          margin: "0 0 8px 0",
+                        }}
+                      >
+                        Selecionar Imagem
+                      </h4>
+                      <p
+                        style={{
+                          fontSize: "14px",
+                          color: "#6b7280",
+                          margin: 0,
+                        }}
+                      >
                         PNG, JPG ou WEBP até 5MB
                       </p>
                     </div>
@@ -1491,10 +1539,25 @@ export default function StockComponent() {
 
                   {/* Image Preview */}
                   {imagePreview && (
-                    <div className="image-preview-container">
+                    <div
+                      style={{
+                        backgroundColor: "#ffffff",
+                        borderRadius: "8px",
+                        padding: "16px",
+                        border: "1px solid #e5e7eb",
+                      }}
+                    >
                       <div
-                        className="image-preview-wrapper"
-                        style={{ position: "relative" }}
+                        style={{
+                          position: "relative",
+                          display: "inline-block",
+                          marginBottom: "16px",
+                          width: "100%",
+                          textAlign: "center",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
                       >
                         <img
                           src={imagePreview}
@@ -1562,7 +1625,6 @@ export default function StockComponent() {
                           gap: "8px",
                           justifyContent: "center",
                           flexWrap: "wrap",
-                          marginTop: "16px",
                         }}
                       >
                         <button
@@ -1581,8 +1643,15 @@ export default function StockComponent() {
                             border: "none",
                             borderRadius: "6px",
                             fontSize: "14px",
+                            fontWeight: "500",
                             cursor: "pointer",
                             transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#2563eb";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "#3b82f6";
                           }}
                         >
                           <Crop size={16} />
@@ -1598,11 +1667,14 @@ export default function StockComponent() {
                               alignItems: "center",
                               gap: "6px",
                               padding: "8px 16px",
-                              backgroundColor: "#10b981",
+                              backgroundColor: removingBackground
+                                ? "#9ca3af"
+                                : "#10b981",
                               color: "white",
                               border: "none",
                               borderRadius: "6px",
                               fontSize: "14px",
+                              fontWeight: "500",
                               cursor: removingBackground
                                 ? "not-allowed"
                                 : "pointer",
@@ -1610,6 +1682,18 @@ export default function StockComponent() {
                               transition: "all 0.2s ease",
                             }}
                             title="Remover fundo da imagem usando IA"
+                            onMouseEnter={(e) => {
+                              if (!removingBackground) {
+                                e.currentTarget.style.backgroundColor =
+                                  "#059669";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!removingBackground) {
+                                e.currentTarget.style.backgroundColor =
+                                  "#10b981";
+                              }
+                            }}
                           >
                             <Wand2
                               size={16}
@@ -1635,10 +1719,17 @@ export default function StockComponent() {
                               border: "none",
                               borderRadius: "6px",
                               fontSize: "14px",
+                              fontWeight: "500",
                               cursor: "pointer",
                               transition: "all 0.2s ease",
                             }}
                             title="Restaurar imagem original"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = "#d97706";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = "#f59e0b";
+                            }}
                           >
                             <RefreshCw size={16} />
                             Desfazer Remoção
@@ -1658,9 +1749,21 @@ export default function StockComponent() {
                             border: "1px solid #d1d5db",
                             borderRadius: "6px",
                             fontSize: "14px",
+                            fontWeight: "500",
                             cursor: removingBackground
                               ? "not-allowed"
                               : "pointer",
+                            transition: "all 0.2s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!removingBackground) {
+                              e.currentTarget.style.backgroundColor = "#e5e7eb";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!removingBackground) {
+                              e.currentTarget.style.backgroundColor = "#f3f4f6";
+                            }
                           }}
                         >
                           <Upload size={16} />
@@ -1710,6 +1813,7 @@ export default function StockComponent() {
                       }
                       className="form-select"
                       disabled={dropdownsLoading || addItemLoading}
+                      style={{ height: "44px" }}
                     >
                       <option value="">Selecionar categoria...</option>
                       {categories.map((category) => (
@@ -1737,6 +1841,7 @@ export default function StockComponent() {
                       }
                       className="form-select"
                       disabled={dropdownsLoading || addItemLoading}
+                      style={{ height: "44px" }}
                     >
                       <option value="">Selecionar fornecedor...</option>
                       {suppliers.map((supplier) => (
@@ -1781,6 +1886,7 @@ export default function StockComponent() {
                       }
                       className="form-select"
                       disabled={dropdownsLoading || addItemLoading}
+                      style={{ height: "44px" }}
                     >
                       <option value="">Selecionar localização...</option>
                       {locations.map((location) => (
@@ -1854,21 +1960,86 @@ export default function StockComponent() {
               </div>
 
               {/* Modal Footer */}
-              <div className="modal-footer">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: "12px",
+                  padding: "20px 24px",
+                  borderTop: "1px solid #e5e7eb",
+                  flexShrink: 0,
+                  backgroundColor: "#f9fafb",
+                  position: "sticky",
+                  bottom: 0,
+                  zIndex: 1,
+                }}
+              >
                 <button
                   onClick={() => {
                     setIsAddModalOpen(false);
                     resetAddItemForm();
                   }}
-                  className="footer-button cancel"
                   disabled={addItemLoading}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#374151",
+                    backgroundColor: "white",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    cursor: addItemLoading ? "not-allowed" : "pointer",
+                    transition: "all 0.2s ease",
+                    opacity: addItemLoading ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!addItemLoading) {
+                      e.currentTarget.style.backgroundColor = "#f1f5f9";
+                      e.currentTarget.style.borderColor = "#94a3b8";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!addItemLoading) {
+                      e.currentTarget.style.backgroundColor = "white";
+                      e.currentTarget.style.borderColor = "#d1d5db";
+                    }
+                  }}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAddNewItem}
                   disabled={addItemLoading || !newItem.name?.trim()}
-                  className="footer-button primary"
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor:
+                      addItemLoading || !newItem.name?.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                    backgroundColor:
+                      addItemLoading || !newItem.name?.trim()
+                        ? "#cbd5e1"
+                        : "#ff6b35",
+                    color: "white",
+                    opacity:
+                      addItemLoading || !newItem.name?.trim() ? 0.6 : 1,
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!addItemLoading && newItem.name?.trim()) {
+                      e.currentTarget.style.backgroundColor = "#e85a2a";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!addItemLoading && newItem.name?.trim()) {
+                      e.currentTarget.style.backgroundColor = "#ff6b35";
+                    }
+                  }}
                 >
                   {addItemLoading ? "A guardar..." : "Adicionar Item"}
                 </button>
