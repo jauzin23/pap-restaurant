@@ -8,11 +8,11 @@ import {
   Trash2,
   MessageSquare,
   ArrowLeft,
-  ShoppingCart,
   UtensilsCrossed,
   Loader2,
   CheckCircle,
-  UserCircle,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth } from "../../../lib/api";
@@ -21,7 +21,7 @@ import {
   WebSocketProvider,
   useWebSocketContext,
 } from "../../../contexts/WebSocketContext";
-import NumberFlow from '@number-flow/react';
+import NumberFlow from "@number-flow/react";
 import "./page.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -42,18 +42,9 @@ interface Table {
   tableNumber: number;
 }
 
-interface CartItem extends MenuItem {
+interface OrderItem extends MenuItem {
   notes?: string;
-}
-
-interface User {
-  $id: string;
-  id: string;
-  name: string;
-  username: string;
-  email: string;
-  labels: string[];
-  profile_image?: string;
+  quantity: number;
 }
 
 function PedidoPageContent({
@@ -67,94 +58,24 @@ function PedidoPageContent({
   const resolvedParams = React.use(params);
   const mesas = resolvedParams.mesas || [];
 
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [validTables, setValidTables] = useState<number[]>([]);
-  const [validTableIds, setValidTableIds] = useState<string[]>([]); // Store table IDs for API calls
+  const [validTableIds, setValidTableIds] = useState<string[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("Todos");
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOrderSubmitting, setIsOrderSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
-  const [addingToCart, setAddingToCart] = useState<string | null>(null);
-  const [noteModalOpen, setNoteModalOpen] = useState<string | null>(null);
-  const [tempNote, setTempNote] = useState("");
   const [menuLoading, setMenuLoading] = useState(false);
-  const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
-  const [username, setUsername] = useState("");
-  const [userLabels, setUserLabels] = useState<string[]>([]);
-  const [profileImg, setProfileImg] = useState("");
-  const [activeNavItem, setActiveNavItem] = useState("Pedidos");
+  const [noteModalItem, setNoteModalItem] = useState<OrderItem | null>(null);
+  const [tempNote, setTempNote] = useState("");
 
-  // Memoized Profile Image Component with fallback
-  const ProfileImage = React.memo(
-    ({
-      src,
-      alt,
-      className,
-      size = 24,
-      isCircular = false,
-    }: {
-      src?: string;
-      alt: string;
-      className?: string;
-      size?: number;
-      isCircular?: boolean;
-    }) => {
-      const [hasError, setHasError] = useState(false);
-
-      if (hasError || !src) {
-        return (
-          <div
-            className={`${className} bg-gray-100 flex items-center justify-center ${
-              isCircular ? "rounded-full" : "rounded-lg"
-            }`}
-            style={{
-              width: typeof size === "number" ? `${size}px` : size,
-              height: typeof size === "number" ? `${size}px` : size,
-            }}
-          >
-            <UserCircle
-              size={typeof size === "number" ? Math.floor(size * 0.7) : 24}
-              className="text-gray-400"
-            />
-          </div>
-        );
-      }
-
-      return (
-        <div
-          className={`${className} ${
-            isCircular ? "rounded-full" : "rounded-lg"
-          } overflow-hidden`}
-          style={{
-            width: typeof size === "number" ? `${size}px` : size,
-            height: typeof size === "number" ? `${size}px` : size,
-            backgroundColor: "#f8fafc",
-          }}
-        >
-          <img
-            src={src}
-            alt={alt}
-            className="w-full h-full object-cover"
-            onError={() => setHasError(true)}
-            style={{
-              backgroundColor: "transparent",
-            }}
-          />
-        </div>
-      );
-    }
-  );
-
-  // Function to get auth token
   const getAuthToken = () => {
-    return localStorage.getItem("auth_token"); // Fixed: use same key as api.js
+    return localStorage.getItem("auth_token");
   };
 
-  // Function to make API requests with auth
   const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     const token = getAuthToken();
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -167,11 +88,9 @@ function PedidoPageContent({
     });
 
     if (!response.ok) {
-      // Handle authentication errors specifically
       if (response.status === 401) {
-        console.error("Authentication failed - redirecting to login");
         router.push("/login");
-        throw new Error("Session expired. Please login again.");
+        throw new Error("Session expired");
       }
       throw new Error(`API Error: ${response.status}`);
     }
@@ -179,45 +98,11 @@ function PedidoPageContent({
     return response.json();
   };
 
-  // Function to get image URL for menu item
   const getImageUrl = (imageId: string | undefined) => {
     if (!imageId || imageId === "undefined" || imageId === "null") return null;
     return `${API_BASE_URL}/files/imagens-menu/${imageId}`;
   };
 
-  // Authentication check and user data loading
-  useEffect(() => {
-    const loadUserAndData = async () => {
-      if (!isAuthenticated()) {
-        router.push("/login");
-        return;
-      }
-
-      try {
-        const userData = await auth.get();
-        setUser(userData);
-        setUsername(userData.name || userData.username || userData.email);
-        setUserLabels(userData.labels || []);
-
-        if (userData.profile_image) {
-          setProfileImg(
-            `${API_BASE_URL}/files/imagens-perfil/${userData.profile_image}`
-          );
-        }
-
-        await validateTablesAndFetchMenu();
-      } catch (error) {
-        console.error("Error loading user data:", error);
-        router.push("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUserAndData();
-  }, [mesas]);
-
-  // Function to fetch menu items
   const fetchMenuItems = async () => {
     try {
       setMenuLoading(true);
@@ -226,69 +111,42 @@ function PedidoPageContent({
       const items = response.documents || response.menu || [];
       setMenuItems(items);
 
-      // Extract and update categories
       const itemCategories = items.map(
         (item: MenuItem) => item.category || "outros"
       );
       const uniqueCategories = [...new Set(itemCategories)] as string[];
       setCategories(["Todos", ...uniqueCategories]);
-
-      console.log("Menu items updated:", items.length, "items");
     } catch (error) {
-      console.error("Error fetching menu items:", error);
+      console.error("Error fetching menu:", error);
     } finally {
       setMenuLoading(false);
     }
   };
 
-  // Validate table IDs exist and fetch menu items
   const validateTablesAndFetchMenu = async () => {
     try {
       setIsLoading(true);
 
-      console.log("Debug - mesas array:", mesas);
-
-      // Validate tables - now expecting table IDs (UUIDs) instead of table numbers
-      let tableIds: string[] = [];
-
-      if (mesas.length === 0) {
-        console.error("mesas array is empty - redirecting to pagina-teste-new");
-        router.push("/pagina-teste-new");
-        return;
-      }
-
-      // Check if mesas contains undefined or null values
       const cleanMesas = mesas.filter(
         (mesa) => mesa != null && mesa !== undefined && mesa !== ""
       );
+
       if (cleanMesas.length === 0) {
-        console.error("mesas array contains only null/undefined/empty values");
         router.push("/pagina-teste-new");
         return;
       }
 
-      if (
-        cleanMesas.length === 1 &&
-        typeof cleanMesas[0] === "string" &&
-        (cleanMesas[0].includes(",") || cleanMesas[0].includes("%2C"))
-      ) {
-        // Handle comma-separated format like "uuid1,uuid2,uuid3" or URL-encoded
-        console.log("Parsing comma-separated format:", cleanMesas[0]);
+      let tableIds: string[] = [];
 
-        // Decode URL-encoded string first
+      if (cleanMesas.length === 1 && cleanMesas[0].includes(",")) {
         const decodedString = decodeURIComponent(cleanMesas[0]);
-        console.log("Decoded string:", decodedString);
-
         tableIds = decodedString
           .split(",")
           .map((str) => str.trim())
           .filter((str) => str !== "");
       } else {
-        // Handle regular array format like ["uuid1", "uuid2", "uuid3"]
-        console.log("Parsing array format:", cleanMesas);
         tableIds = cleanMesas
           .map((item) => {
-            // Try to decode each item in case it's URL-encoded
             try {
               return decodeURIComponent(String(item));
             } catch (e) {
@@ -298,216 +156,68 @@ function PedidoPageContent({
           .filter((id) => id !== "");
       }
 
-      console.log("Parsed table IDs:", tableIds);
-
       if (tableIds.length === 0) {
-        console.error("No table IDs provided after parsing");
         router.push("/pagina-teste-new");
         return;
       }
 
-      // Check if tables exist
       const tablesResponse = await apiRequest("/tables");
       const existingTables = tablesResponse.documents || [];
 
-      console.log("Tables API response:", tablesResponse);
-      console.log("Existing tables:", existingTables);
-
       if (!existingTables || existingTables.length === 0) {
-        console.error("No tables found in the database");
-        alert(
-          "Error: No tables found in the system. Please contact an administrator."
-        );
+        alert("Error: No tables found");
         router.push("/pagina-teste-new");
         return;
       }
 
-      // Validate that the provided table IDs exist in the database
       const validTableIdsArray = tableIds.filter((id) =>
         existingTables.some((table: Table) => (table.$id || table.id) === id)
       );
 
       if (validTableIdsArray.length === 0) {
-        console.error("No valid table IDs found");
         router.push("/pagina-teste-new");
         return;
       }
 
-      // Get the table numbers for display purposes
       const validTableNumbers = existingTables
         .filter((table: Table) =>
           validTableIdsArray.includes(table.$id || table.id)
         )
         .map((table: Table) => table.tableNumber);
 
-      console.log("Existing tables from API:", existingTables);
-      console.log("Valid table IDs:", validTableIdsArray);
-      console.log("Valid table numbers (for display):", validTableNumbers);
-
       setValidTables(validTableNumbers);
       setValidTableIds(validTableIdsArray);
 
-      // Fetch menu items
       await fetchMenuItems();
-
-      console.log("Tables and menu loaded successfully");
     } catch (error) {
-      console.error("Error validating tables or fetching menu:", error);
+      console.error("Error validating tables:", error);
       router.push("/pagina-teste-new");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to handle navigation clicks
-  const handleNavClick = (navItem: string) => {
-    if (navItem === "Painel") {
-      router.push("/pagina-teste-new");
-    }
-  };
-
-  // Check if user is a manager
-  const isManager =
-    userLabels.includes("manager") ||
-    userLabels.includes("Manager") ||
-    userLabels.includes("gerente") ||
-    userLabels.includes("Gerente");
-
-  // Memoize WebSocket event handlers to prevent recreation on every render
-  const handleOrderCreated = useCallback(
-    (order: any) => {
-      console.log("📦 Order created via WebSocket:", order);
-
-      // Check if order belongs to our tables
-      if (order.table_id && Array.isArray(order.table_id)) {
-        const belongsToOurTables = order.table_id.some((id: string) =>
-          validTableIds.includes(id)
-        );
-
-        if (belongsToOurTables) {
-          console.log("✅ Order belongs to current tables, refreshing menu");
-          // Note: We don't auto-add to cart, just refresh menu availability
-          fetchMenuItems();
-        }
-      }
-    },
-    [validTableIds]
-  );
-
-  const handleOrderUpdated = useCallback(
-    (order: any) => {
-      console.log("📝 Order updated via WebSocket:", order);
-
-      // Check if order belongs to our tables
-      if (order.table_id && Array.isArray(order.table_id)) {
-        const belongsToOurTables = order.table_id.some((id: string) =>
-          validTableIds.includes(id)
-        );
-
-        if (belongsToOurTables) {
-          console.log("✅ Order belongs to current tables");
-          fetchMenuItems();
-        }
-      }
-    },
-    [validTableIds]
-  );
-
-  const handleOrderDeleted = useCallback((data: any) => {
-    console.log("🗑️ Order deleted via WebSocket:", data);
-    fetchMenuItems();
-  }, []);
-
-  // Menu events - update menu items in real-time
-  const handleMenuCreated = useCallback((item: any) => {
-    console.log("🍕 Menu item created via WebSocket:", item);
-    setMenuItems((prev) => [...prev, item]);
-
-    // Update categories
-    const newCategory = item.category || "outros";
-    setCategories((prev) => {
-      if (!prev.includes(newCategory)) {
-        return [...prev, newCategory];
-      }
-      return prev;
-    });
-  }, []);
-
-  const handleMenuUpdated = useCallback((item: any) => {
-    console.log("✏️ Menu item updated via WebSocket:", item);
-    setMenuItems((prev) =>
-      prev.map((m) => (m.$id === item.$id || m.id === item.id ? item : m))
-    );
-  }, []);
-
-  const handleMenuDeleted = useCallback((data: any) => {
-    console.log("🗑️ Menu item deleted via WebSocket:", data);
-    const itemId = data.id || data.$id;
-    setMenuItems((prev) =>
-      prev.filter((m) => m.$id !== itemId && m.id !== itemId)
-    );
-
-    // Remove from cart if it was there
-    setCartItems((prev) =>
-      prev.filter((item) => item.$id !== itemId && item.id !== itemId)
-    );
-  }, []);
-
-  // WebSocket Real-Time Updates
   useEffect(() => {
-    if (!socket || !connected) return;
-
-    console.log("🔌 OrderPage: Setting up WebSocket listeners");
-
-    // Subscribe to specific tables
-    if (validTableIds.length > 0) {
-      validTableIds.forEach((tableId) => {
-        console.log(`📡 Subscribing to table: ${tableId}`);
-        socket.emit("subscribe:table", tableId);
-      });
-    }
-
-    // Register all event listeners
-    socket.on("order:created", handleOrderCreated);
-    socket.on("order:updated", handleOrderUpdated);
-    socket.on("order:deleted", handleOrderDeleted);
-    socket.on("menu:created", handleMenuCreated);
-    socket.on("menu:updated", handleMenuUpdated);
-    socket.on("menu:deleted", handleMenuDeleted);
-
-    // Cleanup function
-    return () => {
-      console.log("🔌 OrderPage: Cleaning up WebSocket listeners");
-
-      // Unsubscribe from tables
-      if (validTableIds.length > 0) {
-        validTableIds.forEach((tableId) => {
-          console.log(`📡 Unsubscribing from table: ${tableId}`);
-          socket.emit("unsubscribe:table", tableId);
-        });
+    const loadUserAndData = async () => {
+      if (!isAuthenticated()) {
+        router.push("/login");
+        return;
       }
 
-      // Remove all event listeners
-      socket.off("order:created", handleOrderCreated);
-      socket.off("order:updated", handleOrderUpdated);
-      socket.off("order:deleted", handleOrderDeleted);
-      socket.off("menu:created", handleMenuCreated);
-      socket.off("menu:updated", handleMenuUpdated);
-      socket.off("menu:deleted", handleMenuDeleted);
+      try {
+        await auth.get();
+        await validateTablesAndFetchMenu();
+      } catch (error) {
+        console.error("Error loading:", error);
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [
-    socket,
-    connected,
-    validTableIds,
-    handleOrderCreated,
-    handleOrderUpdated,
-    handleOrderDeleted,
-    handleMenuCreated,
-    handleMenuUpdated,
-    handleMenuDeleted,
-  ]);
 
-  // Memoize filtered menu items to avoid recalculation on every render
+    loadUserAndData();
+  }, [mesas]);
+
   const filteredMenuItems = useMemo(() => {
     return activeCategory === "Todos"
       ? menuItems
@@ -516,101 +226,83 @@ function PedidoPageContent({
         );
   }, [menuItems, activeCategory]);
 
-  // Memoize add to cart function
-  const addToCart = useCallback(async (item: MenuItem) => {
-    setAddingToCart(item.$id || item.id);
-
-    // Small delay for visual feedback
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    setCartItems((prev) => [...prev, { ...item, notes: "" }]);
-    setAddingToCart(null);
-
-    // Auto-open cart on mobile when item is added
-    if (window.innerWidth <= 768) {
-      setCartSidebarOpen(true);
-    }
+  const addToOrder = useCallback((item: MenuItem) => {
+    setOrderItems((prev) => {
+      const existing = prev.find(
+        (i) => (i.$id || i.id) === (item.$id || item.id)
+      );
+      if (existing) {
+        return prev.map((i) =>
+          (i.$id || i.id) === (item.$id || item.id)
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        );
+      }
+      return [...prev, { ...item, notes: "", quantity: 1 }];
+    });
   }, []);
 
-  // Memoize remove from cart function
-  const removeFromCart = useCallback((index: number) => {
-    setCartItems((prev) => prev.filter((_, i) => i !== index));
+  const removeFromOrder = useCallback((itemId: string) => {
+    setOrderItems((prev) => prev.filter((i) => (i.$id || i.id) !== itemId));
   }, []);
 
-  // Open note modal
-  const openNoteModal = (index: number) => {
-    const item = cartItems[index];
+  const updateQuantity = useCallback((itemId: string, delta: number) => {
+    setOrderItems((prev) =>
+      prev.map((item) => {
+        if ((item.$id || item.id) === itemId) {
+          const newQty = Math.max(1, item.quantity + delta);
+          return { ...item, quantity: newQty };
+        }
+        return item;
+      })
+    );
+  }, []);
+
+  const openNoteModal = (item: OrderItem) => {
+    setNoteModalItem(item);
     setTempNote(item.notes || "");
-    setNoteModalOpen(index.toString());
   };
 
-  // Save note
   const saveNote = () => {
-    if (noteModalOpen !== null) {
-      const index = parseInt(noteModalOpen);
-      setCartItems((prev) =>
-        prev.map((item, i) =>
-          i === index ? { ...item, notes: tempNote } : item
+    if (noteModalItem) {
+      const itemId = noteModalItem.$id || noteModalItem.id;
+      setOrderItems((prev) =>
+        prev.map((item) =>
+          (item.$id || item.id) === itemId ? { ...item, notes: tempNote } : item
         )
       );
     }
-    setNoteModalOpen(null);
+    setNoteModalItem(null);
     setTempNote("");
   };
 
-  // Memoize total calculation
   const total = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + (item.preco || 0), 0);
-  }, [cartItems]);
+    return orderItems.reduce(
+      (sum, item) => sum + (item.preco || 0) * item.quantity,
+      0
+    );
+  }, [orderItems]);
 
-  // Confirm order
   const confirmOrder = async () => {
-    if (cartItems.length === 0) {
-      console.error("No items in cart");
-      return;
-    }
-
-    if (validTableIds.length === 0) {
-      console.error("No valid table IDs available");
-      alert("Error: No valid tables selected");
-      return;
-    }
+    if (orderItems.length === 0) return;
 
     try {
       setIsOrderSubmitting(true);
 
-      // Create batch order request with proper table IDs and prices
-      const orderData = {
-        orders: cartItems.map((item) => ({
-          table_id: validTableIds, // Use table IDs instead of table numbers
+      const orders = orderItems.flatMap((item) =>
+        Array.from({ length: item.quantity }).map(() => ({
+          table_id: validTableIds,
           menu_item_id: item.$id || item.id,
           notas: item.notes || "",
-          price: item.preco || 0, // Include price as required by API
-        })),
-      };
-
-      console.log("Valid table IDs:", validTableIds);
-      console.log(
-        "Cart items:",
-        cartItems.map((item) => ({
-          name: item.nome,
-          id: item.$id || item.id,
+          price: item.preco || 0,
         }))
       );
-      console.log("Sending order data:", JSON.stringify(orderData, null, 2)); // Debug log
 
       await apiRequest("/orders/batch", {
         method: "POST",
-        body: JSON.stringify(orderData),
+        body: JSON.stringify({ orders }),
       });
 
-      console.log(
-        `Successfully created ${
-          cartItems.length
-        } orders for tables ${validTables.join(", ")}`
-      );
-
-      // Show success for 2 seconds then redirect
       setOrderSuccess(true);
       setTimeout(() => {
         router.push("/pagina-teste-new");
@@ -618,252 +310,123 @@ function PedidoPageContent({
     } catch (error) {
       console.error("Error creating order:", error);
       setIsOrderSubmitting(false);
-      // You could add a toast notification here instead of alert
     }
   };
 
-  // Cancel and go back
   const cancelOrder = () => {
     router.push("/pagina-teste-new");
   };
 
-  // Loading spinner component
-  const LoadingSpinner = ({ size = 24 }: { size?: number }) => (
-    <Loader2 size={size} className="loading-spinner" />
-  );
-
-  // Skeleton loader for menu items
-  const MenuItemSkeleton = () => (
-    <div className="menu-item-skeleton">
-      <div className="skeleton-image"></div>
-      <div className="skeleton-title"></div>
-      <div className="skeleton-description"></div>
-      <div className="skeleton-price"></div>
-    </div>
-  );
-
-  // Main loading state
   if (loading || isLoading) {
     return (
-      <div className="dashboard fade-in" style={{ background: 'white' }}>
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: -1,
-            background: 'white',
-          }}
-        >
-        </div>
-
-        <div className="order-page">
-          <div className="order-main">
-            <div className="order-header">
-              <div className="back-button">
-                <ArrowLeft size={20} />
-              </div>
-              <h1>Carregar Pedido...</h1>
-            </div>
-
-            <div className="category-tabs">
-              <div className="category-skeleton"></div>
-              <div className="category-skeleton"></div>
-              <div className="category-skeleton"></div>
-              <div className="category-skeleton"></div>
-            </div>
-
-            <div className="menu-grid">
-              {Array.from({ length: 8 }).map((_, index) => (
-                <MenuItemSkeleton key={index} />
-              ))}
-            </div>
-          </div>
-
-          <aside className="cart-sidebar">
-            <div className="cart-header">
-              <ShoppingCart size={20} />
-              <h2>Carrinho</h2>
-              <span className="cart-count">0</span>
-            </div>
-            <div className="cart-items">
-              <div className="cart-loading">
-                <LoadingSpinner size={32} />
-                <p>A carregar...</p>
-              </div>
-            </div>
-          </aside>
+      <div className="order-page-container">
+        <BackgroundBeams pathCount={20} />
+        <div className="order-loading">
+          <Loader2 size={48} className="loading-spinner" />
+          <p>A carregar...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard fade-in" style={{ background: 'white' }}>
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: -1,
-          background: 'white',
-        }}
-      >
-        <div className="relative bg-white text-black min-h-screen">
-          <BackgroundBeams pathCount={20} />
-        </div>
-      </div>
+    <div className="order-page-container">
+      <BackgroundBeams pathCount={20} />
 
-      {/* Loading overlay for order submission */}
       {(isOrderSubmitting || orderSuccess) && (
-        <div className="order-loading-overlay">
-          <div className="order-loading-content">
+        <div className="order-overlay">
+          <div className="order-overlay-content">
             {orderSuccess ? (
               <>
-                <CheckCircle size={48} className="success-icon" />
-                <h3>Pedido criado com sucesso!</h3>
-                <p>A redirecionar...</p>
+                <CheckCircle size={64} className="success-icon" />
+                <h3>Pedido criado!</h3>
               </>
             ) : (
               <>
-                <LoadingSpinner size={48} />
-                <h3>A processar pedido...</h3>
-                <p>Por favor aguarde</p>
+                <Loader2 size={64} className="loading-spinner" />
+                <h3>A processar...</h3>
               </>
             )}
           </div>
         </div>
       )}
 
-      <main className="main-content fade-in-delayed">
-        <div
-          className="order-page"
-          style={{
-            pointerEvents: isOrderSubmitting || orderSuccess ? "none" : "auto",
-          }}
-        >
-          {/* Main Content */}
-          <div className="order-main">
-            {/* Header with selected tables */}
-            <div className="order-header">
-              <button onClick={cancelOrder} className="back-button">
-                <ArrowLeft size={20} />
-              </button>
-              <h1 className="page-title slide-in-up">
-                Novo Pedido - Mesa{validTables.length > 1 ? "s" : ""}{" "}
-                {validTables.join(", ")}
-              </h1>
+      <div className="order-page">
+        <div className="order-header">
+          <button onClick={cancelOrder} className="back-btn">
+            <ArrowLeft size={20} />
+          </button>
+          <h1>
+            Mesa{validTables.length > 1 ? "s" : ""} {validTables.join(", ")}
+          </h1>
+        </div>
+
+        <div className="order-content">
+          {/* Left: Menu */}
+          <div className="menu-section">
+            <div className="category-bar">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  className={`category-btn ${
+                    activeCategory === category ? "active" : ""
+                  }`}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
             </div>
 
-            {/* Category Tabs */}
-            <div className="category-tabs fade-in-delayed">
+            <div className="menu-grid">
               {menuLoading ? (
-                <div className="category-loading">
-                  <LoadingSpinner size={16} />
-                  <span>A atualizar menu...</span>
+                <div className="loading-state">
+                  <Loader2 size={32} className="loading-spinner" />
                 </div>
-              ) : (
-                categories.map((category) => (
-                  <button
-                    key={category}
-                    className={`category-tab scale-in ${
-                      activeCategory === category ? "active" : ""
-                    }`}
-                    onClick={() => setActiveCategory(category)}
-                    disabled={menuLoading}
-                  >
-                    {category}
-                  </button>
-                ))
-              )}
-            </div>
-
-            {/* Menu Items Grid */}
-            <div className="menu-grid slide-in-up">
-              {menuLoading ? (
-                Array.from({ length: 6 }).map((_, index) => (
-                  <MenuItemSkeleton key={`skeleton-${index}`} />
-                ))
               ) : filteredMenuItems.length === 0 ? (
-                <div className="menu-empty">
+                <div className="empty-state">
                   <UtensilsCrossed size={48} />
-                  <h3>Nenhum item encontrado</h3>
-                  <p>Não há itens disponíveis nesta categoria</p>
+                  <p>Nenhum item disponível</p>
                 </div>
               ) : (
                 filteredMenuItems.map((item) => {
-                  const imageUrl = item.image_id
-                    ? getImageUrl(item.image_id)
-                    : null;
+                  const imageUrl = getImageUrl(item.image_id);
                   const itemId = item.$id || item.id;
+                  const inOrder = orderItems.find(
+                    (i) => (i.$id || i.id) === itemId
+                  );
+
                   return (
                     <div
                       key={itemId}
-                      className={`menu-item-card scale-in ${
-                        addingToCart === itemId ? "loading" : ""
-                      }`}
-                      onClick={() => addToCart(item)}
+                      className={`menu-card ${inOrder ? "in-order" : ""}`}
+                      onClick={() => addToOrder(item)}
                     >
-                      {/* Image - inset style thumbnail */}
-                      <div className="menu-item-image">
-                        {addingToCart === itemId ? (
-                          <LoadingSpinner size={24} />
-                        ) : imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={item.nome}
-                            className="menu-image"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                              const parent = (e.target as HTMLElement)
-                                .parentElement;
-                              if (parent) {
-                                const fallback = parent.querySelector(
-                                  ".no-image-placeholder"
-                                );
-                                if (fallback)
-                                  (fallback as HTMLElement).style.display =
-                                    "flex";
-                              }
+                      <div className="menu-card-image">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={item.nome} />
+                        ) : (
+                          <div className="no-image">
+                            <UtensilsCrossed size={32} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="menu-card-info">
+                        <h3>{item.nome}</h3>
+                        <span className="price">
+                          €
+                          <NumberFlow
+                            value={item.preco || 0}
+                            format={{
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
                             }}
                           />
-                        ) : null}
-                        <div
-                          className="no-image-placeholder"
-                          style={{ display: imageUrl ? "none" : "flex" }}
-                        >
-                          <UtensilsCrossed size={32} />
-                        </div>
+                        </span>
                       </div>
-
-                      {/* Info - vertical card layout */}
-                      <div className="menu-item-info">
-                        <div className="menu-item-details">
-                          <h3>{item.nome}</h3>
-                          {item.category && (
-                            <span className="menu-item-category">
-                              {item.category}
-                            </span>
-                          )}
-                          {item.tags && item.tags.length > 0 && (
-                            <div className="menu-item-tags">
-                              {item.tags.map((tag, idx) => (
-                                <span key={idx} className="tag">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="menu-item-price">
-                          €<NumberFlow value={item.preco || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                        </div>
-                      </div>
+                      {inOrder && (
+                        <div className="in-order-badge">{inOrder.quantity}</div>
+                      )}
                     </div>
                   );
                 })
@@ -871,288 +434,164 @@ function PedidoPageContent({
             </div>
           </div>
 
-          {/* Mobile Cart Toggle Button */}
-          <button
-            className="mobile-cart-toggle"
-            onClick={() => setCartSidebarOpen(!cartSidebarOpen)}
-          >
-            <ShoppingCart size={24} />
-            {cartItems.length > 0 && (
-              <span className="mobile-cart-badge">{cartItems.length}</span>
-            )}
-          </button>
-
-          {/* Cart Overlay */}
-          <div
-            className={`mobile-cart-overlay ${
-              cartSidebarOpen ? "active" : ""
-            }`}
-            onClick={() => setCartSidebarOpen(false)}
-          />
-
-          {/* Shopping Cart Sidebar */}
-          <aside
-            className={`cart-sidebar ${
-              cartSidebarOpen ? "cart-sidebar--open" : ""
-            }`}
-          >
-            <div className="cart-header">
-              <ShoppingCart size={20} />
-              <h2>Carrinho</h2>
-              <span className="cart-count">{cartItems.length}</span>
-
-              {/* Mobile close button */}
-              <button
-                className="mobile-cart-close"
-                onClick={() => setCartSidebarOpen(false)}
-              >
-                <X size={20} />
-              </button>
+          {/* Right: Order Summary */}
+          <div className="order-section">
+            <div className="order-header-bar">
+              <h2>Pedido</h2>
+              <span className="item-count">
+                {orderItems.reduce((sum, item) => sum + item.quantity, 0)} itens
+              </span>
             </div>
 
-            <div className="cart-items">
-              {cartItems.map((item, index) => {
-                const itemId = item.$id || item.id;
-                const imageUrl = getImageUrl(item.image_id);
-                return (
-                  <div key={`${itemId}-${index}`} className="cart-item">
-                    {/* Image Container */}
-                    <div className="cart-item-image-container">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={item.nome}
-                          className="cart-item-image"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              "none";
-                            const nextSibling = (e.target as HTMLElement)
-                              .nextSibling as HTMLElement;
-                            if (nextSibling) {
-                              nextSibling.style.display = "flex";
-                            }
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="no-image-placeholder"
-                        style={{
-                          display: imageUrl ? "none" : "flex",
-                        }}
-                      >
-                        <UtensilsCrossed size={24} />
-                      </div>
-                    </div>
+            <div className="order-items">
+              {orderItems.length === 0 ? (
+                <div className="empty-order">
+                  <UtensilsCrossed size={48} />
+                  <p>Selecione itens do menu</p>
+                </div>
+              ) : (
+                orderItems.map((item) => {
+                  const itemId = item.$id || item.id;
+                  const imageUrl = getImageUrl(item.image_id);
 
-                    {/* Content */}
-                    <div className="cart-item-content">
-                      <div className="cart-item-info">
-                        {/* Title and Price */}
-                        <div className="title-price-row">
-                          <h4>{item.nome}</h4>
-                          <span className="price">
-                            €<NumberFlow value={item.preco || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                          </span>
-                        </div>
-
-                        {/* Description */}
-                        {item.description && (
-                          <p className="description">{item.description}</p>
-                        )}
-
-                        {/* Category */}
-                        {item.category && (
-                          <div style={{ marginBottom: "8px" }}>
-                            <span className="category-tag">
-                              {item.category}
-                            </span>
+                  return (
+                    <div key={itemId} className="order-item">
+                      <div className="order-item-image">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={item.nome} />
+                        ) : (
+                          <div className="no-image-small">
+                            <UtensilsCrossed size={20} />
                           </div>
                         )}
+                      </div>
 
-                        {/* Notes */}
+                      <div className="order-item-details">
+                        <h4>{item.nome}</h4>
                         {item.notes && (
-                          <div className="cart-item-notes">
+                          <div className="item-notes">
                             <MessageSquare size={12} />
                             {item.notes}
                           </div>
                         )}
+                        <div className="item-actions">
+                          <button
+                            className="note-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNoteModal(item);
+                            }}
+                          >
+                            <MessageSquare size={14} />
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromOrder(itemId);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="action-buttons">
-                        <button
-                          onClick={() => openNoteModal(index)}
-                          className="edit-btn"
-                          title="Adicionar nota"
-                        >
-                          <MessageSquare size={14} />
-                          Nota
-                        </button>
-                        <button
-                          onClick={() => removeFromCart(index)}
-                          className="delete-btn"
-                          title="Remover item"
-                        >
-                          <Trash2 size={14} />
-                          Remover
-                        </button>
+                      <div className="order-item-controls">
+                        <div className="quantity-controls">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(itemId, -1);
+                            }}
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span>{item.quantity}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(itemId, 1);
+                            }}
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        <div className="item-price">
+                          €
+                          <NumberFlow
+                            value={(item.preco || 0) * item.quantity}
+                            format={{
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
-            {cartItems.length === 0 && (
-              <div className="cart-empty">
-                <p>Carrinho vazio</p>
-                <p>Selecione itens do menu</p>
+            <div className="order-footer">
+              <div className="order-total">
+                <span>Total</span>
+                <strong>
+                  €
+                  <NumberFlow
+                    value={total}
+                    format={{
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }}
+                  />
+                </strong>
               </div>
-            )}
-
-            {/* Cart Footer */}
-            <div className="cart-footer">
-              <div className="cart-total">
-                <strong>Total: €<NumberFlow value={total} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} /></strong>
-              </div>
-              <div className="cart-actions">
-                <button
-                  onClick={cancelOrder}
-                  className="cancel-button"
-                  title="Cancelar"
-                >
-                  <X size={20} />
+              <div className="order-actions">
+                <button onClick={cancelOrder} className="btn-cancel">
+                  <X size={18} />
+                  Cancelar
                 </button>
                 <button
                   onClick={confirmOrder}
-                  className="confirm-button"
-                  disabled={cartItems.length === 0 || isOrderSubmitting}
-                  title="Confirmar Pedido"
+                  className="btn-confirm"
+                  disabled={orderItems.length === 0 || isOrderSubmitting}
                 >
-                  {isOrderSubmitting ? (
-                    <>
-                      <LoadingSpinner size={20} />A processar...
-                    </>
-                  ) : (
-                    <>
-                      <Check size={20} />
-                      Confirmar
-                    </>
-                  )}
+                  <Check size={18} />
+                  Confirmar
                 </button>
               </div>
             </div>
-          </aside>
+          </div>
         </div>
-      </main>
+      </div>
 
       {/* Note Modal */}
-      {noteModalOpen !== null && (
-        <div
-          className="modal-overlay"
-          onClick={() => setNoteModalOpen(null)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 999999,
-            pointerEvents: "auto",
-          }}
-        >
-          <div
-            className="note-modal"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: "white",
-              borderRadius: "8px",
-              padding: "24px",
-              width: "90%",
-              maxWidth: "500px",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
-              pointerEvents: "auto",
-              position: "relative",
-              zIndex: 1000000,
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 16px 0",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              <MessageSquare size={20} />
-              Adicionar Nota
-            </h3>
+      {noteModalItem && (
+        <div className="modal-backdrop" onClick={() => setNoteModalItem(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <MessageSquare size={20} />
+                Nota
+              </h3>
+            </div>
             <textarea
               value={tempNote}
               onChange={(e) => setTempNote(e.target.value)}
-              placeholder="Nota para o chef (ex: sem cebola, bem passado, etc.)..."
+              placeholder="Ex: sem cebola, bem passado..."
               rows={4}
               autoFocus
-              style={{
-                width: "100%",
-                padding: "12px",
-                border: "1px solid #e9ecef",
-                borderRadius: "6px",
-                fontSize: "14px",
-                fontFamily: "inherit",
-                resize: "vertical",
-                minHeight: "100px",
-                marginBottom: "16px",
-                pointerEvents: "auto",
-                userSelect: "text",
-              }}
             />
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                justifyContent: "flex-end",
-              }}
-            >
+            <div className="modal-actions">
               <button
-                onClick={() => setNoteModalOpen(null)}
-                style={{
-                  padding: "12px 16px",
-                  border: "none",
-                  borderRadius: "6px",
-                  backgroundColor: "#6c757d",
-                  color: "white",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  pointerEvents: "auto",
-                }}
+                onClick={() => setNoteModalItem(null)}
+                className="btn-secondary"
               >
                 <X size={16} />
                 Cancelar
               </button>
-              <button
-                onClick={saveNote}
-                style={{
-                  padding: "12px 16px",
-                  border: "none",
-                  borderRadius: "6px",
-                  backgroundColor: "#ff6b35",
-                  color: "white",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  pointerEvents: "auto",
-                }}
-              >
+              <button onClick={saveNote} className="btn-primary">
                 <Check size={16} />
                 Guardar
               </button>
@@ -1164,7 +603,6 @@ function PedidoPageContent({
   );
 }
 
-// Wrap the component with WebSocketProvider
 export default function PedidoPage({
   params,
 }: {

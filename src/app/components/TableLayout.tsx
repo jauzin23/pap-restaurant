@@ -25,12 +25,14 @@ import {
   UtensilsCrossed,
   CheckCircle,
   MessageSquare,
+  ChevronRight,
 } from "lucide-react";
 import {
   tableLayouts,
   tables,
   orders as ordersApi,
   getAuthToken,
+  auth,
 } from "../../lib/api";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import { throttle } from "../../lib/throttle";
@@ -1902,14 +1904,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         return "#3b82f6";
       case "pronto":
         return "#10b981";
-      case "a ser entregue...":
+      case "a ser entregue":
         return "#8b5cf6";
       case "entregue":
         return "#6366f1";
-      case "completo":
-        return "#059669";
-      case "cancelado":
-        return "#ef4444";
       default:
         return "#6b7280";
     }
@@ -1919,11 +1917,101 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     { value: "pendente", label: "Pendente" },
     { value: "aceite", label: "Aceite" },
     { value: "pronto", label: "Pronto" },
-    { value: "a ser entregue...", label: "A ser entregue" },
+    { value: "a ser entregue", label: "A ser entregue" },
     { value: "entregue", label: "Entregue" },
-    { value: "completo", label: "Completo" },
-    { value: "cancelado", label: "Cancelado" },
   ];
+
+  // Get next status in workflow
+  const getNextStatus = (currentStatus: string): string | null => {
+    const workflow = ["pendente", "aceite", "pronto", "a ser entregue", "entregue"];
+    const currentIndex = workflow.indexOf(currentStatus);
+
+    // If status is not in workflow or is the last one, return null (no next status)
+    if (currentIndex === -1 || currentIndex === workflow.length - 1) {
+      return null;
+    }
+
+    return workflow[currentIndex + 1];
+  };
+
+  // Cycle status forward
+  const cycleStatusForward = async (order: any) => {
+    const orderId = order.$id || order.id;
+    const currentStatus = order.status || "pendente";
+    const nextStatus = getNextStatus(currentStatus);
+
+    if (!nextStatus) {
+      // Already at the end of the workflow
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const token = getAuthToken();
+
+      // Get current user from auth
+      const currentUser = await auth.get();
+      const userId = currentUser?.$id || currentUser?.id;
+      const currentTimestamp = new Date().toISOString();
+
+      // Determine which logging fields to send based on the status transition
+      const updateData: any = {
+        status: nextStatus,
+      };
+
+      // Add logging fields based on the transition
+      if (nextStatus === "aceite") {
+        // pendente → aceite
+        updateData.aceite_por = userId;
+        updateData.aceite_a = currentTimestamp;
+      } else if (nextStatus === "pronto") {
+        // aceite → pronto
+        updateData.preparado_por = userId;
+        updateData.preparado_a = currentTimestamp;
+      } else if (nextStatus === "entregue") {
+        // a ser entregue → entregue
+        updateData.entregue_por = userId;
+        updateData.entregue_a = currentTimestamp;
+      }
+      // No logging needed for: pronto → a ser entregue
+
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const updatedOrder = await response.json();
+
+        // Update local state immediately
+        onOrderUpdate(orderId, {
+          ...order,
+          ...updatedOrder,
+          status: nextStatus,
+        });
+
+        // Refetch orders in background
+        onRefresh();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Update error:", errorData);
+        alert(
+          "Erro ao atualizar estado: " +
+            (errorData.error || "Erro desconhecido")
+        );
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      alert("Erro ao atualizar estado");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Calculate total - use order.price instead of menu price
   const total = orders.reduce((sum, order) => {
@@ -1972,6 +2060,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             </div>
           ) : (
             <div className="orders-list">
+              {/* Table Header */}
+              <div className="orders-table-header">
+                <div>Imagem</div>
+                <div>Item</div>
+                <div>Preço</div>
+                <div>Estado</div>
+                <div>Ações</div>
+              </div>
+
+              {/* Table Rows */}
               {sortedOrders.map((order) => {
                 const menuItem = getMenuItem(order.menu_item_id);
                 const orderId = order.$id || order.id;
@@ -2070,50 +2168,114 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         </div>
                       </div>
                     ) : (
-                      // View Mode
+                      // View Mode - Table Cells
                       <>
-                        <div className="card-order-main">
+                        {/* Image Cell */}
+                        <div className="order-cell">
                           {imageUrl && (
                             <img
                               src={imageUrl}
                               alt={menuItem?.nome || ""}
-                              className="order-image"
+                              className="order-cell-image"
                             />
                           )}
-                          <div className="order-info">
-                            <div className="order-name">
+                        </div>
+
+                        {/* Item Cell */}
+                        <div className="order-cell order-cell-item">
+                          <div className="order-cell-item-info">
+                            <div className="order-item-name">
                               {menuItem?.nome || "Item desconhecido"}
                             </div>
-                            <div className="order-details">
-                              <span className="price">
-                                €<NumberFlow value={currentPrice} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                              </span>
-                              <span className="separator">•</span>
-                              <span
-                                className={`status status-${
-                                  order.status || "pendente"
-                                }`}
-                              >
-                                {order.status || "pendente"}
-                              </span>
-                            </div>
                             {order.notas && (
-                              <div className="order-notes">{order.notas}</div>
+                              <div className="order-item-notes">{order.notas}</div>
+                            )}
+                            {/* Staff workflow - professional display */}
+                            {(order.aceite_por_user || order.preparado_por_user || order.entregue_por_user) && (
+                              <div className="order-staff-workflow">
+                                {order.aceite_por_user && (
+                                  <div className="staff-member">
+                                    <img
+                                      src={`${API_BASE_URL}/files/imagens-perfil/${order.aceite_por_user.profile_image}`}
+                                      alt={order.aceite_por_user.nome}
+                                      className="staff-pfp"
+                                    />
+                                    <div className="staff-details">
+                                      <span className="staff-name">{order.aceite_por_user.nome}</span>
+                                      <span className="staff-role">Aceite</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {order.preparado_por_user && (
+                                  <div className="staff-member">
+                                    <img
+                                      src={`${API_BASE_URL}/files/imagens-perfil/${order.preparado_por_user.profile_image}`}
+                                      alt={order.preparado_por_user.nome}
+                                      className="staff-pfp"
+                                    />
+                                    <div className="staff-details">
+                                      <span className="staff-name">{order.preparado_por_user.nome}</span>
+                                      <span className="staff-role">Preparado</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {order.entregue_por_user && (
+                                  <div className="staff-member">
+                                    <img
+                                      src={`${API_BASE_URL}/files/imagens-perfil/${order.entregue_por_user.profile_image}`}
+                                      alt={order.entregue_por_user.nome}
+                                      className="staff-pfp"
+                                    />
+                                    <div className="staff-details">
+                                      <span className="staff-name">{order.entregue_por_user.nome}</span>
+                                      <span className="staff-role">Entregue</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
-                          <div className="order-total">
-                            €<NumberFlow value={itemTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                          </div>
                         </div>
-                        <div className="order-actions">
+
+                        {/* Price Cell */}
+                        <div className="order-cell order-cell-price">
+                          €<NumberFlow value={itemTotal} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+                        </div>
+
+                        {/* Status Cell */}
+                        <div className="order-cell order-cell-status">
+                          <span
+                            className={`status-badge status-${
+                              (order.status || "pendente").replace(/\s+/g, "-")
+                            } ${getNextStatus(order.status || "pendente") ? "clickable" : ""}`}
+                            onClick={() => {
+                              if (getNextStatus(order.status || "pendente")) {
+                                cycleStatusForward(order);
+                              }
+                            }}
+                            title={
+                              getNextStatus(order.status || "pendente")
+                                ? `Clicar para mudar para: ${getNextStatus(order.status || "pendente")}`
+                                : "Estado final"
+                            }
+                          >
+                            {order.status || "pendente"}
+                            {getNextStatus(order.status || "pendente") && (
+                              <ChevronRight size={14} />
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Actions Cell */}
+                        <div className="order-cell order-cell-actions">
                           <button
-                            className="btn-edit"
+                            className="action-btn-edit"
                             onClick={() => startEditing(order)}
                           >
                             Editar
                           </button>
                           <button
-                            className="btn-delete"
+                            className="action-btn-delete"
                             onClick={() => deleteOrder(order)}
                           >
                             Eliminar
@@ -2149,25 +2311,30 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         {/* Confirm Dialog */}
         {confirmDialog?.show && (
           <div
-            className="confirm-overlay"
+            className="delete-modal-overlay"
             onClick={() => setConfirmDialog(null)}
           >
-            <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="confirm-content">
-                <h3>Confirmar</h3>
+            <div className="delete-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="delete-modal-icon">
+                <Trash2 size={24} />
+              </div>
+              <div className="delete-modal-text">
+                <h3>Eliminar Pedido</h3>
                 <p>{confirmDialog.message}</p>
               </div>
-              <div className="confirm-actions">
+              <div className="delete-modal-actions">
                 <button
-                  className="confirm-btn cancel"
+                  className="delete-modal-btn delete-modal-cancel"
                   onClick={() => setConfirmDialog(null)}
                 >
+                  <X size={16} />
                   Cancelar
                 </button>
                 <button
-                  className="confirm-btn confirm"
+                  className="delete-modal-btn delete-modal-confirm"
                   onClick={confirmDialog.onConfirm}
                 >
+                  <Trash2 size={16} />
                   Eliminar
                 </button>
               </div>

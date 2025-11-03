@@ -10,6 +10,7 @@ const configurarManipuladoresSocket = (io) => {
     socket.join("mesas"); // Todos recebem updates de mesas
     socket.join("menu"); // Todos recebem updates de menu
     socket.join("stock"); // Todos recebem updates de stock
+    socket.join("utilizadores"); // Todos recebem updates de utilizadores
 
     if (socket.eGestor) {
       socket.join("gestores"); // Room exclusiva para gestores

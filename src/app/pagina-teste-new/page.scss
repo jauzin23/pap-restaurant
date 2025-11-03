@@ -9,17 +9,6 @@
   height: 100%;
   z-index: -1;
   overflow: hidden;
-
-  .background-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    pointer-events: none;
-    z-index: 1;
-  }
 }
 
 .fade-in,
@@ -473,37 +462,41 @@ body {
 }
 
 .dashboard-content {
-  margin-left: 14rem; // Match new sidebar width
+  margin-left: 14rem;
   transition: margin-left 0.3s ease;
-  min-height: 100vh;
+  height: 100% !important;
+
   background: transparent;
-  width: calc(100% - 14rem); // Prevent content overflow
+  width: calc(100% - 14rem);
   display: flex;
   flex-direction: column;
   position: relative;
 
   &.sidebar-collapsed {
-    margin-left: 6.5rem; // Match collapsed sidebar width
+    margin-left: 6.5rem;
     width: calc(100% - 6.5rem);
   }
 }
 
 .main-content {
-  padding: 1.5rem;
-  margin-top: 60px; /* Header height */
+  padding: 2rem;
+  margin-top: 24px;
   overflow-y: auto;
   height: calc(100vh - 60px);
   box-sizing: border-box;
 
-  /* Center the content within the container */
   display: flex;
   flex-direction: column;
+  gap: 0;
 
-  /* All child elements should respect max-width for readability */
   > * {
     width: 100%;
-    max-width: 1600px;
     margin: 0 auto;
+  }
+
+  // Extra spacing after welcome card
+  .welcome-card {
+    margin-bottom: 2rem;
   }
 
   /* Custom scrollbar styling */

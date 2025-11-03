@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
 import { createPortal } from "react-dom";
-import { Button } from "antd";
+import {
+  Button,
+  Table,
+  Tag,
+  Image as AntImage,
+  Input as AntInput,
+  Select as AntSelect,
+} from "antd";
 import {
   Plus,
   AlertTriangle,
@@ -32,16 +39,13 @@ import {
 } from "lucide-react";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
-import NumberFlow from '@number-flow/react';
+import NumberFlow from "@number-flow/react";
 import "./StockComponent.scss";
 
-// Import auth from your API module
 import { getAuthToken } from "@/lib/api";
 
-// Import WebSocket hook
 import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 
-// API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // API call helper with authentication
@@ -104,8 +108,10 @@ export default function StockComponent() {
 
   // Background removal states
   const [removingBackground, setRemovingBackground] = useState(false);
-  const [backgroundRemovalPreview, setBackgroundRemovalPreview] = useState(null);
-  const [originalImageBeforeRemoval, setOriginalImageBeforeRemoval] = useState(null);
+  const [backgroundRemovalPreview, setBackgroundRemovalPreview] =
+    useState(null);
+  const [originalImageBeforeRemoval, setOriginalImageBeforeRemoval] =
+    useState(null);
 
   // Dropdown data states
   const [categories, setCategories] = useState([]);
@@ -263,7 +269,10 @@ export default function StockComponent() {
 
       // Convert the returned base64 to blob
       const base64Response = data.imageData;
-      const base64Data = base64Response.replace(/^data:image\/[^;]+;base64,/, "");
+      const base64Data = base64Response.replace(
+        /^data:image\/[^;]+;base64,/,
+        ""
+      );
       const binaryData = atob(base64Data);
       const arrayBuffer = new Uint8Array(binaryData.length);
 
@@ -339,9 +348,7 @@ export default function StockComponent() {
   }, []);
 
   const handleItemUpdated = useCallback((item) => {
-    setStockItems((prev) =>
-      prev.map((i) => (i.$id === item.$id ? item : i))
-    );
+    setStockItems((prev) => prev.map((i) => (i.$id === item.$id ? item : i)));
   }, []);
 
   const handleItemDeleted = useCallback((data) => {
@@ -412,13 +419,13 @@ export default function StockComponent() {
 
   const handleAlert = useCallback((alert) => {
     // You can add toast notifications here if you have a toast library
-    console.log('[Stock Alert]', alert.status, alert.message);
+    console.log("[Stock Alert]", alert.status, alert.message);
 
     // Browser notification (if permitted)
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Stock Alert', {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Stock Alert", {
         body: alert.message,
-        icon: '/icon.png',
+        icon: "/icon.png",
         tag: `stock-alert-${alert.$id}`,
       });
     }
@@ -441,12 +448,12 @@ export default function StockComponent() {
     onAlert: handleAlert,
     onConnected: () => setWsConnected(true),
     onDisconnected: () => setWsConnected(false),
-    onError: (error) => console.error('[Stock WS Error]', error),
+    onError: (error) => console.error("[Stock WS Error]", error),
   });
 
   // Request notification permission on mount
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
   }, []);
@@ -478,16 +485,6 @@ export default function StockComponent() {
           item.supplier.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [stockItems, searchTerm]);
-
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE) || 1;
-  const paginatedItems = useMemo(
-    () =>
-      filteredItems.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-      ),
-    [filteredItems, currentPage]
-  );
 
   // Reset to page 1 when search changes
   useEffect(() => {
@@ -745,367 +742,411 @@ export default function StockComponent() {
     }
   }, []);
 
-  const StockTableRow = memo(({ item, editingState, onUpdateEditingState, categories, locations, suppliers, loading, onSave, onAddToCart, itemId }) => {
-    if (!item) return null;
+  const getStatusInfo = (current, minimum) => {
+    if (current <= minimum)
+      return { status: "critical", label: "Crítico", color: "#dc2626" };
+    if (current <= minimum + 5)
+      return { status: "warning", label: "Baixo", color: "#f59e0b" };
+    return { status: "ok", label: "OK", color: "#10b981" };
+  };
 
-    const isEditing = editingState !== undefined;
-
-    // Local state for editing values - this prevents unfocusing
-    const [localEditState, setLocalEditState] = useState(editingState || {});
-
-    // Sync local state when editing state changes from parent
-    useEffect(() => {
-      if (editingState) {
-        setLocalEditState(editingState);
-      }
-    }, [editingState]);
-
-    // Update parent state on blur or when values change
-    const syncToParent = useCallback(() => {
-      if (isEditing) {
-        onUpdateEditingState(itemId, localEditState);
-      }
-    }, [isEditing, itemId, localEditState, onUpdateEditingState]);
-
-    const handleSave = useCallback(() => {
-      syncToParent(); // Sync before saving
-      onSave(itemId);
-    }, [itemId, onSave, syncToParent]);
-
-    const handleCancel = useCallback(() => {
-      setLocalEditState({});
-      onUpdateEditingState(itemId, undefined);
-    }, [itemId, onUpdateEditingState]);
-
-    const handleStartEdit = useCallback(() => {
-      const initialState = {
-        name: item.name || "",
-        category: item.category || "",
-        location: item.location || "",
-        supplier: item.supplier || "",
-        qty: item.qty || 0,
-        min_qty: item.min_qty || 0,
-        cost_price: item.cost_price || 0,
-      };
-      setLocalEditState(initialState);
-      onUpdateEditingState(itemId, initialState);
-    }, [item, itemId, onUpdateEditingState]);
-
-    const handleAddToCart = useCallback((qty) => {
-      onAddToCart(itemId, qty);
-    }, [itemId, onAddToCart]);
-
-    const getStatusInfo = (current, minimum) => {
-      if (current <= minimum) return { status: "critical", label: "Crítico", icon: AlertTriangle };
-      if (current <= minimum + 5) return { status: "warning", label: "Baixo", icon: TrendingDown };
-      return { status: "ok", label: "OK", icon: Check };
-    };
-
-    const statusInfo = getStatusInfo(item.qty || 0, item.min_qty || 0);
-    const itemImageUrl = item.image_id ? getImageUrl(item.image_id) : null;
-    const StatusIcon = statusInfo.icon;
-
-    return (
-      <div className={`stock-table-row ${isEditing ? "editing" : ""}`}>
-        {/* Image */}
-        <div className="cell cell-image">
-          {itemImageUrl ? (
-            <img
-              src={itemImageUrl}
-              alt={item.name}
-              className="item-image"
-              onError={(e) => {
-                e.target.style.display = "none";
-                e.target.nextSibling.style.display = "flex";
-              }}
-            />
-          ) : null}
-          <div className={`image-placeholder ${itemImageUrl ? "hidden" : ""}`}>
-            <Package size={20} />
-          </div>
-        </div>
-
-        {/* Item Info */}
-        <div className="cell cell-info">
-          {isEditing ? (
-            <div className="edit-info-wrapper">
-              <input
-                type="text"
-                className="name-input"
-                value={localEditState?.name ?? item.name ?? ""}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setLocalEditState((prev) => ({
-                    ...prev,
-                    name: value,
-                  }));
-                }}
-                onBlur={syncToParent}
-                placeholder="Nome do item"
-              />
-              <select
-                className="category-select"
-                value={localEditState?.category ?? item.category ?? ""}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setLocalEditState((prev) => ({
-                    ...prev,
-                    category: value,
-                  }));
-                  syncToParent();
-                }}
-              >
-                <option value="">Sem categoria</option>
-                {categories.map((category) => (
-                  <option
-                    key={category.$id}
-                    value={category.name || category.category || ""}
-                  >
-                    {category.name || category.category || "Sem nome"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <>
-              <div className="item-name">{item.name || "Nome não disponível"}</div>
-              {item.category && (
-                <div className="item-category">{item.category}</div>
+  // Ant Design Table columns configuration
+  const columns = useMemo(
+    () => [
+      {
+        title: "Imagem",
+        dataIndex: "image_id",
+        key: "image_id",
+        render: (imageId, record) => {
+          const imageUrl = imageId ? getImageUrl(imageId) : null;
+          return (
+            <div style={{ width: 60, height: 60 }}>
+              {imageUrl ? (
+                <AntImage
+                  src={imageUrl}
+                  alt={record.name}
+                  width={60}
+                  height={60}
+                  style={{ objectFit: "contain", borderRadius: "4px" }}
+                  preview={false}
+                  fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNGMUY1RjkiLz48cGF0aCBkPSJNMzAgMjVMMzUgMzVIMjVMMzAgMjVaIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+"
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 60,
+                    height: 60,
+                    backgroundColor: "#f1f5f9",
+                    borderRadius: "4px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Package size={24} color="#94a3b8" />
+                </div>
               )}
-            </>
-          )}
-        </div>
-
-        {/* Stock Current */}
-        <div className="cell cell-qty">
-          {isEditing ? (
-            <input
-              type="number"
-              min="0"
-              className="qty-input"
-              value={localEditState?.qty ?? item.qty ?? 0}
-              onClick={(e) => e.stopPropagation()}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                setLocalEditState((prev) => ({
-                  ...prev,
-                  qty: parseInt(e.target.value) || 0,
-                }));
-              }}
-              onBlur={syncToParent}
-            />
-          ) : (
-            <span className={`qty-value ${statusInfo.status}`}>
-              <NumberFlow value={item.qty || 0} />
-            </span>
-          )}
-        </div>
-
-        {/* Stock Minimum */}
-        <div className="cell cell-min">
-          {isEditing ? (
-            <input
-              type="number"
-              min="0"
-              className="qty-input"
-              value={localEditState?.min_qty ?? item.min_qty ?? 0}
-              onClick={(e) => e.stopPropagation()}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                setLocalEditState((prev) => ({
-                  ...prev,
-                  min_qty: parseInt(e.target.value) || 0,
-                }));
-              }}
-              onBlur={syncToParent}
-            />
-          ) : (
-            <span className="qty-value">
-              <NumberFlow value={item.min_qty || 0} />
-            </span>
-          )}
-        </div>
-
-        {/* Status */}
-        <div className="cell cell-status">
-          <span className={`status-badge ${statusInfo.status}`}>
-            <StatusIcon size={14} />
-            {statusInfo.label}
-          </span>
-        </div>
-
-        {/* Price */}
-        <div className="cell cell-price">
-          {isEditing ? (
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              className="price-input"
-              value={localEditState?.cost_price ?? item.cost_price ?? 0}
-              onClick={(e) => e.stopPropagation()}
-              onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                setLocalEditState((prev) => ({
-                  ...prev,
-                  cost_price: parseFloat(e.target.value) || 0,
-                }));
-              }}
-              onBlur={syncToParent}
-            />
-          ) : (
-            <span className="price-value">
-              €<NumberFlow value={parseFloat(item.cost_price) || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-            </span>
-          )}
-        </div>
-
-        {/* Location & Supplier */}
-        <div className="cell cell-meta">
-          {isEditing ? (
-            <div className="edit-meta-wrapper">
-              <select
-                className="meta-select"
-                value={localEditState?.location ?? item.location ?? ""}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setLocalEditState((prev) => ({
-                    ...prev,
-                    location: value,
-                  }));
-                  syncToParent();
-                }}
-              >
-                <option value="">Sem localização</option>
-                {locations.map((location) => (
-                  <option
-                    key={location.$id}
-                    value={location.name || location.location || ""}
-                  >
-                    {location.name || location.location || "Sem nome"}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="meta-select"
-                value={localEditState?.supplier ?? item.supplier ?? ""}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setLocalEditState((prev) => ({
-                    ...prev,
-                    supplier: value,
-                  }));
-                  syncToParent();
-                }}
-              >
-                <option value="">Sem fornecedor</option>
-                {suppliers.map((supplier) => (
-                  <option
-                    key={supplier.$id}
-                    value={supplier.name || supplier.supplier || ""}
-                  >
-                    {supplier.name || supplier.supplier || "Sem nome"}
-                  </option>
-                ))}
-              </select>
             </div>
-          ) : (
-            <>
-              <div className="meta-item">
-                <MapPin size={14} />
-                <span>{item.location || "N/A"}</span>
-              </div>
-              <div className="meta-item">
-                <Truck size={14} />
-                <span>{item.supplier || "N/A"}</span>
-              </div>
-            </>
-          )}
-        </div>
+          );
+        },
+      },
+      {
+        title: "Item",
+        dataIndex: "name",
+        key: "name",
+        render: (name, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
+          const editState = editingRows[record.$id];
 
-        {/* Actions */}
-        <div className="cell cell-actions">
-          {isEditing ? (
-            <>
-              <button
-                className="action-btn save"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSave();
+          if (isEditing) {
+            return (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <AntInput
+                  value={editState?.name ?? name ?? ""}
+                  onChange={(e) => {
+                    updateEditingState(record.$id, {
+                      ...editState,
+                      name: e.target.value,
+                    });
+                  }}
+                  placeholder="Nome do item"
+                  style={{ fontWeight: 600 }}
+                />
+                <AntSelect
+                  value={editState?.category ?? record.category ?? ""}
+                  onChange={(value) => {
+                    updateEditingState(record.$id, {
+                      ...editState,
+                      category: value,
+                    });
+                  }}
+                  style={{ width: "100%" }}
+                >
+                  <AntSelect.Option value="">Sem categoria</AntSelect.Option>
+                  {categories.map((category) => (
+                    <AntSelect.Option
+                      key={category.$id}
+                      value={category.name || category.category || ""}
+                    >
+                      {category.name || category.category || "Sem nome"}
+                    </AntSelect.Option>
+                  ))}
+                </AntSelect>
+              </div>
+            );
+          }
+
+          return (
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: "4px" }}>
+                {name || "Nome não disponível"}
+              </div>
+              {record.category && (
+                <div style={{ fontSize: "12px", color: "#64748b" }}>
+                  {record.category}
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        title: "Stock",
+        dataIndex: "qty",
+        key: "qty",
+        sorter: (a, b) => a.qty - b.qty,
+        render: (qty, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
+          const editState = editingRows[record.$id];
+          const statusInfo = getStatusInfo(qty || 0, record.min_qty || 0);
+
+          if (isEditing) {
+            return (
+              <AntInput
+                type="number"
+                min="0"
+                value={editState?.qty ?? qty ?? 0}
+                onChange={(e) => {
+                  updateEditingState(record.$id, {
+                    ...editState,
+                    qty: parseInt(e.target.value) || 0,
+                  });
                 }}
+                style={{ width: "80px" }}
+              />
+            );
+          }
+
+          return (
+            <span style={{ fontWeight: 600, color: statusInfo.color }}>
+              <NumberFlow value={qty || 0} />
+            </span>
+          );
+        },
+      },
+      {
+        title: "Mínimo",
+        dataIndex: "min_qty",
+        key: "min_qty",
+        render: (min_qty, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
+          const editState = editingRows[record.$id];
+
+          if (isEditing) {
+            return (
+              <AntInput
+                type="number"
+                min="0"
+                value={editState?.min_qty ?? min_qty ?? 0}
+                onChange={(e) => {
+                  updateEditingState(record.$id, {
+                    ...editState,
+                    min_qty: parseInt(e.target.value) || 0,
+                  });
+                }}
+                style={{ width: "80px" }}
+              />
+            );
+          }
+
+          return <NumberFlow value={min_qty || 0} />;
+        },
+      },
+      {
+        title: "Estado",
+        key: "status",
+        render: (_, record) => {
+          const statusInfo = getStatusInfo(
+            record.qty || 0,
+            record.min_qty || 0
+          );
+          const StatusIcon =
+            statusInfo.status === "critical"
+              ? AlertTriangle
+              : statusInfo.status === "warning"
+              ? TrendingDown
+              : Check;
+
+          return (
+            <Tag
+              color={statusInfo.color}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                width: "fit-content",
+              }}
+            >
+              <StatusIcon size={14} />
+              {statusInfo.label}
+            </Tag>
+          );
+        },
+      },
+      {
+        title: "Preço",
+        dataIndex: "cost_price",
+        key: "cost_price",
+        sorter: (a, b) => (a.cost_price || 0) - (b.cost_price || 0),
+        render: (cost_price, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
+          const editState = editingRows[record.$id];
+
+          if (isEditing) {
+            return (
+              <AntInput
+                type="number"
+                step="0.01"
+                min="0"
+                value={editState?.cost_price ?? cost_price ?? 0}
+                onChange={(e) => {
+                  updateEditingState(record.$id, {
+                    ...editState,
+                    cost_price: parseFloat(e.target.value) || 0,
+                  });
+                }}
+                style={{ width: "100px" }}
+                prefix="€"
+              />
+            );
+          }
+
+          return (
+            <span style={{ fontWeight: 500 }}>
+              <NumberFlow
+                value={parseFloat(cost_price) || 0}
+                format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+              />
+              €
+            </span>
+          );
+        },
+      },
+      {
+        title: "Local & Fornecedor",
+        key: "meta",
+        render: (_, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
+          const editState = editingRows[record.$id];
+
+          if (isEditing) {
+            return (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <AntSelect
+                  value={editState?.location ?? record.location ?? ""}
+                  onChange={(value) => {
+                    updateEditingState(record.$id, {
+                      ...editState,
+                      location: value,
+                    });
+                  }}
+                  style={{ width: "100%" }}
+                >
+                  <AntSelect.Option value="">Sem localização</AntSelect.Option>
+                  {locations.map((location) => (
+                    <AntSelect.Option
+                      key={location.$id}
+                      value={location.name || location.location || ""}
+                    >
+                      {location.name || location.location || "Sem nome"}
+                    </AntSelect.Option>
+                  ))}
+                </AntSelect>
+                <AntSelect
+                  value={editState?.supplier ?? record.supplier ?? ""}
+                  onChange={(value) => {
+                    updateEditingState(record.$id, {
+                      ...editState,
+                      supplier: value,
+                    });
+                  }}
+                  style={{ width: "100%" }}
+                >
+                  <AntSelect.Option value="">Sem fornecedor</AntSelect.Option>
+                  {suppliers.map((supplier) => (
+                    <AntSelect.Option
+                      key={supplier.$id}
+                      value={supplier.name || supplier.supplier || ""}
+                    >
+                      {supplier.name || supplier.supplier || "Sem nome"}
+                    </AntSelect.Option>
+                  ))}
+                </AntSelect>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                <MapPin size={14} color="#64748b" />
+                <span>{record.location || "N/A"}</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                <Truck size={14} color="#64748b" />
+                <span>{record.supplier || "N/A"}</span>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        title: "Ações",
+        key: "actions",
+        render: (_, record) => {
+          const isEditing = editingRows[record.$id] !== undefined;
+
+          if (isEditing) {
+            return (
+              <div style={{ display: "flex", gap: "4px" }}>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<Save size={14} />}
+                  onClick={() => handleSaveEdit(record.$id)}
+                  disabled={loading}
+                >
+                  Guardar
+                </Button>
+                <Button
+                  size="small"
+                  icon={<X size={14} />}
+                  onClick={() => updateEditingState(record.$id, undefined)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            );
+          }
+
+          return (
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              <Button
+                size="small"
+                icon={<Edit size={14} />}
+                onClick={() => {
+                  updateEditingState(record.$id, {
+                    name: record.name || "",
+                    category: record.category || "",
+                    location: record.location || "",
+                    supplier: record.supplier || "",
+                    qty: record.qty || 0,
+                    min_qty: record.min_qty || 0,
+                    cost_price: record.cost_price || 0,
+                  });
+                }}
+              />
+              <Button
+                size="small"
+                type="primary"
+                icon={<Plus size={14} />}
+                onClick={() => addToMovementCart(record.$id, 1)}
                 disabled={loading}
-                title="Guardar"
-              >
-                <Save size={16} />
-              </button>
-              <button
-                className="action-btn cancel"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancel();
-                }}
-                title="Cancelar"
-              >
-                <X size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="action-btn edit"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStartEdit();
-                }}
-                title="Editar"
-              >
-                <Edit size={16} />
-              </button>
-              <button
-                className="action-btn add"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddToCart(1);
-                }}
+              />
+              <Button
+                size="small"
+                danger
+                icon={<Minus size={14} />}
+                onClick={() => addToMovementCart(record.$id, -1)}
                 disabled={loading}
-                title="Adicionar stock"
-              >
-                <Plus size={16} />
-              </button>
-              <button
-                className="action-btn remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddToCart(-1);
-                }}
-                disabled={loading}
-                title="Remover stock"
-              >
-                <Minus size={16} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }, (prevProps, nextProps) => {
-    // Only re-render if the item itself changed, or if the editing state for this specific item changed
-    return (
-      prevProps.item.$id === nextProps.item.$id &&
-      prevProps.item.name === nextProps.item.name &&
-      prevProps.item.category === nextProps.item.category &&
-      prevProps.item.qty === nextProps.item.qty &&
-      prevProps.item.min_qty === nextProps.item.min_qty &&
-      prevProps.item.cost_price === nextProps.item.cost_price &&
-      prevProps.editingState === nextProps.editingState &&
-      prevProps.loading === nextProps.loading
-    );
-  });
+              />
+            </div>
+          );
+        },
+      },
+    ],
+    [
+      editingRows,
+      categories,
+      locations,
+      suppliers,
+      loading,
+      getImageUrl,
+      updateEditingState,
+      handleSaveEdit,
+      addToMovementCart,
+    ]
+  );
 
   return (
     <div className="stock-component">
@@ -1117,7 +1158,10 @@ export default function StockComponent() {
             <Package className="title-icon" />
             Gestão de Stock
             {wsConnected && (
-              <span className="ws-indicator connected" title="WebSocket conectado - Updates em tempo real">
+              <span
+                className="ws-indicator connected"
+                title="WebSocket conectado - Updates em tempo real"
+              >
                 ●
               </span>
             )}
@@ -1178,7 +1222,8 @@ export default function StockComponent() {
                     <div key={item.$id} className="critical-item-mini">
                       <span className="item-name">{item.name}</span>
                       <span className="item-qty">
-                        <NumberFlow value={item.qty} />/<NumberFlow value={item.min_qty} />
+                        <NumberFlow value={item.qty} />/
+                        <NumberFlow value={item.min_qty} />
                       </span>
                     </div>
                   ))}
@@ -1208,7 +1253,13 @@ export default function StockComponent() {
                 <TrendingUp className="stat-icon" />
               </div>
               <div className="stat-value success">
-                <NumberFlow value={stockItems.length - criticalStock.length - warningStock.length} />
+                <NumberFlow
+                  value={
+                    stockItems.length -
+                    criticalStock.length -
+                    warningStock.length
+                  }
+                />
               </div>
               <div className="stat-description">Itens com stock adequado</div>
             </div>
@@ -1236,14 +1287,32 @@ export default function StockComponent() {
                 <div className="cart-banner-info">
                   <ShoppingCart size={18} />
                   <span className="cart-banner-text">
-                    <strong>{Object.values(movementCart).reduce((sum, qty) => sum + Math.abs(qty), 0)}</strong> {Object.values(movementCart).reduce((sum, qty) => sum + Math.abs(qty), 0) === 1 ? "movimento pendente" : "movimentos pendentes"}
+                    <strong>
+                      {Object.values(movementCart).reduce(
+                        (sum, qty) => sum + Math.abs(qty),
+                        0
+                      )}
+                    </strong>{" "}
+                    {Object.values(movementCart).reduce(
+                      (sum, qty) => sum + Math.abs(qty),
+                      0
+                    ) === 1
+                      ? "movimento pendente"
+                      : "movimentos pendentes"}
                   </span>
                 </div>
                 <div className="cart-banner-actions">
-                  <button onClick={() => setIsCartModalOpen(true)} className="cart-banner-btn view">
+                  <button
+                    onClick={() => setIsCartModalOpen(true)}
+                    className="cart-banner-btn view"
+                  >
                     Ver Detalhes
                   </button>
-                  <button onClick={clearMovementCart} className="cart-banner-btn clear" disabled={loading}>
+                  <button
+                    onClick={clearMovementCart}
+                    className="cart-banner-btn clear"
+                    disabled={loading}
+                  >
                     Limpar
                   </button>
                   <button
@@ -1261,103 +1330,57 @@ export default function StockComponent() {
 
             {/* Stock Table */}
             <div className="stock-table-container">
-              {loading ? (
-                <div className="loading-state">
-                  <div className="loading-spinner"></div>
-                  <div className="loading-text">A carregar stock...</div>
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">
-                    <Package size={32} />
-                  </div>
-                  <div className="empty-title">Nenhum item encontrado</div>
-                  <div className="empty-description">
-                    {searchTerm
-                      ? "Tente ajustar os termos de pesquisa"
-                      : "Adicione alguns itens para começar a gerir o seu stock"}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Table Header */}
-                  <div className="stock-table-header">
-                    <div className="header-cell cell-image">Imagem</div>
-                    <div className="header-cell cell-info">Item</div>
-                    <div className="header-cell cell-qty">Stock</div>
-                    <div className="header-cell cell-min">Mínimo</div>
-                    <div className="header-cell cell-status">Estado</div>
-                    <div className="header-cell cell-price">Preço</div>
-                    <div className="header-cell cell-meta">Local & Fornecedor</div>
-                    <div className="header-cell cell-actions">Ações</div>
-                  </div>
-
-                  {/* Table Rows */}
-                  <div className="stock-table-body">
-                    {paginatedItems.map((item) => (
-                      <StockTableRow
-                        key={item.$id}
-                        item={item}
-                        itemId={item.$id}
-                        editingState={editingRows[item.$id]}
-                        onUpdateEditingState={updateEditingState}
-                        categories={categories}
-                        locations={locations}
-                        suppliers={suppliers}
-                        loading={loading}
-                        onSave={handleSaveEdit}
-                        onAddToCart={addToMovementCart}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="pagination">
-                      <button
-                        className="page-button"
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(1, prev - 1))
-                        }
-                        disabled={currentPage === 1 || loading}
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-
-                      <span className="page-info">
-                        Página <NumberFlow value={currentPage} /> de <NumberFlow value={totalPages} />
-                      </span>
-
-                      <button
-                        className="page-button"
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(totalPages, prev + 1)
-                          )
-                        }
-                        disabled={currentPage === totalPages || loading}
-                      >
-                        <ChevronDown size={16} />
-                      </button>
+              <Table
+                dataSource={filteredItems.map((item) => ({
+                  ...item,
+                  key: item.$id,
+                }))}
+                columns={columns}
+                loading={loading}
+                pagination={{
+                  pageSize: ITEMS_PER_PAGE,
+                  showSizeChanger: true,
+                  showTotal: (total, range) =>
+                    `${range[0]}-${range[1]} de ${total} items`,
+                  pageSizeOptions: ["10", "25", "50", "100"],
+                }}
+                scroll={{ x: "max-content" }}
+                tableLayout="auto"
+                locale={{
+                  emptyText: (
+                    <div className="empty-state">
+                      <div className="empty-icon">
+                        <Package size={32} />
+                      </div>
+                      <div className="empty-title">Nenhum item encontrado</div>
+                      <div className="empty-description">
+                        {searchTerm
+                          ? "Tente ajustar os termos de pesquisa"
+                          : "Adicione alguns itens para começar a gerir o seu stock"}
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
+                  ),
+                }}
+              />
             </div>
           </div>
-
         </div>
-
       </div>
 
       {/* Simple Cart Modal */}
       {isCartModalOpen && Object.keys(movementCart).length > 0 && (
-        <div className="cart-modal-overlay" onClick={() => setIsCartModalOpen(false)}>
+        <div
+          className="cart-modal-overlay"
+          onClick={() => setIsCartModalOpen(false)}
+        >
           <div className="cart-modal" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="cart-modal-header">
               <h3>Movimentos de Stock</h3>
-              <button onClick={() => setIsCartModalOpen(false)} className="cart-close-btn">
+              <button
+                onClick={() => setIsCartModalOpen(false)}
+                className="cart-close-btn"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1372,11 +1395,18 @@ export default function StockComponent() {
                   <div key={itemId} className="cart-modal-item">
                     <div className="cart-item-info">
                       <span className="cart-item-name">{item.name}</span>
-                      <span className="cart-item-category">{item.category || "Sem categoria"}</span>
+                      <span className="cart-item-category">
+                        {item.category || "Sem categoria"}
+                      </span>
                     </div>
                     <div className="cart-item-actions">
-                      <span className={`cart-item-qty ${quantity > 0 ? "positive" : "negative"}`}>
-                        {quantity > 0 ? "+" : ""}{quantity}
+                      <span
+                        className={`cart-item-qty ${
+                          quantity > 0 ? "positive" : "negative"
+                        }`}
+                      >
+                        {quantity > 0 ? "+" : ""}
+                        {quantity}
                       </span>
                       <button
                         onClick={() => removeFromMovementCart(itemId)}
@@ -1393,7 +1423,11 @@ export default function StockComponent() {
 
             {/* Footer Actions */}
             <div className="cart-modal-footer">
-              <button onClick={clearMovementCart} className="cart-btn cart-btn-clear" disabled={loading}>
+              <button
+                onClick={clearMovementCart}
+                className="cart-btn cart-btn-clear"
+                disabled={loading}
+              >
                 Limpar Tudo
               </button>
               <button
@@ -1412,186 +1446,137 @@ export default function StockComponent() {
       )}
 
       {/* Add New Item Modal */}
-      {isAddModalOpen && typeof document !== "undefined" &&
+      {isAddModalOpen &&
+        typeof document !== "undefined" &&
         createPortal(
           <div className="modal-overlay">
-          <div className="modal-container">
-            {/* Modal Header */}
-            <div className="modal-header">
-              <div className="header-text">
-                <h2>Adicionar Novo Item</h2>
-                <p>Preencha os dados do novo produto</p>
+            <div className="modal-container">
+              {/* Modal Header */}
+              <div className="modal-header">
+                <div className="header-text">
+                  <h2>Adicionar Novo Item</h2>
+                  <p>Preencha os dados do novo produto</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    resetAddItemForm();
+                  }}
+                  className="close-button"
+                  disabled={addItemLoading}
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  resetAddItemForm();
-                }}
-                className="close-button"
-                disabled={addItemLoading}
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* Modal Content */}
-            <div className="modal-content">
-              {/* Image Upload Section */}
-              <div className="image-upload-section">
-                <label className="image-upload-label">Imagem do Item</label>
+              {/* Modal Content */}
+              <div className="modal-content">
+                {/* Image Upload Section */}
+                <div className="image-upload-section">
+                  <label className="image-upload-label">Imagem do Item</label>
 
-                {/* Image Upload Area */}
-                {!imagePreview && (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="image-upload-area"
-                  >
-                    <Upload size={48} className="upload-icon" />
-                    <h4 className="upload-title">Selecionar Imagem</h4>
-                    <p className="upload-description">
-                      PNG, JPG ou WEBP até 5MB
-                    </p>
-                  </div>
-                )}
-
-                {/* Image Preview */}
-                {imagePreview && (
-                  <div className="image-preview-container">
+                  {/* Image Upload Area */}
+                  {!imagePreview && (
                     <div
-                      className="image-preview-wrapper"
-                      style={{ position: "relative" }}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="image-upload-area"
                     >
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        style={{
-                          maxWidth: "300px",
-                          maxHeight: "300px",
-                          objectFit: "contain",
-                          borderRadius: "8px",
-                          border: "1px solid #e5e7eb",
-                          backgroundColor: backgroundRemovalPreview
-                            ? "transparent"
-                            : "#ffffff",
-                        }}
-                      />
-                      {backgroundRemovalPreview && (
-                        <div
+                      <Upload size={48} className="upload-icon" />
+                      <h4 className="upload-title">Selecionar Imagem</h4>
+                      <p className="upload-description">
+                        PNG, JPG ou WEBP até 5MB
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Image Preview */}
+                  {imagePreview && (
+                    <div className="image-preview-container">
+                      <div
+                        className="image-preview-wrapper"
+                        style={{ position: "relative" }}
+                      >
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          style={{
+                            maxWidth: "300px",
+                            maxHeight: "300px",
+                            objectFit: "contain",
+                            borderRadius: "8px",
+                            border: "1px solid #e5e7eb",
+                            backgroundColor: backgroundRemovalPreview
+                              ? "transparent"
+                              : "#ffffff",
+                          }}
+                        />
+                        {backgroundRemovalPreview && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "8px",
+                              left: "8px",
+                              padding: "4px 8px",
+                              backgroundColor: "#10b981",
+                              color: "white",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                              fontWeight: "500",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                            }}
+                          >
+                            <Wand2 size={12} />
+                            Fundo Removido
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={resetImage}
                           style={{
                             position: "absolute",
                             top: "8px",
-                            left: "8px",
-                            padding: "4px 8px",
-                            backgroundColor: "#10b981",
-                            color: "white",
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: "500",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          <Wand2 size={12} />
-                          Fundo Removido
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={resetImage}
-                        style={{
-                          position: "absolute",
-                          top: "8px",
-                          right: "8px",
-                          width: "32px",
-                          height: "32px",
-                          backgroundColor: "#dc2626",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "50%",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        justifyContent: "center",
-                        flexWrap: "wrap",
-                        marginTop: "16px",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCropImage(imagePreview);
-                          setShowCropper(true);
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          padding: "8px 16px",
-                          backgroundColor: "#3b82f6",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "14px",
-                          cursor: "pointer",
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        <Crop size={16} />
-                        Cortar Imagem
-                      </button>
-                      {!backgroundRemovalPreview ? (
-                        <button
-                          type="button"
-                          onClick={removeBackground}
-                          disabled={removingBackground}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "8px 16px",
-                            backgroundColor: "#10b981",
+                            right: "8px",
+                            width: "32px",
+                            height: "32px",
+                            backgroundColor: "#dc2626",
                             color: "white",
                             border: "none",
-                            borderRadius: "6px",
-                            fontSize: "14px",
-                            cursor: removingBackground
-                              ? "not-allowed"
-                              : "pointer",
-                            opacity: removingBackground ? 0.7 : 1,
-                            transition: "all 0.2s ease",
+                            borderRadius: "50%",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.2s",
                           }}
-                          title="Remover fundo da imagem usando IA"
                         >
-                          <Wand2
-                            size={16}
-                            className={removingBackground ? "animate-spin" : ""}
-                          />
-                          {removingBackground ? "A processar..." : "Remover Fundo"}
+                          <X size={16} />
                         </button>
-                      ) : (
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          justifyContent: "center",
+                          flexWrap: "wrap",
+                          marginTop: "16px",
+                        }}
+                      >
                         <button
                           type="button"
-                          onClick={undoBackgroundRemoval}
+                          onClick={() => {
+                            setCropImage(imagePreview);
+                            setShowCropper(true);
+                          }}
                           style={{
                             display: "flex",
                             alignItems: "center",
                             gap: "6px",
                             padding: "8px 16px",
-                            backgroundColor: "#f59e0b",
+                            backgroundColor: "#3b82f6",
                             color: "white",
                             border: "none",
                             borderRadius: "6px",
@@ -1599,244 +1584,299 @@ export default function StockComponent() {
                             cursor: "pointer",
                             transition: "all 0.2s ease",
                           }}
-                          title="Restaurar imagem original"
                         >
-                          <RefreshCw size={16} />
-                          Desfazer Remoção
+                          <Crop size={16} />
+                          Cortar Imagem
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={removingBackground}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          padding: "8px 16px",
-                          backgroundColor: "#f3f4f6",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "6px",
-                          fontSize: "14px",
-                          cursor: removingBackground ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        <Upload size={16} />
-                        Trocar Imagem
-                      </button>
+                        {!backgroundRemovalPreview ? (
+                          <button
+                            type="button"
+                            onClick={removeBackground}
+                            disabled={removingBackground}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: "#10b981",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                              cursor: removingBackground
+                                ? "not-allowed"
+                                : "pointer",
+                              opacity: removingBackground ? 0.7 : 1,
+                              transition: "all 0.2s ease",
+                            }}
+                            title="Remover fundo da imagem usando IA"
+                          >
+                            <Wand2
+                              size={16}
+                              className={
+                                removingBackground ? "animate-spin" : ""
+                              }
+                            />
+                            {removingBackground
+                              ? "A processar..."
+                              : "Remover Fundo"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={undoBackgroundRemoval}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: "#f59e0b",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                            }}
+                            title="Restaurar imagem original"
+                          >
+                            <RefreshCw size={16} />
+                            Desfazer Remoção
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={removingBackground}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            backgroundColor: "#f3f4f6",
+                            color: "#374151",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            cursor: removingBackground
+                              ? "not-allowed"
+                              : "pointer",
+                          }}
+                        >
+                          <Upload size={16} />
+                          Trocar Imagem
+                        </button>
+                      </div>
                     </div>
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={handleImageSelect}
+                    style={{ display: "none" }}
+                  />
+                </div>
+
+                {/* Basic Information */}
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label>Nome do Produto *</label>
+                    <input
+                      type="text"
+                      value={newItem.name}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="Ex: Arroz Agulha"
+                      className="form-input"
+                      disabled={addItemLoading}
+                    />
                   </div>
-                )}
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={handleImageSelect}
-                  style={{ display: "none" }}
-                />
-              </div>
+                  <div className="form-group">
+                    <label>Categoria</label>
+                    <select
+                      value={newItem.category}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          category: e.target.value,
+                        }))
+                      }
+                      className="form-select"
+                      disabled={dropdownsLoading || addItemLoading}
+                    >
+                      <option value="">Selecionar categoria...</option>
+                      {categories.map((category) => (
+                        <option
+                          key={category.$id}
+                          value={category.name || category.category || ""}
+                        >
+                          {category.name ||
+                            category.category ||
+                            "Categoria sem nome"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Basic Information */}
-              <div className="form-grid">
-                <div className="form-group full-width">
-                  <label>Nome do Produto *</label>
-                  <input
-                    type="text"
-                    value={newItem.name}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
-                    }
-                    placeholder="Ex: Arroz Agulha"
-                    className="form-input"
-                    disabled={addItemLoading}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label>Fornecedor</label>
+                    <select
+                      value={newItem.supplier}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          supplier: e.target.value,
+                        }))
+                      }
+                      className="form-select"
+                      disabled={dropdownsLoading || addItemLoading}
+                    >
+                      <option value="">Selecionar fornecedor...</option>
+                      {suppliers.map((supplier) => (
+                        <option
+                          key={supplier.$id}
+                          value={supplier.name || supplier.supplier || ""}
+                        >
+                          {supplier.name ||
+                            supplier.supplier ||
+                            "Fornecedor sem nome"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="form-group">
-                  <label>Categoria</label>
-                  <select
-                    value={newItem.category}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        category: e.target.value,
-                      }))
-                    }
-                    className="form-select"
-                    disabled={dropdownsLoading || addItemLoading}
-                  >
-                    <option value="">Selecionar categoria...</option>
-                    {categories.map((category) => (
-                      <option
-                        key={category.$id}
-                        value={category.name || category.category || ""}
-                      >
-                        {category.name ||
-                          category.category ||
-                          "Categoria sem nome"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="form-group full-width">
+                    <label>Descrição</label>
+                    <textarea
+                      value={newItem.description}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Descrição adicional do produto"
+                      rows={4}
+                      className="form-textarea"
+                      disabled={addItemLoading}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label>Fornecedor</label>
-                  <select
-                    value={newItem.supplier}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        supplier: e.target.value,
-                      }))
-                    }
-                    className="form-select"
-                    disabled={dropdownsLoading || addItemLoading}
-                  >
-                    <option value="">Selecionar fornecedor...</option>
-                    {suppliers.map((supplier) => (
-                      <option
-                        key={supplier.$id}
-                        value={supplier.name || supplier.supplier || ""}
-                      >
-                        {supplier.name ||
-                          supplier.supplier ||
-                          "Fornecedor sem nome"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="form-group">
+                    <label>Localização</label>
+                    <select
+                      value={newItem.location}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          location: e.target.value,
+                        }))
+                      }
+                      className="form-select"
+                      disabled={dropdownsLoading || addItemLoading}
+                    >
+                      <option value="">Selecionar localização...</option>
+                      {locations.map((location) => (
+                        <option
+                          key={location.$id}
+                          value={location.name || location.location || ""}
+                        >
+                          {location.name ||
+                            location.location ||
+                            "Localização sem nome"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="form-group full-width">
-                  <label>Descrição</label>
-                  <textarea
-                    value={newItem.description}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
-                    placeholder="Descrição adicional do produto"
-                    rows={4}
-                    className="form-textarea"
-                    disabled={addItemLoading}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label>Preço de Custo (€)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newItem.cost_price || ""}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          cost_price: e.target.value,
+                        }))
+                      }
+                      placeholder="0.00"
+                      className="form-input"
+                      disabled={addItemLoading}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label>Localização</label>
-                  <select
-                    value={newItem.location}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        location: e.target.value,
-                      }))
-                    }
-                    className="form-select"
-                    disabled={dropdownsLoading || addItemLoading}
-                  >
-                    <option value="">Selecionar localização...</option>
-                    {locations.map((location) => (
-                      <option
-                        key={location.$id}
-                        value={location.name || location.location || ""}
-                      >
-                        {location.name ||
-                          location.location ||
-                          "Localização sem nome"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="form-group">
+                    <label>Stock Mínimo</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newItem.min_qty || ""}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          min_qty: e.target.value,
+                        }))
+                      }
+                      placeholder="0"
+                      className="form-input"
+                      disabled={addItemLoading}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label>Preço de Custo (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={newItem.cost_price || ""}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        cost_price: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                    className="form-input"
-                    disabled={addItemLoading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Stock Mínimo</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newItem.min_qty || ""}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        min_qty: e.target.value,
-                      }))
-                    }
-                    placeholder="0"
-                    className="form-input"
-                    disabled={addItemLoading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Quantidade Inicial</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={newItem.qty || ""}
-                    onChange={(e) =>
-                      setNewItem((prev) => ({
-                        ...prev,
-                        qty: e.target.value,
-                      }))
-                    }
-                    placeholder="0"
-                    className="form-input"
-                    disabled={addItemLoading}
-                  />
+                  <div className="form-group">
+                    <label>Quantidade Inicial</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newItem.qty || ""}
+                      onChange={(e) =>
+                        setNewItem((prev) => ({
+                          ...prev,
+                          qty: e.target.value,
+                        }))
+                      }
+                      placeholder="0"
+                      className="form-input"
+                      disabled={addItemLoading}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Modal Footer */}
-            <div className="modal-footer">
-              <button
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  resetAddItemForm();
-                }}
-                className="footer-button cancel"
-                disabled={addItemLoading}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddNewItem}
-                disabled={addItemLoading || !newItem.name?.trim()}
-                className="footer-button primary"
-              >
-                {addItemLoading ? "A guardar..." : "Adicionar Item"}
-              </button>
+              {/* Modal Footer */}
+              <div className="modal-footer">
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    resetAddItemForm();
+                  }}
+                  className="footer-button cancel"
+                  disabled={addItemLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAddNewItem}
+                  disabled={addItemLoading || !newItem.name?.trim()}
+                  className="footer-button primary"
+                >
+                  {addItemLoading ? "A guardar..." : "Adicionar Item"}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )
-  }
+          </div>,
+          document.body
+        )}
 
       {/* Image Cropper Modal (via Portal) */}
       {showCropper &&
@@ -1899,7 +1939,6 @@ export default function StockComponent() {
           </div>,
           document.body
         )}
-
     </div>
   );
 }

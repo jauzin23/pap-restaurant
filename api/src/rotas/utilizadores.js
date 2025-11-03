@@ -1,9 +1,107 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const pool = require("../../db");
 const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
 
 const router = express.Router();
+
+// Criar novo utilizador (apenas gestores)
+router.post("/", autenticarToken, requerGestor, async (req, res) => {
+  try {
+    const {
+      email,
+      username,
+      password,
+      name,
+      telefone,
+      nif,
+      contrato,
+      hrs,
+      ferias,
+      labels,
+      profile_image,
+    } = req.body;
+
+    // Validar campos obrigatórios
+    if (!email || !username || !password || !name) {
+      return res.status(400).json({
+        error: "Email, username, password e name são obrigatórios",
+      });
+    }
+
+    // Validar formato de email básico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Formato de email inválido" });
+    }
+
+    // Validar comprimento da password
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "Password deve ter pelo menos 6 caracteres",
+      });
+    }
+
+    // Verificar se email ou username já existem
+    const verificarExistente = await pool.query(
+      "SELECT id FROM users WHERE email = $1 OR username = $2",
+      [email, username]
+    );
+
+    if (verificarExistente.rows.length > 0) {
+      return res.status(409).json({
+        error: "Email ou username já estão em uso",
+      });
+    }
+
+    // Hash da password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    // Inserir novo utilizador
+    const resultado = await pool.query(
+      `INSERT INTO users (
+        email, username, password_hash, name, telefone, "NIF",
+        contrato, hrs, ferias, labels, profile_image
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id, email, username, name, labels, profile_image, created_at,
+                telefone, status, contrato, hrs, "NIF", ferias`,
+      [
+        email,
+        username,
+        passwordHash,
+        name,
+        telefone || null,
+        nif || null,
+        contrato || null,
+        hrs || null,
+        ferias || null,
+        labels || [],
+        profile_image || null,
+      ]
+    );
+
+    const novoUtilizador = resultado.rows[0];
+
+    const respostaUtilizador = {
+      $id: novoUtilizador.id,
+      ...novoUtilizador,
+      nif: novoUtilizador.NIF,
+      labels: novoUtilizador.labels || [],
+    };
+
+    // Emitir evento WebSocket
+    req.app.get("emissoresClientes").utilizadorCriado(respostaUtilizador);
+
+    res.status(201).json({
+      ...respostaUtilizador,
+      message: "Utilizador criado com sucesso",
+    });
+  } catch (erro) {
+    tratarErro(erro, res);
+  }
+});
 
 // Obter todos os utilizadores (para lista de staff)
 router.get("/", autenticarToken, async (req, res) => {
@@ -80,6 +178,8 @@ router.put("/:id", autenticarToken, async (req, res) => {
       contrato,
       hrs,
       ferias,
+      labels,
+      profile_image,
     } = req.body;
 
     // Verificar se o utilizador existe e obter as labels
@@ -120,6 +220,7 @@ router.put("/:id", autenticarToken, async (req, res) => {
       username,
       telefone,
       NIF: nif,
+      profile_image,
     };
 
     // Campos que apenas gestores podem editar
@@ -127,6 +228,7 @@ router.put("/:id", autenticarToken, async (req, res) => {
       contrato,
       hrs,
       ferias,
+      labels,
     };
 
     // Construir query de atualização dinamicamente
@@ -139,7 +241,9 @@ router.put("/:id", autenticarToken, async (req, res) => {
       // Adicionar campos básicos
       Object.entries(camposBasicos).forEach(([campo, valor]) => {
         if (valor !== undefined) {
-          camposAtualizar.push(`"${campo}" = $${indiceParametro}`);
+          // Only quote NIF, other fields don't need quotes
+          const campoSQL = campo === 'NIF' ? `"${campo}"` : campo;
+          camposAtualizar.push(`${campoSQL} = $${indiceParametro}`);
           valoresAtualizar.push(valor);
           indiceParametro++;
         }
@@ -157,7 +261,9 @@ router.put("/:id", autenticarToken, async (req, res) => {
       // Se for o próprio utilizador, só pode editar campos básicos
       Object.entries(camposBasicos).forEach(([campo, valor]) => {
         if (valor !== undefined) {
-          camposAtualizar.push(`"${campo}" = $${indiceParametro}`);
+          // Only quote NIF, other fields don't need quotes
+          const campoSQL = campo === 'NIF' ? `"${campo}"` : campo;
+          camposAtualizar.push(`${campoSQL} = $${indiceParametro}`);
           valoresAtualizar.push(valor);
           indiceParametro++;
         }
@@ -169,7 +275,7 @@ router.put("/:id", autenticarToken, async (req, res) => {
       );
       if (tentouEditarCamposGestor) {
         return res.status(403).json({
-          error: "Acesso negado. Apenas gestores podem editar contrato, hrs e férias.",
+          error: "Acesso negado. Apenas gestores podem editar contrato, hrs, férias e labels.",
         });
       }
     }
@@ -194,11 +300,18 @@ router.put("/:id", autenticarToken, async (req, res) => {
     const resultado = await pool.query(queryAtualizar, valoresAtualizar);
     const utilizadorAtualizado = resultado.rows[0];
 
-    res.json({
+    const respostaUtilizador = {
       $id: utilizadorAtualizado.id,
       ...utilizadorAtualizado,
       nif: utilizadorAtualizado.NIF,
       labels: utilizadorAtualizado.labels || [],
+    };
+
+    // Emitir evento WebSocket
+    req.app.get("emissoresClientes").utilizadorAtualizado(respostaUtilizador);
+
+    res.json({
+      ...respostaUtilizador,
       message: "Utilizador atualizado com sucesso",
     });
   } catch (erro) {

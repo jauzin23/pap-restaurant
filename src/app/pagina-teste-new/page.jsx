@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import BlurText from "../components/BlurText";
 import Sidebar from "../components/Sidebar";
+import WelcomeCard from "../components/WelcomeCard";
 import DashboardCards from "../components/DashboardCards";
 import { BackgroundBeams } from "../components/BackgroundBeams";
 import "./page.scss";
@@ -13,6 +14,7 @@ import StaffView from "../components/StaffView";
 import MenuComponent from "../components/MenuComponent";
 import StockComponent from "../components/StockComponent";
 import TableLayoutManager from "../components/TableLayout";
+import ManagerStaffView from "../components/ManagerStaffView";
 import {
   WebSocketProvider,
   useWebSocketContext,
@@ -251,7 +253,7 @@ const RestaurantDashboardContent = () => {
 
   if (isLoading) {
     return (
-      <div className="dashboard fade-in" style={{ background: 'white' }}>
+      <div className="dashboard fade-in" style={{ background: "white" }}>
         <div className="loading-screen loading-scale-in">
           <div className="loading-content loading-slide-up">
             <div className="logo-loading loading-logo">Mesa+</div>
@@ -323,7 +325,6 @@ const RestaurantDashboardContent = () => {
       {/* Background Beams with Overlay */}
       <div className="background-beams-container">
         <BackgroundBeams />
-        <div className="background-overlay"></div>
       </div>
 
       <Sidebar
@@ -352,29 +353,14 @@ const RestaurantDashboardContent = () => {
                 <StockComponent />
               ) : activeNavItem === "Mesas" ? (
                 <TableLayoutManager user={user} />
+              ) : activeNavItem === "Staff" ? (
+                <ManagerStaffView />
               ) : (
                 <>
                   {isManager && currentView === "manager" ? (
                     <>
-                      <h1 className="welcome-title slide-in-up">
-                        <BlurText
-                          text="Bem-vindo,"
-                          delay={150}
-                          animateBy="words"
-                          direction="top"
-                          className="welcome-greeting"
-                          style={{ color: "#2d3748" }}
-                        />
-                        <BlurText
-                          text={`${username}.`}
-                          delay={250}
-                          animateBy="words"
-                          direction="top"
-                          onAnimationComplete={handleAnimationComplete}
-                          className="welcome-greeting username-highlight"
-                          style={{ color: usernameColor }}
-                        />
-                      </h1>
+                      {/* Welcome Card */}
+                      <WelcomeCard />
 
                       {/* Dashboard Cards */}
                       <DashboardCards />

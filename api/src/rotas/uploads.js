@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
+const crypto = require("crypto");
 const pool = require("../../db");
 const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
@@ -12,7 +13,7 @@ const router = express.Router();
 // Upload de imagem de perfil
 router.post("/profile-image", autenticarToken, async (req, res) => {
   try {
-    const { imageData, filename, userId } = req.body;
+    const { imageData, userId } = req.body;
 
     if (!imageData) {
       return res.status(400).json({ error: "Dados da imagem obrigatórios" });
@@ -61,9 +62,34 @@ router.post("/profile-image", autenticarToken, async (req, res) => {
     // Remover prefixo de data URL se presente
     const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
 
-    // Gerar nome de ficheiro único
-    const extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
-    const nomeFicheiroUnico = `${Date.now()}_${idAlvo}${extensaoFicheiro}`;
+    // Criar hash do conteúdo da imagem para garantir unicidade
+    const hashImagem = crypto
+      .createHash("sha256")
+      .update(dadosBase64)
+      .digest("hex")
+      .substring(0, 16);
+
+    // Gerar componente aleatório adicional
+    const randomString = crypto.randomBytes(8).toString("hex");
+
+    // Detectar tipo de imagem do data URL (se presente)
+    let extensaoFicheiro = ".jpg"; // Default
+    const matchTipo = imageData.match(/^data:image\/([^;]+);base64,/);
+    if (matchTipo) {
+      const tipoImagem = matchTipo[1];
+      // Mapear tipos MIME para extensões
+      const extensoes = {
+        jpeg: ".jpg",
+        jpg: ".jpg",
+        png: ".png",
+        gif: ".gif",
+        webp: ".webp",
+      };
+      extensaoFicheiro = extensoes[tipoImagem] || ".jpg";
+    }
+
+    // Gerar nome de ficheiro único com timestamp, hash e random
+    const nomeFicheiroUnico = `${Date.now()}_${hashImagem}_${randomString}${extensaoFicheiro}`;
     const caminhoFicheiro = path.join(
       __dirname,
       "../../uploads",
@@ -133,11 +159,19 @@ router.post(
       const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
       console.log("[UPLOAD] Base64 após remover prefixo, length:", dadosBase64.length);
 
-      // Gerar nome de ficheiro único
+      // Criar hash do conteúdo da imagem para garantir unicidade
+      const hashImagem = crypto
+        .createHash("sha256")
+        .update(dadosBase64)
+        .digest("hex")
+        .substring(0, 16);
+
+      // Gerar componente aleatório adicional
+      const randomString = crypto.randomBytes(8).toString("hex");
+
+      // Gerar nome de ficheiro único com timestamp, hash e random
       const extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
-      const nomeFicheiroUnico = `${Date.now()}_menu_${Math.random()
-        .toString(36)
-        .substr(2, 9)}${extensaoFicheiro}`;
+      const nomeFicheiroUnico = `${Date.now()}_${hashImagem}_${randomString}${extensaoFicheiro}`;
       const caminhoFicheiro = path.join(
         __dirname,
         "../../uploads",

@@ -1,27 +1,71 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
-
 // Manager View Specific Styles
 .manager-view {
-  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin-top: 2rem;
+
+  .section-header {
+    margin-bottom: 1rem;
+
+    // Animation
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.6s;
+
+    .section-title {
+      font-size: 1.5rem;
+      line-height: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: hsl(var(--card-foreground));
+    }
+  }
 
   .manager-dashboard-grid {
     display: grid;
-    grid-template-columns: clamp(240px, 18vw, 260px) 1fr clamp(
-        260px,
-        20vw,
-        300px
-      );
+    grid-template-columns: 1fr clamp(260px, 20vw, 300px);
     gap: 1.5rem;
     margin-bottom: 2.5rem;
   }
 
-  .left-section {
+  .card-header-modern {
     display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+
+    .card-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      background: hsl(var(--muted));
+      color: hsl(var(--muted-foreground));
+    }
+
+    .card-header-text {
+      flex: 1;
+
+      h3 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: hsl(var(--card-foreground));
+        margin: 0 0 0.25rem 0;
+      }
+
+      p {
+        font-size: 0.75rem;
+        color: hsl(var(--muted-foreground));
+        margin: 0;
+      }
+    }
   }
 
   .center-section {
@@ -52,14 +96,21 @@
   // Progress Card Styles
   .progress-card {
     background: #ffffff;
-    border-radius: 0.35rem;
-    padding: 1.25rem;
-    border: 1px solid #e3e6f0;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    transition: all 0.15s ease-in-out;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid rgb(228, 228, 231);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    // Animation
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.7s;
 
     &:hover {
-      box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
+      border-color: hsl(var(--primary) / 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transform: translateY(-2px);
     }
 
@@ -158,14 +209,21 @@
   // Time Tracker Card Styles
   .time-tracker-card {
     background: #ffffff;
-    border-radius: 0.35rem;
-    padding: 1.25rem;
-    border: 1px solid #e3e6f0;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    transition: all 0.15s ease-in-out;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid rgb(228, 228, 231);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    // Animation
+    opacity: 0;
+    transform: translateX(20px);
+    animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.8s;
 
     &:hover {
-      box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
+      border-color: hsl(var(--primary) / 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transform: translateY(-2px);
     }
 
@@ -218,14 +276,21 @@
   // Onboarding Card Styles
   .onboarding-card {
     background: #ffffff;
-    border-radius: 0.35rem;
-    padding: 1.25rem;
-    border: 1px solid #e3e6f0;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    transition: all 0.15s ease-in-out;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid rgb(228, 228, 231);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    // Animation
+    opacity: 0;
+    transform: translateX(20px);
+    animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.9s;
 
     &:hover {
-      box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
+      border-color: hsl(var(--primary) / 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transform: translateY(-2px);
     }
 
@@ -338,20 +403,14 @@
   // Responsive Adjustments for Manager View
   @media (max-width: 1400px) {
     .manager-dashboard-grid {
-      grid-template-columns: clamp(200px, 16vw, 240px) 1fr clamp(
-          240px,
-          18vw,
-          280px
-        );
+      grid-template-columns: 1fr clamp(240px, 18vw, 280px);
     }
   }
 
   @media (max-width: 1024px) {
     .manager-dashboard-grid {
-      grid-template-columns: clamp(180px, 22vw, 240px) 1fr;
+      grid-template-columns: 1fr;
       .right-section {
-        grid-column: 1 / -1;
-        grid-row: 3;
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: clamp(4px, 1vw, 8px);
@@ -471,78 +530,6 @@
         }
       }
     }
-  }
-
-  // Navigation Card Button Styles
-  .nav-card-btn {
-    width: 100%;
-    height: auto;
-    min-height: 80px;
-    background: #ffffff;
-    border: 1px solid #e3e6f0;
-    border-radius: 0.35rem;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-
-    .nav-card-text {
-      font-weight: 700;
-      color: #5a5c69;
-      font-size: 0.875rem;
-      text-align: left;
-      transition: color 0.15s ease-in-out;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .nav-card-icon {
-      opacity: 0.15;
-      color: #5a5c69;
-      transition: none;
-      width: 36px;
-      height: 36px;
-    }
-
-    &:hover {
-      box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
-      transform: translateY(-2px);
-
-      .nav-card-text {
-        color: #4e73df;
-      }
-    }
-
-    &:active {
-      transform: translateY(-1px);
-    }
-  }
-
-  .left-section {
-    /* Custom scrollbar for left section when it overflows */
-    &::-webkit-scrollbar {
-      width: 5px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(255, 107, 53, 0.3);
-      border-radius: 2.5px;
-
-      &:hover {
-        background: rgba(255, 107, 53, 0.6);
-      }
-    }
-
-    /* Firefox scrollbar */
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 107, 53, 0.3) transparent;
   }
 
   // Enhanced Staff Management Styles
@@ -1032,12 +1019,6 @@
     cursor: default;
     position: relative;
 
-    &:hover {
-      transform: scale(1.05) translateY(-2px);
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      filter: brightness(1.1);
-    }
-
     &:active {
       transform: scale(1.02) translateY(-1px);
       transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1073,11 +1054,6 @@
     h3 {
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: default;
-
-      &:hover {
-        color: #ff6b35;
-        text-shadow: 0 2px 4px rgba(255, 107, 53, 0.2);
-      }
     }
   }
 
@@ -1149,11 +1125,6 @@
     &:hover {
       transform: scale(1.05);
 
-      .time {
-        color: #ff6b35;
-        text-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
-      }
-
       .circle-svg {
         filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
       }
@@ -1164,12 +1135,6 @@
   .percentage {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: default;
-
-    &:hover {
-      color: #ff6b35;
-      transform: scale(1.1);
-      text-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
-    }
   }
 
   // Legend Item Interactive Effects
@@ -1223,5 +1188,28 @@
         transition: transform 0.1s ease;
       }
     }
+  }
+}
+
+// Animations
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }

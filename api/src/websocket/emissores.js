@@ -116,6 +116,21 @@ const criarEmissores = (io) => {
       io.to("stock").emit("stock:alert:created", alerta);
       io.to("gestores").emit("stock:alert:created", alerta);
     },
+
+    // Utilizadores
+    utilizadorCriado: (utilizador) => {
+      io.to("gestores").emit("user:created", utilizador);
+      io.to("utilizadores").emit("user:created", utilizador);
+    },
+    utilizadorAtualizado: (utilizador) => {
+      io.to("gestores").emit("user:updated", utilizador);
+      io.to("utilizadores").emit("user:updated", utilizador);
+      io.to(`user:${utilizador.id}`).emit("user:updated", utilizador);
+    },
+    utilizadorEliminado: (idUtilizador) => {
+      io.to("gestores").emit("user:deleted", { id: idUtilizador });
+      io.to("utilizadores").emit("user:deleted", { id: idUtilizador });
+    },
   };
 };
 

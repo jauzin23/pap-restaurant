@@ -241,10 +241,14 @@ export const profileImages = {
   },
 
   // Upload profile image
-  upload: async (imageData, filename) => {
+  upload: async (imageData, userId = null) => {
+    const payload = { imageData };
+    if (userId) {
+      payload.userId = userId;
+    }
     return await apiRequest("/upload/profile-image", {
       method: "POST",
-      body: JSON.stringify({ imageData, filename }),
+      body: JSON.stringify(payload),
     });
   },
 

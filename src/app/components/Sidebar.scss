@@ -26,6 +26,11 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
   box-shadow: $shadow;
   border-right: 1px solid $border-color;
 
+  // Animation
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
   &.collapsed {
     width: fit-content;
     .sidebar-brand {
@@ -74,14 +79,13 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem 1rem;
+    padding: 0rem 0rem;
     text-decoration: none;
     color: $text-dark;
     font-size: 1rem;
     font-weight: 800;
     transition: all 0.3s;
     height: 4.375rem; // SB Admin 2 brand height
-    border-bottom: 1px solid $border-color;
 
     .brand-icon {
       width: 2rem;
@@ -94,12 +98,7 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
       font-weight: 800;
       font-size: 1rem;
       margin-right: 0.5rem;
-      transform: rotate(-15deg); // SB Admin 2 style rotation
       transition: transform 0.3s ease;
-
-      &:hover {
-        transform: rotate(0deg);
-      }
 
       span {
         color: white;
@@ -157,8 +156,12 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
     cursor: pointer;
     text-align: left;
 
+    // Animation
+    opacity: 0;
+    transform: translateX(-10px);
+    animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
     svg {
-      margin-right: 0.5rem;
       flex-shrink: 0;
       width: 18px;
       height: 18px;
@@ -166,6 +169,7 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 
     .nav-text {
       white-space: nowrap;
+      margin-left: 0.75rem;
     }
 
     &:hover {
@@ -183,8 +187,8 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 
   // User Profile section in sidebar
   .sidebar-topbar {
-    padding: 1rem;
-    border-top: 1px solid $border-color;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
     background: white;
 
     .user-profile-btn {
@@ -192,18 +196,12 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
       align-items: center;
       gap: 0.75rem;
       background: transparent;
-      border: 1px solid $border-color;
       color: $text-dark;
       cursor: pointer;
       padding: 0.75rem;
       border-radius: 0.35rem;
       transition: all 0.15s ease;
       width: 100%;
-
-      &:hover {
-        background: $hover-bg;
-        border-color: $primary-color;
-      }
 
       .user-info {
         display: flex;
@@ -257,6 +255,9 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
       height: 100%;
       object-fit: cover;
     }
+  }
+  .profile-image {
+    padding: 0px;
   }
 
   .profile-placeholder {
@@ -376,5 +377,17 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
     &.show {
       transform: translateX(0);
     }
+  }
+}
+
+// Animations
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }

@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const pool = require("../../db");
 const { SEGREDO_JWT } = require("../configuracao/constantes");
+const { validateUUID } = require("../../uuid-validation");
 
 // Middleware de autenticação WebSocket
 const intermediarioAutenticacaoSocket = async (socket, next) => {
@@ -19,9 +20,15 @@ const intermediarioAutenticacaoSocket = async (socket, next) => {
         return next(new Error("Token inválido ou expirado"));
       }
 
+      // Validar UUID do utilizador
+      const validacao = validateUUID(descodificado.userId, "userId");
+      if (!validacao.isValid) {
+        return next(new Error("ID de utilizador inválido no token"));
+      }
+
       // Obter dados atualizados do utilizador
       const resultadoUtilizador = await pool.query(
-        "SELECT id, email, username, name, labels FROM users WHERE id = $1",
+        "SELECT id, email, username, name, labels FROM users WHERE id = $1::uuid",
         [descodificado.userId]
       );
 

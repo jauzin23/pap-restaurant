@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { TrendingUp, DollarSign, ShoppingCart, Calendar } from "lucide-react";
+import {
+  TrendingUp,
+  HandCoins,
+  ShoppingCart,
+  Calendar,
+  Star,
+} from "lucide-react";
 import NumberFlow from "@number-flow/react";
 import "./DashboardCards.scss";
 
@@ -50,7 +56,7 @@ const DashboardCards = () => {
       title: "Lucro Diário",
       value: metrics.dailyRevenue,
       format: "currency",
-      icon: DollarSign,
+      icon: HandCoins,
       color: "#4e73df",
       textColor: "#4e73df",
     },
@@ -84,24 +90,32 @@ const DashboardCards = () => {
   ];
 
   return (
-    <div className="dashboard-cards">
-      {cards.map((card) => {
-        const Icon = card.icon;
-        return (
-          <div
-            key={card.id}
-            className="dashboard-card"
-            style={{
-              borderLeftColor: card.color,
-            }}
-          >
-            <div className="card-content">
-              <div className="card-text">
-                <div className="card-title" style={{ color: card.textColor }}>
-                  {card.title}
+    <div className="">
+      <h2 className="dashboard-cards__title">Estatística</h2>
+      <div className="dashboard-cards">
+        {cards.map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.id}
+              className="metric-card"
+              style={{ animationDelay: `${0.2 + index * 0.1}s` }}
+            >
+              <div className="metric-card__header">
+                <div
+                  className="metric-card__icon-wrapper"
+                  style={{ backgroundColor: `${card.color}15` }}
+                >
+                  <Icon
+                    size={24}
+                    strokeWidth={2}
+                    style={{ color: card.color }}
+                  />
                 </div>
-                <div className="card-value">
-                  {card.format === "currency" && "€"}
+              </div>
+              <div className="metric-card__content">
+                <div className="metric-card__title">{card.title}</div>
+                <div className="metric-card__value">
                   <NumberFlow
                     value={card.value}
                     format={{
@@ -110,15 +124,14 @@ const DashboardCards = () => {
                     }}
                     locales="pt-PT"
                   />
+                  {card.format === "currency" && "€"}
                 </div>
               </div>
-              <div className="card-icon" style={{ color: card.color }}>
-                <Icon size={32} strokeWidth={2} />
-              </div>
+              <div className="metric-card__footer"></div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -7,20 +7,17 @@ import {
   HandCoins,
   Logs,
   UserCircle,
-  Users,
   ExternalLink,
   Clock,
   Star,
   Grid,
   Edit,
   Package,
-  Wrench,
-  Wallet,
 } from "lucide-react";
 import { Avatars } from "appwrite";
 import { useApp } from "@/contexts/AppContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
-import NumberFlow from '@number-flow/react';
+import NumberFlow from "@number-flow/react";
 import "./ManagerView.scss";
 import WeeklyRevenueChart from "./WeeklyRevenueChart";
 import TableLayoutManager from "./TableLayout";
@@ -238,43 +235,37 @@ const ManagerView = ({
 
   return (
     <div className="manager-view">
+      {/* Section Header */}
+      <div className="section-header">
+        <h2 className="section-title">Análise de Desempenho</h2>
+      </div>
+
       {/* Manager Dashboard Grid */}
       <div className="manager-dashboard-grid fade-in-delayed">
-        <div className="left-section slide-in-left">
-          <button
-            className="nav-card-btn"
-            onClick={() => window.open("/stock", "_blank")}
-          >
-            <span className="nav-card-text">Equipamentos</span>
-            <Wrench size={48} className="nav-card-icon" />
-          </button>
-
-          <button
-            className="nav-card-btn"
-            onClick={() => window.open("/staff-management", "_blank")}
-          >
-            <span className="nav-card-text">Gestão de Staff</span>
-            <Users size={48} className="nav-card-icon" />
-          </button>
-
-          <button
-            className="nav-card-btn"
-            onClick={() => window.open("/dash2", "_blank")}
-          >
-            <span className="nav-card-text">Resumo Financeiro</span>
-            <Wallet size={48} className="nav-card-icon" />
-          </button>
-        </div>
-
         <div className="center-section">
           <div className="progress-card card">
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <BarChart2 size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Receita Semanal</h3>
+                <p>Últimos 7 dias</p>
+              </div>
+            </div>
             <WeeklyRevenueChart data={chartData} />
           </div>
         </div>
         <div className="right-section">
           <div className="time-tracker-card card">
-            <div className="card-header">
-              <h3>Tempo Médio</h3>
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Clock size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Tempo Médio</h3>
+                <p>Preparação de pedidos</p>
+              </div>
             </div>
             <div className="time-circle">
               <svg viewBox="0 0 200 200" className="circle-svg">
@@ -319,9 +310,16 @@ const ManagerView = ({
           </div>
 
           <div className="onboarding-card card">
-            <div className="card-header">
-              <h3>Pedidos</h3>
-              <span className="percentage">{activeOrders}</span>
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Package size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Estado de Pedidos</h3>
+                <p>
+                  <NumberFlow value={activeOrders} /> ativos
+                </p>
+              </div>
             </div>
             <div className="onboarding-bars">
               <div className="progress-bar">

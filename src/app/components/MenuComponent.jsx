@@ -13,10 +13,10 @@ import {
   Wand2,
   Check,
 } from "lucide-react";
-import { Input, Button, Select } from "antd";
+import { Input, Button, Select, Table, Tag, Image as AntdImage } from "antd";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
-import NumberFlow from '@number-flow/react';
+import NumberFlow from "@number-flow/react";
 
 const { TextArea } = Input;
 import "./MenuComponent.scss";
@@ -69,6 +69,10 @@ export default function MenuComponent() {
   const [editingItem, setEditingItem] = useState(null);
   const [authError, setAuthError] = useState(false);
   const [expandedTags, setExpandedTags] = useState(new Set());
+  const [searchText, setSearchText] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterTag, setFilterTag] = useState("");
+  const [filterIngredient, setFilterIngredient] = useState("");
 
   // Collections data
   const [availableTags, setAvailableTags] = useState([]);
@@ -603,8 +607,6 @@ export default function MenuComponent() {
       let imageId = currentImageId;
 
       if (croppedImageBlob) {
-        // Upload the new image first
-        // The backend will handle deleting the old image when updating
         imageId = await uploadImage(croppedImageBlob);
       }
 
@@ -619,31 +621,42 @@ export default function MenuComponent() {
       };
 
       if (editingItem) {
-        setMenuItems((prev) =>
-          prev.map((item) =>
-            item.$id === editingItem.$id
-              ? {
-                  ...itemData,
-                  $id: editingItem.$id,
-                  $createdAt: editingItem.$createdAt,
-                }
-              : item
-          )
-        );
-
-        await apiRequest(`/menu/${editingItem.$id}`, {
+        // Update existing item
+        const response = await apiRequest(`/menu/${editingItem.$id}`, {
           method: "PUT",
           body: JSON.stringify(itemData),
         });
+
+        if (response) {
+          // Update local state immediately for editing
+          setMenuItems((prev) =>
+            prev.map((item) => (item.$id === editingItem.$id ? response : item))
+          );
+          showToast("Item atualizado com sucesso!", "success");
+        }
       } else {
-        await apiRequest("/menu", {
+        // Create new item
+        const response = await apiRequest("/menu", {
           method: "POST",
           body: JSON.stringify(itemData),
         });
+
+        if (response) {
+          // Don't add to state here - let WebSocket handle it to avoid duplicates
+          // setMenuItems((prev) => [...prev, response]);
+          showToast("Item criado com sucesso!", "success");
+        }
       }
 
       setModalOpen(false);
+      resetImage();
     } catch (err) {
+      console.error("Error saving menu item:", err);
+      showToast(
+        `Erro ao ${editingItem ? "atualizar" : "criar"} item: ${err.message}`,
+        "error"
+      );
+      // Refresh menu to ensure consistency
       fetchMenu();
     }
   }
@@ -700,6 +713,43 @@ export default function MenuComponent() {
       return newSet;
     });
   }
+
+  // Filtered menu items based on search and filters
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter((item) => {
+      // Search text filter
+      if (searchText) {
+        const searchLower = searchText.toLowerCase();
+        const matchesName = item.nome?.toLowerCase().includes(searchLower);
+        const matchesDescription = item.description
+          ?.toLowerCase()
+          .includes(searchLower);
+        const matchesIngredients = item.ingredientes?.some((ing) =>
+          ing.toLowerCase().includes(searchLower)
+        );
+        if (!matchesName && !matchesDescription && !matchesIngredients) {
+          return false;
+        }
+      }
+
+      // Category filter
+      if (filterCategory && item.category !== filterCategory) {
+        return false;
+      }
+
+      // Tag filter
+      if (filterTag && !item.tags?.includes(filterTag)) {
+        return false;
+      }
+
+      // Ingredient filter
+      if (filterIngredient && !item.ingredientes?.includes(filterIngredient)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [menuItems, searchText, filterCategory, filterTag, filterIngredient]);
 
   return (
     <div className="menu-component">
@@ -794,142 +844,376 @@ export default function MenuComponent() {
             </p>
           </div>
         ) : (
-          <div className="menu-items-grid">
-            {/* Table Header */}
-            <div className="menu-table-header">
-              <div className="header-cell">Imagem</div>
-              <div className="header-cell">Item</div>
-              <div className="header-cell align-right">Preço</div>
-              <div className="header-cell">Categoria & Tags</div>
-              <div className="divider"></div>
-              <div className="header-cell">Ações</div>
+          <>
+            {/* Search and Filter Bar */}
+            <div
+              style={{
+                marginBottom: "16px",
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <Input.Search
+                placeholder="Buscar por nome, descrição ou ingredientes..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onSearch={(value) => setSearchText(value)}
+                style={{ flex: "1 1 300px", minWidth: "250px" }}
+                allowClear
+              />
+              <Select
+                placeholder="Filtrar por categoria"
+                value={filterCategory || undefined}
+                onChange={(value) => setFilterCategory(value || "")}
+                style={{ width: 200 }}
+                allowClear
+              >
+                {availableCategories.map((cat) => (
+                  <Select.Option key={cat.name} value={cat.name}>
+                    {cat.name}
+                  </Select.Option>
+                ))}
+              </Select>
+              <Select
+                placeholder="Filtrar por tag"
+                value={filterTag || undefined}
+                onChange={(value) => setFilterTag(value || "")}
+                style={{ width: 180 }}
+                allowClear
+              >
+                {availableTags.map((tag) => (
+                  <Select.Option key={tag.name} value={tag.name}>
+                    {tag.name}
+                  </Select.Option>
+                ))}
+              </Select>
+              <Select
+                placeholder="Filtrar por ingrediente"
+                value={filterIngredient || undefined}
+                onChange={(value) => setFilterIngredient(value || "")}
+                style={{ width: 200 }}
+                allowClear
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.children ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              >
+                {[
+                  ...new Set(
+                    menuItems.flatMap((item) => item.ingredientes || [])
+                  ),
+                ]
+                  .sort()
+                  .map((ing) => (
+                    <Select.Option key={ing} value={ing}>
+                      {ing}
+                    </Select.Option>
+                  ))}
+              </Select>
             </div>
 
-            {menuItems.map((item) => {
-              const imageUrl = imageUrls[item.$id] || null;
-
-              return (
-                <div key={item.$id} className="menu-item-card">
-                  {/* Image Container */}
-                  <div className="image-container">
-                    {imageUrl ? (
-                      <img
+            <Table
+              dataSource={filteredMenuItems.map((item) => ({
+                ...item,
+                key: item.$id,
+              }))}
+              loading={loading}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} de ${total} itens${
+                    total !== menuItems.length
+                      ? ` (${menuItems.length} no total)`
+                      : ""
+                  }`,
+              }}
+              scroll={{ x: "max-content" }}
+              tableLayout="auto"
+              columns={[
+                {
+                  title: "Imagem",
+                  dataIndex: "image_id",
+                  key: "image_id",
+                  width: 100,
+                  render: (imageId, record) => {
+                    const imageUrl = imageUrls[record.$id];
+                    return imageUrl ? (
+                      <AntdImage
                         src={imageUrl}
-                        alt={item.nome}
-                        className="menu-item-image"
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                          e.target.nextSibling.style.display = "flex";
-                        }}
+                        alt={record.nome}
+                        width={60}
+                        height={60}
+                        style={{ borderRadius: "8px", objectFit: "contain" }}
+                        preview={false}
+                        fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect fill='%23f0f0f0' width='60' height='60'/%3E%3C/svg%3E"
                       />
-                    ) : null}
-                    <div
-                      className="no-image-placeholder"
-                      style={{
-                        display: imageUrl ? "none" : "flex",
-                        width: "100%",
-                        height: "200px",
-                        backgroundColor: "#f8f9fa",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: "8px 8px 0 0",
-                        border: "1px solid #e9ecef",
-                        color: "#6c757d",
-                      }}
-                    >
-                      <Upload size={32} />
-                      <span style={{ marginTop: "8px", fontSize: "14px" }}>
-                        Sem imagem
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="card-content">
-                    {/* Column 2: Item Name & Description */}
-                    <div className="card-info">
-                      <div className="title-price-row">
-                        <h3>{item.nome}</h3>
+                    ) : (
+                      <div
+                        style={{
+                          width: "60px",
+                          height: "60px",
+                          borderRadius: "8px",
+                          background: "#f8f9fa",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px solid #e5e7eb",
+                        }}
+                      >
+                        <Upload size={20} color="#9ca3af" />
                       </div>
-                      {item.description && (
-                        <p className="description">{item.description}</p>
-                      )}
-                    </div>
-
-                    {/* Column 3: Price */}
-                    <span className="price">
-                      €<NumberFlow value={parseFloat(item.preco) || 0} format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-                    </span>
-
-                    {/* Column 4: Category & Tags */}
-                    <div className="category-tags-column">
-                      {item.category && (
-                        <span className="category-tag">{item.category}</span>
-                      )}
-                      {item.tags && item.tags.length > 0 && (
-                        <div className="tags-container">
-                          {(expandedTags.has(item.$id)
-                            ? item.tags
-                            : item.tags.slice(0, 3)
-                          ).map((tag) => (
-                            <span key={tag} className="tag">
-                              {tag}
-                            </span>
-                          ))}
-                          {item.tags.length > 3 && (
-                            <button
-                              className="more-tags"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleTagsExpanded(item.$id);
-                              }}
-                              title={
-                                expandedTags.has(item.$id)
-                                  ? "Mostrar menos"
-                                  : `Mostrar mais ${item.tags.length - 3} tags`
-                              }
-                            >
-                              {expandedTags.has(item.$id)
-                                ? "Mostrar menos"
-                                : `+${item.tags.length - 3}`}
-                            </button>
-                          )}
+                    );
+                  },
+                },
+                {
+                  title: "Item",
+                  dataIndex: "nome",
+                  key: "nome",
+                  render: (nome, record) => (
+                    <div style={{ minWidth: 150 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: "#1a1a1a",
+                          fontSize: "14px",
+                          marginBottom: record.description ? "4px" : 0,
+                        }}
+                      >
+                        {nome}
+                      </div>
+                      {record.description && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#64748b",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                          }}
+                        >
+                          {record.description}
                         </div>
                       )}
                     </div>
-
-                    {/* Vertical Divider */}
-                    <div className="vertical-divider"></div>
-
-                    {/* Column 5: Action Buttons */}
-                    <div className="action-buttons">
-                      <button
+                  ),
+                },
+                {
+                  title: "Preço",
+                  dataIndex: "preco",
+                  key: "preco",
+                  width: 100,
+                  sorter: (a, b) => parseFloat(a.preco) - parseFloat(b.preco),
+                  render: (preco) => (
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: "#059669",
+                        fontSize: "14px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <NumberFlow
+                        value={parseFloat(preco) || 0}
+                        format={{
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }}
+                      />
+                      €
+                    </span>
+                  ),
+                },
+                {
+                  title: "Categoria",
+                  dataIndex: "category",
+                  key: "category",
+                  width: 120,
+                  render: (category) =>
+                    category ? (
+                      <Tag
+                        color="blue"
+                        style={{
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {category}
+                      </Tag>
+                    ) : (
+                      <span style={{ color: "#9ca3af", fontSize: "12px" }}>
+                        Sem categoria
+                      </span>
+                    ),
+                },
+                {
+                  title: "Tags",
+                  dataIndex: "tags",
+                  key: "tags",
+                  render: (tags, record) => {
+                    if (!tags || tags.length === 0) return "-";
+                    const isExpanded = expandedTags.has(record.$id);
+                    const displayTags = isExpanded ? tags : tags.slice(0, 2);
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "4px",
+                        }}
+                      >
+                        {displayTags.map((tag) => (
+                          <Tag
+                            key={tag}
+                            style={{
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              margin: 0,
+                            }}
+                          >
+                            {tag}
+                          </Tag>
+                        ))}
+                        {tags.length > 2 && (
+                          <Tag
+                            color="default"
+                            style={{
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                              margin: 0,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTagsExpanded(record.$id);
+                            }}
+                          >
+                            {isExpanded ? "Menos" : `+${tags.length - 2}`}
+                          </Tag>
+                        )}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  title: "Ingredientes",
+                  dataIndex: "ingredientes",
+                  key: "ingredientes",
+                  render: (ingredientes, record) => {
+                    if (!ingredientes || ingredientes.length === 0) return "-";
+                    const isExpanded = expandedTags.has(`${record.$id}-ing`);
+                    const displayIngredientes = isExpanded
+                      ? ingredientes
+                      : ingredientes.slice(0, 2);
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "4px",
+                        }}
+                      >
+                        {displayIngredientes.map((ing) => (
+                          <Tag
+                            key={ing}
+                            color="green"
+                            style={{
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              margin: 0,
+                            }}
+                          >
+                            {ing}
+                          </Tag>
+                        ))}
+                        {ingredientes.length > 2 && (
+                          <Tag
+                            color="default"
+                            style={{
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                              margin: 0,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTagsExpanded(`${record.$id}-ing`);
+                            }}
+                          >
+                            {isExpanded
+                              ? "Menos"
+                              : `+${ingredientes.length - 2}`}
+                          </Tag>
+                        )}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  title: "Ações",
+                  key: "actions",
+                  width: 120,
+                  render: (_, record) => (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <Button
+                        type="default"
+                        size="small"
+                        icon={<Edit size={14} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          openEditModal(item);
+                          openEditModal(record);
                         }}
-                        className="edit-btn"
-                        title="Editar"
-                      >
-                        <Edit />
-                      </button>
-                      <button
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          color: "#2563eb",
+                          borderColor: "#bfdbfe",
+                        }}
+                      />
+                      <Button
+                        type="default"
+                        size="small"
+                        danger
+                        icon={<Trash2 size={14} />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(item.$id);
+                          handleDelete(record.$id);
                         }}
-                        className="delete-btn"
-                        title="Excluir"
-                      >
-                        <Trash2 />
-                      </button>
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      />
                     </div>
+                  ),
+                },
+              ]}
+              locale={{
+                emptyText: (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "48px",
+                      color: "#64748b",
+                    }}
+                  >
+                    <p style={{ fontSize: "18px", marginBottom: "8px" }}>
+                      Nenhum item no menu
+                    </p>
+                    <p style={{ fontSize: "14px" }}>
+                      Clique em &quot;Adicionar Item&quot; para começar
+                    </p>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                ),
+              }}
+            />
+          </>
         )}
       </div>
 

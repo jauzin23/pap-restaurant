@@ -1,7 +1,10 @@
 const express = require("express");
 const pool = require("../../db");
 const { validateUUID } = require("../../uuid-validation");
-const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
+const {
+  autenticarToken,
+  requerGestor,
+} = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
 
 const roteador = express.Router();
@@ -14,9 +17,18 @@ roteador.get("/", autenticarToken, async (req, res) => {
         o.*,
         m.nome as menu_nome,
         m.preco as menu_preco,
-        m.category as menu_category
+        m.category as menu_category,
+        u_aceite.name as aceite_por_nome,
+        u_aceite.profile_image as aceite_por_imagem,
+        u_preparado.name as preparado_por_nome,
+        u_preparado.profile_image as preparado_por_imagem,
+        u_entregue.name as entregue_por_nome,
+        u_entregue.profile_image as entregue_por_imagem
       FROM order_items o
       LEFT JOIN menu m ON o.menu_item_id = m.id
+      LEFT JOIN users u_aceite ON o.aceite_por = u_aceite.id
+      LEFT JOIN users u_preparado ON o.preparado_por = u_preparado.id
+      LEFT JOIN users u_entregue ON o.entregue_por = u_entregue.id
       ORDER BY o.created_at DESC
     `);
 
@@ -29,12 +41,31 @@ roteador.get("/", autenticarToken, async (req, res) => {
       notas: pedido.notas,
       price: pedido.price,
       created_at: pedido.created_at,
+      aceite_por: pedido.aceite_por,
+      aceite_a: pedido.aceite_a,
+      preparado_por: pedido.preparado_por,
+      preparado_a: pedido.preparado_a,
+      entregue_por: pedido.entregue_por,
+      entregue_a: pedido.entregue_a,
       // Informação do item de menu para exibição
       menu_info: {
         nome: pedido.menu_nome,
         preco: pedido.menu_preco,
         category: pedido.menu_category,
       },
+      // Informação dos utilizadores que processaram o pedido
+      aceite_por_user: pedido.aceite_por ? {
+        nome: pedido.aceite_por_nome,
+        profile_image: pedido.aceite_por_imagem,
+      } : null,
+      preparado_por_user: pedido.preparado_por ? {
+        nome: pedido.preparado_por_nome,
+        profile_image: pedido.preparado_por_imagem,
+      } : null,
+      entregue_por_user: pedido.entregue_por ? {
+        nome: pedido.entregue_por_nome,
+        profile_image: pedido.entregue_por_imagem,
+      } : null,
     }));
 
     res.json({ documents: pedidosComInfoMenu });
@@ -65,9 +96,18 @@ roteador.get("/table/:table_ids", autenticarToken, async (req, res) => {
         o.*,
         m.nome as menu_nome,
         m.preco as menu_preco,
-        m.category as menu_category
+        m.category as menu_category,
+        u_aceite.name as aceite_por_nome,
+        u_aceite.profile_image as aceite_por_imagem,
+        u_preparado.name as preparado_por_nome,
+        u_preparado.profile_image as preparado_por_imagem,
+        u_entregue.name as entregue_por_nome,
+        u_entregue.profile_image as entregue_por_imagem
       FROM order_items o
       LEFT JOIN menu m ON o.menu_item_id = m.id
+      LEFT JOIN users u_aceite ON o.aceite_por = u_aceite.id
+      LEFT JOIN users u_preparado ON o.preparado_por = u_preparado.id
+      LEFT JOIN users u_entregue ON o.entregue_por = u_entregue.id
       WHERE o.table_id && $1::uuid[]
       ORDER BY o.created_at DESC
     `,
@@ -83,11 +123,30 @@ roteador.get("/table/:table_ids", autenticarToken, async (req, res) => {
       notas: pedido.notas,
       price: pedido.price,
       created_at: pedido.created_at,
+      aceite_por: pedido.aceite_por,
+      aceite_a: pedido.aceite_a,
+      preparado_por: pedido.preparado_por,
+      preparado_a: pedido.preparado_a,
+      entregue_por: pedido.entregue_por,
+      entregue_a: pedido.entregue_a,
       menu_info: {
         nome: pedido.menu_nome,
         preco: pedido.menu_preco,
         category: pedido.menu_category,
       },
+      // Informação dos utilizadores que processaram o pedido
+      aceite_por_user: pedido.aceite_por ? {
+        nome: pedido.aceite_por_nome,
+        profile_image: pedido.aceite_por_imagem,
+      } : null,
+      preparado_por_user: pedido.preparado_por ? {
+        nome: pedido.preparado_por_nome,
+        profile_image: pedido.preparado_por_imagem,
+      } : null,
+      entregue_por_user: pedido.entregue_por ? {
+        nome: pedido.entregue_por_nome,
+        profile_image: pedido.entregue_por_imagem,
+      } : null,
     }));
 
     res.json({ documents: pedidosComInfoMenu });
@@ -136,11 +195,31 @@ roteador.post("/", autenticarToken, async (req, res) => {
     const resultado = await pool.query(
       `INSERT INTO order_items (table_id, menu_item_id, status, notas, price, created_at)
        VALUES ($1, $2::uuid, 'pendente', $3, $4, CURRENT_TIMESTAMP)
-       RETURNING *`,
+       RETURNING id`,
       [table_id, menu_item_id, notas || null, parseFloat(price)]
     );
 
-    const novoPedido = resultado.rows[0];
+    const novoPedidoId = resultado.rows[0].id;
+
+    // Fetch the complete order with user info
+    const pedidoCompleto = await pool.query(
+      `SELECT
+        o.*,
+        u_aceite.name as aceite_por_nome,
+        u_aceite.profile_image as aceite_por_imagem,
+        u_preparado.name as preparado_por_nome,
+        u_preparado.profile_image as preparado_por_imagem,
+        u_entregue.name as entregue_por_nome,
+        u_entregue.profile_image as entregue_por_imagem
+      FROM order_items o
+      LEFT JOIN users u_aceite ON o.aceite_por = u_aceite.id
+      LEFT JOIN users u_preparado ON o.preparado_por = u_preparado.id
+      LEFT JOIN users u_entregue ON o.entregue_por = u_entregue.id
+      WHERE o.id = $1`,
+      [novoPedidoId]
+    );
+
+    const novoPedido = pedidoCompleto.rows[0];
 
     const respostaPedido = {
       $id: novoPedido.id,
@@ -151,6 +230,24 @@ roteador.post("/", autenticarToken, async (req, res) => {
       notas: novoPedido.notas,
       price: novoPedido.price,
       created_at: novoPedido.created_at,
+      aceite_por: novoPedido.aceite_por,
+      aceite_a: novoPedido.aceite_a,
+      preparado_por: novoPedido.preparado_por,
+      preparado_a: novoPedido.preparado_a,
+      entregue_por: novoPedido.entregue_por,
+      entregue_a: novoPedido.entregue_a,
+      aceite_por_user: novoPedido.aceite_por ? {
+        nome: novoPedido.aceite_por_nome,
+        profile_image: novoPedido.aceite_por_imagem,
+      } : null,
+      preparado_por_user: novoPedido.preparado_por ? {
+        nome: novoPedido.preparado_por_nome,
+        profile_image: novoPedido.preparado_por_imagem,
+      } : null,
+      entregue_por_user: novoPedido.entregue_por ? {
+        nome: novoPedido.entregue_por_nome,
+        profile_image: novoPedido.entregue_por_imagem,
+      } : null,
     };
 
     // Emitir evento WebSocket
@@ -216,7 +313,7 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
         const resultado = await pool.query(
           `INSERT INTO order_items (table_id, menu_item_id, status, notas, price, created_at)
            VALUES ($1, $2::uuid, 'pendente', $3, $4, CURRENT_TIMESTAMP)
-           RETURNING *`,
+           RETURNING id`,
           [
             pedido.table_id,
             pedido.menu_item_id,
@@ -225,7 +322,28 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
           ]
         );
 
-        const novoPedido = resultado.rows[0];
+        const novoPedidoId = resultado.rows[0].id;
+
+        // Fetch the complete order with user info
+        const pedidoCompleto = await pool.query(
+          `SELECT
+            o.*,
+            u_aceite.name as aceite_por_nome,
+            u_aceite.profile_image as aceite_por_imagem,
+            u_preparado.name as preparado_por_nome,
+            u_preparado.profile_image as preparado_por_imagem,
+            u_entregue.name as entregue_por_nome,
+            u_entregue.profile_image as entregue_por_imagem
+          FROM order_items o
+          LEFT JOIN users u_aceite ON o.aceite_por = u_aceite.id
+          LEFT JOIN users u_preparado ON o.preparado_por = u_preparado.id
+          LEFT JOIN users u_entregue ON o.entregue_por = u_entregue.id
+          WHERE o.id = $1`,
+          [novoPedidoId]
+        );
+
+        const novoPedido = pedidoCompleto.rows[0];
+
         pedidosCriados.push({
           $id: novoPedido.id,
           id: novoPedido.id,
@@ -235,6 +353,24 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
           notas: novoPedido.notas,
           price: novoPedido.price,
           created_at: novoPedido.created_at,
+          aceite_por: novoPedido.aceite_por,
+          aceite_a: novoPedido.aceite_a,
+          preparado_por: novoPedido.preparado_por,
+          preparado_a: novoPedido.preparado_a,
+          entregue_por: novoPedido.entregue_por,
+          entregue_a: novoPedido.entregue_a,
+          aceite_por_user: novoPedido.aceite_por ? {
+            nome: novoPedido.aceite_por_nome,
+            profile_image: novoPedido.aceite_por_imagem,
+          } : null,
+          preparado_por_user: novoPedido.preparado_por ? {
+            nome: novoPedido.preparado_por_nome,
+            profile_image: novoPedido.preparado_por_imagem,
+          } : null,
+          entregue_por_user: novoPedido.entregue_por ? {
+            nome: novoPedido.entregue_por_nome,
+            profile_image: novoPedido.entregue_por_imagem,
+          } : null,
         });
       }
 
@@ -242,7 +378,9 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
 
       // Emitir eventos WebSocket para cada pedido criado
       const emissoresClientes = req.app.get("emissoresClientes");
-      pedidosCriados.forEach((pedido) => emissoresClientes.pedidoCriado(pedido));
+      pedidosCriados.forEach((pedido) =>
+        emissoresClientes.pedidoCriado(pedido)
+      );
 
       res.json({
         message: `${pedidosCriados.length} pedidos criados com sucesso`,
@@ -261,7 +399,17 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
 roteador.put("/:id", autenticarToken, requerGestor, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notas, price } = req.body;
+    let {
+      status,
+      notas,
+      price,
+      aceite_por,
+      aceite_a,
+      preparado_por,
+      preparado_a,
+      entregue_por,
+      entregue_a
+    } = req.body;
 
     // Validar UUID
     const validacao = validateUUID(id);
@@ -276,13 +424,41 @@ roteador.put("/:id", autenticarToken, requerGestor, async (req, res) => {
       "pronto",
       "a ser entregue",
       "entregue",
-      "completo",
-      "cancelado",
+      "pago",
     ];
     if (status && !estadosValidos.includes(status)) {
       return res.status(400).json({
         error: `Estado inválido. Deve ser um de: ${estadosValidos.join(", ")}`,
       });
+    }
+
+    // Ao mudar de estado, limpar campos que não são mais válidos
+    // Se voltar para um estado anterior, os campos dos estados seguintes devem ser null
+    if (status) {
+      const estadoIndex = estadosValidos.indexOf(status);
+
+      // Se mudou para "pendente", limpar tudo
+      if (estadoIndex === 0) {
+        aceite_por = null;
+        aceite_a = null;
+        preparado_por = null;
+        preparado_a = null;
+        entregue_por = null;
+        entregue_a = null;
+      }
+      // Se mudou para "aceite", limpar apenas preparado e entregue
+      else if (estadoIndex === 1) {
+        preparado_por = null;
+        preparado_a = null;
+        entregue_por = null;
+        entregue_a = null;
+      }
+      // Se mudou para "pronto" ou "a ser entregue", limpar apenas entregue
+      else if (estadoIndex === 2 || estadoIndex === 3) {
+        entregue_por = null;
+        entregue_a = null;
+      }
+      // Se mudou para "entregue" ou "pago", manter tudo
     }
 
     // Validar preço se fornecido
@@ -292,21 +468,126 @@ roteador.put("/:id", autenticarToken, requerGestor, async (req, res) => {
       });
     }
 
+    // Validar UUIDs de utilizador se fornecidos
+    if (aceite_por) {
+      const validacaoAceite = validateUUID(aceite_por, "aceite_por");
+      if (!validacaoAceite.isValid) {
+        return res.status(400).json(validacaoAceite.error);
+      }
+    }
+
+    if (preparado_por) {
+      const validacaoPreparado = validateUUID(preparado_por, "preparado_por");
+      if (!validacaoPreparado.isValid) {
+        return res.status(400).json(validacaoPreparado.error);
+      }
+    }
+
+    if (entregue_por) {
+      const validacaoEntregue = validateUUID(entregue_por, "entregue_por");
+      if (!validacaoEntregue.isValid) {
+        return res.status(400).json(validacaoEntregue.error);
+      }
+    }
+
+    // Build dynamic update query based on what fields are being updated
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (status !== undefined) {
+      updates.push(`status = $${paramIndex}`);
+      values.push(status);
+      paramIndex++;
+    }
+
+    if (notas !== undefined) {
+      updates.push(`notas = $${paramIndex}`);
+      values.push(notas);
+      paramIndex++;
+    }
+
+    if (price !== undefined) {
+      updates.push(`price = $${paramIndex}`);
+      values.push(parseFloat(price));
+      paramIndex++;
+    }
+
+    // For user tracking fields, explicitly set to value or NULL (don't use COALESCE)
+    if (aceite_por !== undefined) {
+      updates.push(`aceite_por = $${paramIndex}::uuid`);
+      values.push(aceite_por);
+      paramIndex++;
+    }
+
+    if (aceite_a !== undefined) {
+      updates.push(`aceite_a = $${paramIndex}::timestamptz`);
+      values.push(aceite_a);
+      paramIndex++;
+    }
+
+    if (preparado_por !== undefined) {
+      updates.push(`preparado_por = $${paramIndex}::uuid`);
+      values.push(preparado_por);
+      paramIndex++;
+    }
+
+    if (preparado_a !== undefined) {
+      updates.push(`preparado_a = $${paramIndex}::timestamptz`);
+      values.push(preparado_a);
+      paramIndex++;
+    }
+
+    if (entregue_por !== undefined) {
+      updates.push(`entregue_por = $${paramIndex}::uuid`);
+      values.push(entregue_por);
+      paramIndex++;
+    }
+
+    if (entregue_a !== undefined) {
+      updates.push(`entregue_a = $${paramIndex}::timestamptz`);
+      values.push(entregue_a);
+      paramIndex++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Nenhum campo para atualizar" });
+    }
+
+    // Add WHERE clause parameter
+    values.push(id);
+
     const resultado = await pool.query(
       `UPDATE order_items
-       SET status = COALESCE($1, status),
-           notas = COALESCE($2, notas),
-           price = COALESCE($3, price)
-       WHERE id = $4::uuid
-       RETURNING *`,
-      [status, notas, price !== undefined ? parseFloat(price) : null, id]
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}::uuid
+       RETURNING id`,
+      values
     );
 
     if (resultado.rows.length === 0) {
       return res.status(404).json({ error: "Pedido não encontrado" });
     }
 
-    const pedidoAtualizado = resultado.rows[0];
+    // Fetch the complete order with user info
+    const pedidoCompleto = await pool.query(
+      `SELECT
+        o.*,
+        u_aceite.name as aceite_por_nome,
+        u_aceite.profile_image as aceite_por_imagem,
+        u_preparado.name as preparado_por_nome,
+        u_preparado.profile_image as preparado_por_imagem,
+        u_entregue.name as entregue_por_nome,
+        u_entregue.profile_image as entregue_por_imagem
+      FROM order_items o
+      LEFT JOIN users u_aceite ON o.aceite_por = u_aceite.id
+      LEFT JOIN users u_preparado ON o.preparado_por = u_preparado.id
+      LEFT JOIN users u_entregue ON o.entregue_por = u_entregue.id
+      WHERE o.id = $1`,
+      [id]
+    );
+
+    const pedidoAtualizado = pedidoCompleto.rows[0];
 
     const respostaPedido = {
       $id: pedidoAtualizado.id,
@@ -317,6 +598,24 @@ roteador.put("/:id", autenticarToken, requerGestor, async (req, res) => {
       notas: pedidoAtualizado.notas,
       price: pedidoAtualizado.price,
       created_at: pedidoAtualizado.created_at,
+      aceite_por: pedidoAtualizado.aceite_por,
+      aceite_a: pedidoAtualizado.aceite_a,
+      preparado_por: pedidoAtualizado.preparado_por,
+      preparado_a: pedidoAtualizado.preparado_a,
+      entregue_por: pedidoAtualizado.entregue_por,
+      entregue_a: pedidoAtualizado.entregue_a,
+      aceite_por_user: pedidoAtualizado.aceite_por ? {
+        nome: pedidoAtualizado.aceite_por_nome,
+        profile_image: pedidoAtualizado.aceite_por_imagem,
+      } : null,
+      preparado_por_user: pedidoAtualizado.preparado_por ? {
+        nome: pedidoAtualizado.preparado_por_nome,
+        profile_image: pedidoAtualizado.preparado_por_imagem,
+      } : null,
+      entregue_por_user: pedidoAtualizado.entregue_por ? {
+        nome: pedidoAtualizado.entregue_por_nome,
+        profile_image: pedidoAtualizado.entregue_por_imagem,
+      } : null,
     };
 
     // Emitir evento WebSocket

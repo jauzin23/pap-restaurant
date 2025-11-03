@@ -38,7 +38,6 @@ const Sidebar = ({
     { id: "Stock", label: "Stock", icon: Package },
     { id: "Mesas", label: "Mesas", icon: LayoutGrid },
     { id: "Staff", label: "Pessoal", icon: Users },
-    { id: "Settings", label: "Definições", icon: Settings },
   ];
 
   // Profile Image Component
@@ -64,7 +63,9 @@ const Sidebar = ({
             height: typeof size === "number" ? `${size}px` : size,
           }}
         >
-          <UserCircle size={typeof size === "number" ? Math.floor(size * 0.65) : 24} />
+          <UserCircle
+            size={typeof size === "number" ? Math.floor(size * 0.65) : 24}
+          />
         </div>
       );
     }
@@ -77,11 +78,7 @@ const Sidebar = ({
           height: typeof size === "number" ? `${size}px` : size,
         }}
       >
-        <img
-          src={imageUrl}
-          alt={alt}
-          onError={() => setHasError(true)}
-        />
+        <img src={imageUrl} alt={alt} onError={() => setHasError(true)} />
       </div>
     );
   };
@@ -117,7 +114,8 @@ const Sidebar = ({
   // Use props if provided, otherwise fallback to user object
   const username = propUsername || user?.name || user?.username || "Utilizador";
   const userLabels = propUserLabels || user?.labels || [];
-  const profileImg = propProfileImg || user?.profileImage || user?.profile_image || "";
+  const profileImg =
+    propProfileImg || user?.profileImage || user?.profile_image || "";
 
   return (
     <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
@@ -134,7 +132,7 @@ const Sidebar = ({
       {/* Navigation */}
       <nav className="sidebar-nav">
         <div className="nav-heading">{!isCollapsed && "NAVEGAÇÃO"}</div>
-        {menuItems.map((item) => {
+        {menuItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = activeNavItem === item.id;
 
@@ -144,6 +142,7 @@ const Sidebar = ({
               className={`nav-item ${isActive ? "active" : ""}`}
               onClick={() => onNavClick(item.id)}
               title={isCollapsed ? item.label : ""}
+              style={{ animationDelay: `${0.1 + index * 0.05}s` }}
             >
               <Icon size={18} />
               {!isCollapsed && <span className="nav-text">{item.label}</span>}
@@ -158,10 +157,7 @@ const Sidebar = ({
       <div className="sidebar-topbar">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button
-              className="user-profile-btn"
-              title={username}
-            >
+            <button className="user-profile-btn" title={username}>
               <ProfileImage
                 src={profileImg}
                 alt={username}

@@ -11,7 +11,6 @@ import {
   User,
   Save,
   X,
-  Shield,
   Calendar,
   Clock,
   Briefcase,
@@ -23,12 +22,15 @@ import {
   Wand2,
   RefreshCw,
   Check,
+  Tag,
+  Building2,
 } from "lucide-react";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth, users, getAuthToken } from "../../../lib/api";
 import { isAuthenticated } from "../../../lib/auth";
+import { useWebSocketContext } from "../../../contexts/WebSocketContext";
 import "./page.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -59,15 +61,16 @@ function ProfilePageContent({
   const resolvedParams = React.use(params);
   const userIdParam = resolvedParams.userId ? resolvedParams.userId[0] : null;
 
+  // WebSocket context
+  const { socket, connected } = useWebSocketContext();
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [username, setUsername] = useState("");
   const [userLabels, setUserLabels] = useState<string[]>([]);
-  const [profileImg, setProfileImg] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -79,6 +82,7 @@ function ProfilePageContent({
     contrato: "",
     hrs: "",
     ferias: false,
+    labels: [] as string[],
   });
 
   // Image editing states
@@ -189,14 +193,7 @@ function ProfilePageContent({
         // Get current logged-in user
         const userData = await auth.get();
         setCurrentUser(userData);
-        setUsername(userData.name || userData.username || userData.email);
         setUserLabels(userData.labels || []);
-
-        if (userData.profile_image) {
-          setProfileImg(
-            `${API_BASE_URL}/files/imagens-perfil/${userData.profile_image}`
-          );
-        }
 
         // Determine which user profile to load
         let targetUserId = userIdParam;
@@ -220,6 +217,7 @@ function ProfilePageContent({
           contrato: profileUserData.contrato || "",
           hrs: profileUserData.hrs?.toString() || "",
           ferias: profileUserData.ferias || false,
+          labels: profileUserData.labels || [],
         });
       } catch (error) {
         console.error("Error loading user data:", error);
@@ -232,12 +230,39 @@ function ProfilePageContent({
     loadUserData();
   }, [userIdParam]);
 
-  // Handle navigation clicks
-  const handleNavClick = (navItem: string) => {
-    if (navItem === "Painel") {
-      router.push("/pagina-teste-new");
-    }
-  };
+  // WebSocket real-time updates
+  useEffect(() => {
+    if (!socket || !connected || !profileUser?.id) return;
+
+    const handleUserUpdated = (updatedUser: any) => {
+      // Only update if it's THIS user's profile
+      if (updatedUser.id === profileUser.id || updatedUser.$id === profileUser.id) {
+        console.log("📝 Profile updated via WebSocket:", updatedUser.name);
+        setProfileUser(updatedUser);
+
+        // Update form data if not currently editing
+        if (!isEditing) {
+          setFormData({
+            name: updatedUser.name || "",
+            email: updatedUser.email || "",
+            username: updatedUser.username || "",
+            telefone: updatedUser.telefone || "",
+            nif: updatedUser.nif?.toString() || "",
+            contrato: updatedUser.contrato || "",
+            hrs: updatedUser.hrs?.toString() || "",
+            ferias: updatedUser.ferias || false,
+            labels: updatedUser.labels || [],
+          });
+        }
+      }
+    };
+
+    socket.on("user:updated", handleUserUpdated);
+
+    return () => {
+      socket.off("user:updated", handleUserUpdated);
+    };
+  }, [socket, connected, profileUser?.id, isEditing]);
 
   // Handle form input change
   const handleInputChange = (
@@ -273,6 +298,7 @@ function ProfilePageContent({
         updateData.contrato = formData.contrato;
         updateData.hrs = formData.hrs ? parseFloat(formData.hrs) : undefined;
         updateData.ferias = formData.ferias;
+        updateData.labels = formData.labels;
       }
 
       // Remove undefined values
@@ -317,6 +343,7 @@ function ProfilePageContent({
       contrato: profileUser.contrato || "",
       hrs: profileUser.hrs?.toString() || "",
       ferias: profileUser.ferias || false,
+      labels: profileUser.labels || [],
     });
     setIsEditing(false);
   };
@@ -588,7 +615,7 @@ function ProfilePageContent({
                 method: "POST",
                 body: JSON.stringify({
                   imageData: base64Data,
-                  filename: `profile-${profileUser.id}-${Date.now()}.png`,
+                  userId: profileUser.id,
                 }),
               });
 
@@ -615,11 +642,6 @@ function ProfilePageContent({
 
       setProfileUser(updatedUser);
 
-      // Update header profile image
-      if (isOwnProfile) {
-        setProfileImg(`${API_BASE_URL}/files/imagens-perfil/${filename}`);
-      }
-
       resetImage();
       showToast("Foto de perfil atualizada com sucesso!", "success");
       setSaveSuccess(true);
@@ -641,7 +663,7 @@ function ProfilePageContent({
   // Loading state
   if (loading) {
     return (
-      <div className="dashboard fade-in" style={{ background: 'white' }}>
+      <div className="dashboard fade-in">
         <div
           style={{
             position: "fixed",
@@ -650,9 +672,11 @@ function ProfilePageContent({
             width: "100%",
             height: "100%",
             zIndex: -1,
-            background: 'white',
           }}
         >
+          <div className="relative bg-white text-black min-h-screen">
+            <BackgroundBeams pathCount={20} />
+          </div>
         </div>
 
         <main className="main-content">
@@ -669,7 +693,7 @@ function ProfilePageContent({
 
   if (!profileUser) {
     return (
-      <div className="dashboard fade-in" style={{ background: 'white' }}>
+      <div className="dashboard fade-in">
         <div
           style={{
             position: "fixed",
@@ -678,7 +702,6 @@ function ProfilePageContent({
             width: "100%",
             height: "100%",
             zIndex: -1,
-            background: 'white',
           }}
         >
           <div className="relative bg-white text-black min-h-screen">
@@ -701,7 +724,7 @@ function ProfilePageContent({
   }
 
   return (
-    <div className="dashboard fade-in" style={{ background: 'white' }}>
+    <div className="dashboard fade-in">
       <div
         style={{
           position: "fixed",
@@ -710,9 +733,11 @@ function ProfilePageContent({
           width: "100%",
           height: "100%",
           zIndex: -1,
-          background: 'white',
         }}
       >
+        <div className="relative bg-white text-black min-h-screen">
+          <BackgroundBeams pathCount={20} />
+        </div>
       </div>
 
       {/* Success overlay */}
@@ -776,8 +801,12 @@ function ProfilePageContent({
                         opacity: 0,
                         transition: "opacity 0.2s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                      onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.opacity = "1")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.opacity = "0")
+                      }
                     >
                       <Camera size={32} style={{ color: "white" }} />
                     </div>
@@ -789,7 +818,6 @@ function ProfilePageContent({
                   <div className="profile-labels">
                     {profileUser.labels.map((label) => (
                       <span key={label} className="label-badge">
-                        <Shield size={10} />
                         {label}
                       </span>
                     ))}
@@ -827,7 +855,11 @@ function ProfilePageContent({
                       <Clock size={14} />
                       Horas
                     </span>
-                    <span className="stat-value">{profileUser.hrs}h</span>
+                    <span className="stat-value">
+                      {typeof profileUser.hrs === "number"
+                        ? `${profileUser.hrs}h`
+                        : "—"}
+                    </span>
                   </div>
                 )}
                 <div className="stat-item">
@@ -1008,7 +1040,7 @@ function ProfilePageContent({
                 <div className="info-card manager-card">
                   <div className="card-header">
                     <h3>
-                      <Shield size={20} />
+                      <Building2 size={18} />
                       Informação Profissional
                     </h3>
                     {!canEditManagerFields && (
@@ -1084,6 +1116,77 @@ function ProfilePageContent({
                         </p>
                       )}
                     </div>
+
+                    {/* User Roles - Only for Managers */}
+                    {canEditManagerFields && (
+                      <div className="info-field">
+                        <label>
+                          <Tag size={14} />
+                          Cargo
+                        </label>
+                        {isEditing ? (
+                          <div className="labels-edit-wrapper slide-in-edit">
+                            <div className="labels-checkboxes">
+                              {[
+                                { value: "manager", label: "Manager" },
+                                {
+                                  value: "Empregado de Mesa",
+                                  label: "Empregado de Mesa",
+                                },
+                                { value: "chef", label: "chef" },
+                                { value: "Limpeza", label: "Limpeza" },
+                                {
+                                  value: "Rececionista",
+                                  label: "Rececionista",
+                                },
+                              ].map((role) => (
+                                <div
+                                  key={role.value}
+                                  className="label-checkbox-item"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    id={`role-${role.value}`}
+                                    checked={formData.labels.includes(
+                                      role.value
+                                    )}
+                                    onChange={(e) => {
+                                      const newLabels = e.target.checked
+                                        ? [...formData.labels, role.value]
+                                        : formData.labels.filter(
+                                            (l) => l !== role.value
+                                          );
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        labels: newLabels,
+                                      }));
+                                    }}
+                                  />
+                                  <label htmlFor={`role-${role.value}`}>
+                                    {role.label}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="fade-in-edit">
+                            {profileUser.labels &&
+                            profileUser.labels.length > 0 ? (
+                              <div className="labels-display">
+                                {profileUser.labels.map((label) => (
+                                  <span key={label} className="role-badge">
+                                    {label}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p>Nenhuma função atribuída</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1127,10 +1230,7 @@ function ProfilePageContent({
                     disabled={isSaving}
                   >
                     {isSaving ? (
-                      <>
-                        <Loader2 size={16} className="loading-spinner" />A
-                        guardar...
-                      </>
+                      "A guardar..."
                     ) : (
                       <>
                         <Save size={16} />
@@ -1419,10 +1519,7 @@ function ProfilePageContent({
                     }}
                   >
                     {uploadingImage ? (
-                      <>
-                        <Loader2 size={16} className="loading-spinner" />A
-                        carregar...
-                      </>
+                      "A carregar..."
                     ) : (
                       <>
                         <Save size={16} />

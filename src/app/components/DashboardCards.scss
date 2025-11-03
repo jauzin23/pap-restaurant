@@ -1,51 +1,71 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap");
-
 .dashboard-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
-  margin-bottom: 2.5rem !important;
-  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+
+  &__title {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+
+    // Animation
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.15s;
+  }
 }
 
-.dashboard-card {
-  background: #fff;
-  border-left: 4px solid;
-  border-radius: 0.35rem;
-  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-  height: 100%;
-  padding: 1.5rem;
-  transition: all 0.15s ease-in-out;
+.metric-card {
+  background: #ffffff;
+  border: 1px solid rgb(228, 228, 231);
+  border-radius: 1.5rem;
+  overflow: hidden;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Animation
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  animation: cardFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 
   &:hover {
-    box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.25);
-    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.5);
   }
 
-  .card-content {
+  &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1.25rem;
+    padding: 1.5rem;
+    padding-bottom: 0.5rem;
   }
 
-  .card-text {
-    flex: 1;
+  &__icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 3rem;
+    width: 3rem;
+    border-radius: 1rem;
   }
 
-  .card-title {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
+  &__content {
+    padding: 0 1.5rem;
+    padding-bottom: 0.5rem;
   }
 
-  .card-value {
+  &__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.75rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  &__value {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #5a5c69;
+    color: hsl(var(--card-foreground));
     display: flex;
     align-items: baseline;
     gap: 0.125rem;
@@ -56,14 +76,31 @@
     }
   }
 
-  .card-icon {
-    flex-shrink: 0;
-    opacity: 0.2;
-    transition: opacity 0.15s ease-in-out;
+  &__footer {
+    padding: 0 1.5rem 1.5rem;
   }
 
-  &:hover .card-icon {
-    opacity: 0.3;
+  &__action-btn {
+    width: 100%;
+    height: 2.25rem;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    border: none;
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: all 150ms ease;
+
+    &:hover {
+      background: hsl(var(--secondary) / 0.8);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
   }
 }
 
@@ -74,33 +111,50 @@
     gap: 1rem;
   }
 
-  .dashboard-card {
-    padding: 1rem;
-
-    .card-value {
-      font-size: 1.15rem;
+  .metric-card {
+    &__header {
+      padding: 1.25rem;
+      padding-bottom: 0.5rem;
     }
 
-    .card-icon svg {
-      width: 28px;
-      height: 28px;
+    &__content {
+      padding: 0 1.25rem;
+      padding-bottom: 0.5rem;
+    }
+
+    &__title {
+      font-size: 14px;
+    }
+
+    &__value {
+      font-size: 18px !important;
+    }
+
+    &__footer {
+      padding: 0 1.25rem 1.25rem;
     }
   }
 }
 
-@media (max-width: 480px) {
-  .dashboard-card {
-    .card-title {
-      font-size: 0.65rem;
-    }
+// Animations
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
-    .card-value {
-      font-size: 1rem;
-    }
-
-    .card-icon svg {
-      width: 24px;
-      height: 24px;
-    }
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

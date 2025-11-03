@@ -31,13 +31,6 @@ const WeeklyRevenueChart = ({ data = [] }) => {
 
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold">Receita Semanal</h3>
-        <p className="text-sm text-muted-foreground">
-          Mostrando a receita total desta semana
-        </p>
-      </div>
-
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
         <AreaChart
           accessibilityLayer
