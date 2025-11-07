@@ -691,11 +691,21 @@ export default function StockComponent() {
     if (!supplierSearchTerm.trim()) return suppliers;
     return suppliers.filter(
       (supplier) =>
-        supplier.name?.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
-        supplier.contact_name?.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
-        supplier.email?.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
-        supplier.phone?.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
-        supplier.address?.toLowerCase().includes(supplierSearchTerm.toLowerCase())
+        supplier.name
+          ?.toLowerCase()
+          .includes(supplierSearchTerm.toLowerCase()) ||
+        supplier.contact_name
+          ?.toLowerCase()
+          .includes(supplierSearchTerm.toLowerCase()) ||
+        supplier.email
+          ?.toLowerCase()
+          .includes(supplierSearchTerm.toLowerCase()) ||
+        supplier.phone
+          ?.toLowerCase()
+          .includes(supplierSearchTerm.toLowerCase()) ||
+        supplier.address
+          ?.toLowerCase()
+          .includes(supplierSearchTerm.toLowerCase())
     );
   }, [suppliers, supplierSearchTerm]);
 
@@ -3157,272 +3167,275 @@ export default function StockComponent() {
 
               {/* Suppliers Grid */}
               <div className="suppliers-grid">
-              {dropdownsLoading ? (
-                <div className="loading-state">
-                  <RefreshCw className="animate-spin" size={32} />
-                  <p>A carregar fornecedores...</p>
-                </div>
-              ) : filteredSuppliers.length === 0 ? (
-                <div className="empty-state">
-                  <ShoppingCart size={64} />
-                  <h3>
-                    {suppliers.length === 0
-                      ? "Nenhum fornecedor registado"
-                      : "Nenhum fornecedor encontrado"}
-                  </h3>
-                  <p>
-                    {suppliers.length === 0
-                      ? "Adicione fornecedores para associar aos items de stock"
-                      : "Tente ajustar os termos de pesquisa"}
-                  </p>
-                  {suppliers.length === 0 && (
-                    <button
-                      onClick={() => setIsAddSupplierModalOpen(true)}
-                      className="stock-header-card__btn stock-header-card__btn--primary"
-                    >
-                      <Plus size={16} />
-                      Adicionar Primeiro Fornecedor
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <table className="suppliers-table">
-                  <thead>
-                    <tr>
-                      <th>Nome</th>
-                      <th>Contacto</th>
-                      <th>Email</th>
-                      <th>Telefone</th>
-                      <th>Morada</th>
-                      <th>Items Fornecidos</th>
-                      <th>Notas</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSuppliers.map((supplier) => {
-                      // Get items for this supplier (ensure both are strings for comparison)
-                      const supplierItems = stockItems.filter((item) => {
-                        const itemSupplierId = item.supplier_id?.toString();
-                        const supplierId = supplier.$id?.toString();
-                        return itemSupplierId === supplierId;
-                      });
-                      const itemCount = supplierItems.length;
+                {dropdownsLoading ? (
+                  <div className="loading-state">
+                    <RefreshCw className="animate-spin" size={32} />
+                    <p>A carregar fornecedores...</p>
+                  </div>
+                ) : filteredSuppliers.length === 0 ? (
+                  <div className="empty-state">
+                    <ShoppingCart size={64} />
+                    <h3>
+                      {suppliers.length === 0
+                        ? "Nenhum fornecedor registado"
+                        : "Nenhum fornecedor encontrado"}
+                    </h3>
+                    <p>
+                      {suppliers.length === 0
+                        ? "Adicione fornecedores para associar aos items de stock"
+                        : "Tente ajustar os termos de pesquisa"}
+                    </p>
+                    {suppliers.length === 0 && (
+                      <button
+                        onClick={() => setIsAddSupplierModalOpen(true)}
+                        className="stock-header-card__btn stock-header-card__btn--primary"
+                      >
+                        <Plus size={16} />
+                        Adicionar Primeiro Fornecedor
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <table className="suppliers-table">
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Contacto</th>
+                        <th>Email</th>
+                        <th>Telefone</th>
+                        <th>Morada</th>
+                        <th>Items Fornecidos</th>
+                        <th>Notas</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSuppliers.map((supplier) => {
+                        // Get items for this supplier (ensure both are strings for comparison)
+                        const supplierItems = stockItems.filter((item) => {
+                          const itemSupplierId = item.supplier_id?.toString();
+                          const supplierId = supplier.$id?.toString();
+                          return itemSupplierId === supplierId;
+                        });
+                        const itemCount = supplierItems.length;
 
-                      return (
-                        <tr key={supplier.$id}>
-                          <td>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                              }}
-                            >
-                              <ShoppingCart size={16} color="#0ea5e9" />
-                              <span style={{ fontWeight: 600 }}>
-                                {supplier.name}
-                              </span>
-                            </div>
-                          </td>
-                          <td>{supplier.contact_name || "-"}</td>
-                          <td>
-                            {supplier.email ? (
-                              <a
-                                href={`mailto:${supplier.email}`}
+                        return (
+                          <tr key={supplier.$id}>
+                            <td>
+                              <div
                                 style={{
-                                  color: "#0ea5e9",
-                                  textDecoration: "none",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
                                 }}
                               >
-                                {supplier.email}
-                              </a>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                          <td>
-                            {supplier.phone ? (
-                              <a
-                                href={`tel:${supplier.phone}`}
-                                style={{
-                                  color: "#0ea5e9",
-                                  textDecoration: "none",
-                                }}
-                              >
-                                {supplier.phone}
-                              </a>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                          <td>{supplier.address || "-"}</td>
-                          <td>
-                            {itemCount > 0 ? (
-                              <div className="supplier-items-cell">
-                                <div
-                                  className="items-count-badge clickable"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setExpandedSupplierItems((prev) => {
-                                      const newSet = new Set(prev);
-                                      if (newSet.has(supplier.$id)) {
-                                        newSet.delete(supplier.$id);
-                                      } else {
-                                        newSet.add(supplier.$id);
-                                      }
-                                      return newSet;
-                                    });
+                                <ShoppingCart size={16} color="#0ea5e9" />
+                                <span style={{ fontWeight: 600 }}>
+                                  {supplier.name}
+                                </span>
+                              </div>
+                            </td>
+                            <td>{supplier.contact_name || "-"}</td>
+                            <td>
+                              {supplier.email ? (
+                                <a
+                                  href={`mailto:${supplier.email}`}
+                                  style={{
+                                    color: "#0ea5e9",
+                                    textDecoration: "none",
                                   }}
                                 >
-                                  <Package size={14} />
-                                  <span>
-                                    {itemCount}{" "}
-                                    {itemCount === 1 ? "item" : "items"}
-                                  </span>
-                                  <ChevronDown
-                                    size={14}
-                                    style={{
-                                      transform: expandedSupplierItems.has(
-                                        supplier.$id
-                                      )
-                                        ? "rotate(180deg)"
-                                        : "rotate(0deg)",
-                                      transition: "transform 0.2s ease",
+                                  {supplier.email}
+                                </a>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                            <td>
+                              {supplier.phone ? (
+                                <a
+                                  href={`tel:${supplier.phone}`}
+                                  style={{
+                                    color: "#0ea5e9",
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  {supplier.phone}
+                                </a>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                            <td>{supplier.address || "-"}</td>
+                            <td>
+                              {itemCount > 0 ? (
+                                <div className="supplier-items-cell">
+                                  <div
+                                    className="items-count-badge clickable"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedSupplierItems((prev) => {
+                                        const newSet = new Set(prev);
+                                        if (newSet.has(supplier.$id)) {
+                                          newSet.delete(supplier.$id);
+                                        } else {
+                                          newSet.add(supplier.$id);
+                                        }
+                                        return newSet;
+                                      });
                                     }}
-                                  />
-                                </div>
-                                {expandedSupplierItems.has(supplier.$id) && (
-                                  <div className="items-preview">
-                                    {supplierItems.map((item) => (
-                                      <span key={item.$id} className="item-tag">
-                                        {item.name}
-                                      </span>
-                                    ))}
+                                  >
+                                    <Package size={14} />
+                                    <span>
+                                      {itemCount}{" "}
+                                      {itemCount === 1 ? "item" : "items"}
+                                    </span>
+                                    <ChevronDown
+                                      size={14}
+                                      style={{
+                                        transform: expandedSupplierItems.has(
+                                          supplier.$id
+                                        )
+                                          ? "rotate(180deg)"
+                                          : "rotate(0deg)",
+                                        transition: "transform 0.2s ease",
+                                      }}
+                                    />
                                   </div>
-                                )}
+                                  {expandedSupplierItems.has(supplier.$id) && (
+                                    <div className="items-preview">
+                                      {supplierItems.map((item) => (
+                                        <span
+                                          key={item.$id}
+                                          className="item-tag"
+                                        >
+                                          {item.name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span
+                                  style={{ color: "#9ca3af", fontSize: "13px" }}
+                                >
+                                  Nenhum item
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div
+                                style={{
+                                  maxWidth: "200px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={supplier.notes}
+                              >
+                                {supplier.notes || "-"}
                               </div>
-                            ) : (
-                              <span
-                                style={{ color: "#9ca3af", fontSize: "13px" }}
-                              >
-                                Nenhum item
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <div
-                              style={{
-                                maxWidth: "200px",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={supplier.notes}
-                            >
-                              {supplier.notes || "-"}
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", gap: "8px" }}>
-                              <button
-                                onClick={() => {
-                                  setEditingSupplier(supplier);
-                                  setNewSupplier({
-                                    name: supplier.name,
-                                    contact_name: supplier.contact_name || "",
-                                    email: supplier.email || "",
-                                    phone: supplier.phone || "",
-                                    address: supplier.address || "",
-                                    notes: supplier.notes || "",
-                                  });
-                                  setIsAddSupplierModalOpen(true);
-                                }}
-                                style={{
-                                  padding: "6px 12px",
-                                  backgroundColor: "#0ea5e9",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: "6px",
-                                  cursor: "pointer",
-                                  fontSize: "13px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  transition: "background-color 0.2s",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor =
-                                    "#0284c7";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor =
-                                    "#0ea5e9";
-                                }}
-                              >
-                                <Edit size={14} />
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => {
-                                  Modal.confirm({
-                                    title: "Eliminar Fornecedor",
-                                    content: `Tem certeza que deseja eliminar o fornecedor "${supplier.name}"?\n\nNota: Não será possível eliminar se houver items associados.`,
-                                    okText: "Eliminar",
-                                    okType: "danger",
-                                    cancelText: "Cancelar",
-                                    onOk: async () => {
-                                      try {
-                                        await deleteSupplier(supplier.$id);
-                                        message.success(
-                                          "Fornecedor eliminado com sucesso!"
-                                        );
-                                      } catch (err) {
-                                        console.error(
-                                          "Error deleting supplier:",
-                                          err
-                                        );
-                                        message.error(
-                                          err.message ||
-                                            "Erro ao eliminar fornecedor. Verifique se não há items associados."
-                                        );
-                                      }
-                                    },
-                                  });
-                                }}
-                                style={{
-                                  padding: "6px 12px",
-                                  backgroundColor: "#ef4444",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: "6px",
-                                  cursor: "pointer",
-                                  fontSize: "13px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  transition: "background-color 0.2s",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor =
-                                    "#dc2626";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor =
-                                    "#ef4444";
-                                }}
-                              >
-                                <X size={14} />
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  onClick={() => {
+                                    setEditingSupplier(supplier);
+                                    setNewSupplier({
+                                      name: supplier.name,
+                                      contact_name: supplier.contact_name || "",
+                                      email: supplier.email || "",
+                                      phone: supplier.phone || "",
+                                      address: supplier.address || "",
+                                      notes: supplier.notes || "",
+                                    });
+                                    setIsAddSupplierModalOpen(true);
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    backgroundColor: "#0ea5e9",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "6px",
+                                    cursor: "pointer",
+                                    fontSize: "13px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    transition: "background-color 0.2s",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#0284c7";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#0ea5e9";
+                                  }}
+                                >
+                                  <Edit size={14} />
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    Modal.confirm({
+                                      title: "Eliminar Fornecedor",
+                                      content: `Tem certeza que deseja eliminar o fornecedor "${supplier.name}"?\n\nNota: Não será possível eliminar se houver items associados.`,
+                                      okText: "Eliminar",
+                                      okType: "danger",
+                                      cancelText: "Cancelar",
+                                      onOk: async () => {
+                                        try {
+                                          await deleteSupplier(supplier.$id);
+                                          message.success(
+                                            "Fornecedor eliminado com sucesso!"
+                                          );
+                                        } catch (err) {
+                                          console.error(
+                                            "Error deleting supplier:",
+                                            err
+                                          );
+                                          message.error(
+                                            err.message ||
+                                              "Erro ao eliminar fornecedor. Verifique se não há items associados."
+                                          );
+                                        }
+                                      },
+                                    });
+                                  }}
+                                  style={{
+                                    padding: "6px 12px",
+                                    backgroundColor: "#ef4444",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "6px",
+                                    cursor: "pointer",
+                                    fontSize: "13px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    transition: "background-color 0.2s",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#dc2626";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#ef4444";
+                                  }}
+                                >
+                                  <X size={14} />
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>
