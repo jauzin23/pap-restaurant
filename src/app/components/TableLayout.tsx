@@ -453,26 +453,50 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
   // Handle table selection for orders
   const handleTableSelection = (tableNumber: number, tableId: string) => {
-    if (mode === "edit") return; // Don't handle selection in edit mode
+    console.log("[TableLayout] Table clicked:", { tableNumber, tableId, mode });
+
+    if (mode === "edit") {
+      console.log("[TableLayout] Ignoring click - in edit mode");
+      return; // Don't handle selection in edit mode
+    }
 
     const status = getTableStatus(tableId);
-    if (status !== "available") return; // Only allow selection of available tables
+    console.log("[TableLayout] Table status:", status);
+
+    if (status !== "available") {
+      console.log("[TableLayout] Ignoring click - table not available");
+      return; // Only allow selection of available tables
+    }
 
     setSelectedTables((prev) => {
-      if (prev.includes(tableId)) {
-        return prev.filter((id) => id !== tableId);
-      } else {
-        return [...prev, tableId];
-      }
+      const isAlreadySelected = prev.includes(tableId);
+      const newSelection = isAlreadySelected
+        ? prev.filter((id) => id !== tableId)
+        : [...prev, tableId];
+
+      console.log("[TableLayout] Selection updated:", {
+        isAlreadySelected,
+        previousSelection: prev,
+        newSelection,
+      });
+
+      return newSelection;
     });
   };
 
   // Create order with selected tables
   const handleCreateOrder = () => {
-    if (selectedTables.length === 0) return;
+    if (selectedTables.length === 0) {
+      console.log("[TableLayout] No tables selected");
+      return;
+    }
+
+    console.log("[TableLayout] Creating order for tables:", selectedTables);
 
     // selectedTables now contains table IDs
     const tablesParam = selectedTables.join(",");
+    console.log("[TableLayout] Navigating to:", `/order/${tablesParam}`);
+
     router.push(`/order/${tablesParam}`);
 
     // Clear selection after order creation
@@ -1772,6 +1796,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onOrderDelete,
 }) => {
   const router = useRouter();
+  const { socket, connected } = useWebSocketContext();
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<string>("");
   const [editingStatus, setEditingStatus] = useState<string>("pendente");
@@ -1782,6 +1807,96 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every 10 seconds for elapsed time display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    if (!socket || !connected) return;
+
+    console.log("🔌 OrderModal: Setting up WebSocket listeners, orders count:", orders.length);
+
+    const handleOrderUpdate = (order: any) => {
+      console.log("🔄 OrderModal: Order updated received:", order);
+
+      const updatedOrderId = order.$id || order.id;
+
+      // Check if this update affects any of the orders in this modal
+      const affectedOrder = orders.find(
+        (o) => (o.$id || o.id) === updatedOrderId
+      );
+
+      console.log("OrderModal: Affected order found:", !!affectedOrder, "Updated order ID:", updatedOrderId);
+
+      if (affectedOrder) {
+        console.log("✅ OrderModal: Updating order in modal");
+        // Update the specific order with all the new data
+        onOrderUpdate(updatedOrderId, { ...affectedOrder, ...order });
+      }
+    };
+
+    const handleOrderDelete = (data: any) => {
+      console.log("🗑️ OrderModal: Order deleted received:", data);
+
+      const deletedOrderId = data.id || data.$id;
+
+      // Check if the deleted order is in this modal
+      const affectedOrder = orders.find(
+        (o) => (o.$id || o.id) === deletedOrderId
+      );
+
+      if (affectedOrder) {
+        console.log("✅ OrderModal: Removing order from modal");
+        onOrderDelete(deletedOrderId);
+        // If no orders left, close modal
+        if (orders.length === 1) {
+          onClose();
+        }
+      }
+    };
+
+    const handleOrderCreate = (order: any) => {
+      console.log("➕ OrderModal: New order created received:", order);
+
+      // Check if this new order belongs to any of the tables in this modal
+      const orderTableIds = order.table_id || [];
+      const modalTableIds = orders.flatMap(o => o.table_id || []);
+
+      // Check if there's any overlap between order tables and modal tables
+      const hasMatchingTable = orderTableIds.some((tableId: string) =>
+        modalTableIds.includes(tableId)
+      );
+
+      if (hasMatchingTable) {
+        console.log("✅ OrderModal: New order matches table, refreshing");
+        // Refresh to get the new order
+        onRefresh();
+      }
+    };
+
+    // Subscribe to WebSocket events (CORRECT EVENT NAMES)
+    (socket as Socket).on("order:updated", handleOrderUpdate);
+    (socket as Socket).on("order:deleted", handleOrderDelete);
+    (socket as Socket).on("order:created", handleOrderCreate);
+
+    console.log("✅ OrderModal: WebSocket listeners registered");
+
+    // Cleanup
+    return () => {
+      console.log("🧹 OrderModal: Cleaning up WebSocket listeners");
+      (socket as Socket).off("order:updated", handleOrderUpdate);
+      (socket as Socket).off("order:deleted", handleOrderDelete);
+      (socket as Socket).off("order:created", handleOrderCreate);
+    };
+  }, [socket, connected, orders, onRefresh, onOrderUpdate, onOrderDelete, onClose]);
 
   // Helper function to get menu item by ID
   const getMenuItem = (menuItemId: string) => {
@@ -2026,12 +2141,34 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     return sum + price * quantity;
   }, 0);
 
-  // Sort orders by created_at (newest first)
+  // Sort orders by created_at (oldest first - chronological order)
   const sortedOrders = [...orders].sort((a, b) => {
     const dateA = new Date(a.created_at || a.$createdAt || 0).getTime();
     const dateB = new Date(b.created_at || b.$createdAt || 0).getTime();
     return dateA - dateB; // Oldest first (chronological order)
   });
+
+  // Helper function to calculate elapsed time
+  const getElapsedTime = (createdAt: string): string => {
+    const created = new Date(createdAt);
+    const diffMs = currentTime.getTime() - created.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) {
+      return "agora";
+    } else if (diffMinutes === 1) {
+      return "1 min";
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes} min`;
+    } else {
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      if (mins === 0) {
+        return `${hours}h`;
+      }
+      return `${hours}h ${mins}m`;
+    }
+  };
 
   // Extract table IDs from orders to determine which tables to navigate to
   const tableIds =
@@ -2070,6 +2207,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               <div className="orders-table-header">
                 <div>Imagem</div>
                 <div>Item</div>
+                <div>Tempo</div>
                 <div>Preço</div>
                 <div>Estado</div>
                 <div>Ações</div>
@@ -2255,6 +2393,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                               </div>
                             )}
                           </div>
+                        </div>
+
+                        {/* Time Elapsed Cell */}
+                        <div className="order-cell order-cell-time">
+                          <span className="elapsed-time">
+                            {getElapsedTime(order.created_at || order.$createdAt)}
+                          </span>
                         </div>
 
                         {/* Price Cell */}

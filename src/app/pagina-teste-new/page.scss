@@ -480,9 +480,8 @@ body {
 
 .main-content {
   padding: 2rem;
-  margin-top: 24px;
   overflow-y: auto;
-  height: calc(100vh - 60px);
+  height: 100%;
   box-sizing: border-box;
 
   display: flex;

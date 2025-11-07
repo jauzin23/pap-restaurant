@@ -11,12 +11,14 @@
   .staff-container {
     max-width: none;
     margin: 0;
+    padding-top: 32px;
+    padding-bottom: 32px;
   }
 
   // Page Header
   .staff-page-header {
     padding: 24px 32px;
-    padding-right: 1rem;
+    padding-right: 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -121,7 +123,6 @@
 
   // Main Grid Layout
   .staff-grid {
-    padding: 32px;
     padding-top: 24px;
     display: flex;
     flex-direction: column;
@@ -358,6 +359,229 @@
 
     .staff-grid {
       padding: 1rem;
+    }
+  }
+
+  // Header Card Styles
+  .stock-header-card {
+    border-radius: 1.5rem;
+    background: linear-gradient(
+      to right,
+      #7c3aed 0%,
+      #6366f1 50%,
+      #3b82f6 100%
+    );
+    padding: 2rem;
+    color: white;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
+    min-height: 200px;
+    margin-bottom: 2rem;
+
+    // Animation
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation-delay: 0.1s;
+
+    &__content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    &__left {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    &__title {
+      font-size: 1.875rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .ws-indicator {
+        font-size: 10px;
+        margin-left: 8px;
+        opacity: 0.6;
+        transition: opacity 0.3s ease;
+
+        &.connected {
+          color: #10b981;
+          opacity: 1;
+          animation: pulse-dot 2s ease-in-out infinite;
+        }
+      }
+    }
+
+    &__description {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    &__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    &__btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+      font-size: 0.875rem;
+      font-weight: 500;
+      height: 2.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 1rem;
+      border: none;
+      cursor: pointer;
+      transition: all 150ms ease;
+
+      &--primary {
+        background: white;
+        color: #4f46e5;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.9);
+        }
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
+
+      &--secondary {
+        background: transparent;
+        border: 1px solid white;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        &:active:not(:disabled) {
+          transform: scale(0.98);
+        }
+      }
+
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+    }
+
+    &__right {
+      display: none;
+    }
+
+    &__circles {
+      position: relative;
+      height: 10rem;
+      width: 10rem;
+      animation: rotate 20s linear infinite;
+
+      .circle {
+        position: absolute;
+        border-radius: 50%;
+        backdrop-filter: blur(12px);
+
+        &-1 {
+          inset: 0;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        &-2 {
+          inset: 1rem;
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        &-3 {
+          inset: 2rem;
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        &-4 {
+          inset: 3rem;
+          background: rgba(255, 255, 255, 0.4);
+        }
+
+        &-5 {
+          inset: 4rem;
+          background: rgba(255, 255, 255, 0.5);
+        }
+      }
+    }
+  }
+}
+
+// Animations
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Responsive
+@media (min-width: 768px) {
+  .manager-staff-view .stock-header-card {
+    &__content {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .manager-staff-view .stock-header-card {
+    &__right {
+      display: block;
     }
   }
 }

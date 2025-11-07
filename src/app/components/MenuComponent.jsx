@@ -759,8 +759,8 @@ export default function MenuComponent() {
           <div className="menu-header-card__left">
             <h1 className="menu-header-card__title">Gestão de Menu</h1>
             <p className="menu-header-card__description">
-              Cuide de todos os itens do menu, adicione novos pratos e mantenha
-              tudo sempre atualizado.
+              Crie e gere o menu do restaurante com categorias, tags e
+              ingredientes.
             </p>
             <div className="menu-header-card__actions">
               <button
@@ -777,6 +777,7 @@ export default function MenuComponent() {
               <button
                 onClick={openAddModal}
                 className="menu-header-card__btn menu-header-card__btn--primary"
+                disabled={loading}
               >
                 <Plus size={16} />
                 Adicionar Item

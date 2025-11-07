@@ -3,6 +3,8 @@
 
 .menu-component {
   min-height: 100%;
+  padding-top: 32px;
+  padding-bottom: 32px;
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -247,7 +249,7 @@
 
 // Old Header styles (keeping for backwards compatibility)
 .menu-header {
-  padding: 24px 32px;
+  padding: 24px 0px;
   display: flex;
   justify-content: space-between;
   align-items: center;

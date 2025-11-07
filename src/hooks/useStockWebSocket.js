@@ -25,6 +25,9 @@ export function useStockWebSocket(callbacks = {}) {
     onLocationCreated,
     onLocationUpdated,
     onLocationDeleted,
+    onInventoryUpdated,
+    onInventoryDeleted,
+    onStockTransferred,
     onAlert,
     onConnected,
     onDisconnected,
@@ -135,6 +138,22 @@ export function useStockWebSocket(callbacks = {}) {
       onLocationDeleted?.(data);
     });
 
+    // Inventory events
+    socket.on('stock:inventory:updated', (inventory) => {
+      console.log('[StockWebSocket] 📦 Inventory updated:', inventory.stock_item_id);
+      onInventoryUpdated?.(inventory);
+    });
+
+    socket.on('stock:inventory:deleted', (data) => {
+      console.log('[StockWebSocket] 🗑️ Inventory deleted:', data.stock_item_id);
+      onInventoryDeleted?.(data);
+    });
+
+    socket.on('stock:transfer', (transfer) => {
+      console.log('[StockWebSocket] 🔄 Stock transferred:', transfer);
+      onStockTransferred?.(transfer);
+    });
+
     // Alert events
     socket.on('stock:alert:created', (alert) => {
       console.log('[StockWebSocket] ⚠️ Alert:', alert.message);
@@ -170,6 +189,9 @@ export function useStockWebSocket(callbacks = {}) {
     onLocationCreated,
     onLocationUpdated,
     onLocationDeleted,
+    onInventoryUpdated,
+    onInventoryDeleted,
+    onStockTransferred,
     onAlert,
     onConnected,
     onDisconnected,

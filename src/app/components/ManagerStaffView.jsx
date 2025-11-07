@@ -444,36 +444,56 @@ const ManagerStaffView = () => {
   return (
     <div className="manager-staff-view">
       <div className="staff-container">
-        {/* Header with Actions */}
-        <div className="staff-page-header">
-          <h1>
-            <Users className="title-icon" />
-            Gestão de Equipa
-          </h1>
-          <div className="header-actions">
-            <Button
-              onClick={loadStaffData}
-              disabled={refreshing}
-              className="refresh-button"
-              icon={
-                <RefreshCw
-                  size={16}
-                  className={refreshing ? "animate-spin" : ""}
-                />
-              }
-            >
-              Atualizar
-            </Button>
-            {isManager && (
-              <Button
-                onClick={openCreateModal}
-                type="primary"
-                className="add-button"
-                icon={<Plus size={16} />}
-              >
-                Adicionar Funcionário
-              </Button>
-            )}
+        {/* Header Card */}
+        <div className="stock-header-card">
+          <div className="stock-header-card__content">
+            <div className="stock-header-card__left">
+              <h1 className="stock-header-card__title">
+                Gestão de Equipa
+                {connected && (
+                  <span
+                    className="ws-indicator connected"
+                    title="WebSocket conectado - Updates em tempo real"
+                  >
+                    ●
+                  </span>
+                )}
+              </h1>
+              <p className="stock-header-card__description">
+                Gere a tua equipa, assiduidade e performance em tempo real.
+              </p>
+              <div className="stock-header-card__actions">
+                <button
+                  onClick={loadStaffData}
+                  disabled={refreshing}
+                  className="stock-header-card__btn stock-header-card__btn--secondary"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={refreshing ? "animate-spin" : ""}
+                  />
+                  Atualizar
+                </button>
+                {isManager && (
+                  <button
+                    onClick={openCreateModal}
+                    className="stock-header-card__btn stock-header-card__btn--primary"
+                  >
+                    <Plus size={16} />
+                    Adicionar Funcionário
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="stock-header-card__right">
+              <div className="stock-header-card__circles">
+                <div className="circle circle-1"></div>
+                <div className="circle circle-2"></div>
+                <div className="circle circle-3"></div>
+                <div className="circle circle-4"></div>
+                <div className="circle circle-5"></div>
+              </div>
+            </div>
           </div>
         </div>
 
