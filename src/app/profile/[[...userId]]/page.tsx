@@ -353,7 +353,7 @@ function ProfilePageContent({
 
   // Go back
   const goBack = () => {
-    router.push("/pagina-teste-new");
+    router.push("/ ");
   };
 
   // Image handling functions

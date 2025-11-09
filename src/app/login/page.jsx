@@ -17,7 +17,7 @@ const LoginPage = () => {
   // Check if already authenticated and redirect
   useEffect(() => {
     if (isAuthenticated()) {
-      window.location.href = "/pagina-teste-new";
+      window.location.href = "/";
     }
   }, []);
 
@@ -48,7 +48,7 @@ const LoginPage = () => {
       if (result.success) {
         console.log("Login successful:", result.user);
         // Redirect to dashboard
-        window.location.href = "/pagina-teste-new";
+        window.location.href = "/";
       } else {
         console.error("Login failed with result:", result);
         setError(result.error || "Login failed");

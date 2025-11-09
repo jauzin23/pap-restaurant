@@ -138,7 +138,7 @@ function PedidoPageContent({
       );
 
       if (cleanMesas.length === 0) {
-        router.push("/pagina-teste-new");
+        router.push("/ ");
         return;
       }
 
@@ -154,7 +154,7 @@ function PedidoPageContent({
         .filter((id) => id !== "");
 
       if (tableIds.length === 0) {
-        router.push("/pagina-teste-new");
+        router.push("/ ");
         return;
       }
 
@@ -163,7 +163,7 @@ function PedidoPageContent({
 
       if (!existingTables || existingTables.length === 0) {
         alert("Error: No tables found");
-        router.push("/pagina-teste-new");
+        router.push("/ ");
         return;
       }
 
@@ -172,7 +172,7 @@ function PedidoPageContent({
       );
 
       if (validTableIdsArray.length === 0) {
-        router.push("/pagina-teste-new");
+        router.push("/ ");
         return;
       }
 
@@ -188,7 +188,7 @@ function PedidoPageContent({
       await fetchMenuItems();
     } catch (error) {
       console.error("Error validating tables:", error);
-      router.push("/pagina-teste-new");
+      router.push("/ ");
     } finally {
       setIsLoading(false);
     }
@@ -348,7 +348,7 @@ function PedidoPageContent({
 
       setOrderSuccess(true);
       setTimeout(() => {
-        router.push("/pagina-teste-new");
+        router.push("/ ");
       }, 2000);
     } catch (error) {
       console.error("Error creating order:", error);
@@ -357,7 +357,7 @@ function PedidoPageContent({
   };
 
   const cancelOrder = () => {
-    router.push("/pagina-teste-new");
+    router.push("/ ");
   };
 
   if (loading || isLoading) {
@@ -510,7 +510,11 @@ function PedidoPageContent({
 
           {/* Right: Order Summary */}
           {isOrderSectionVisible && (
-            <div className={`order-section ${isOrderSectionExiting ? 'slide-out' : ''}`}>
+            <div
+              className={`order-section ${
+                isOrderSectionExiting ? "slide-out" : ""
+              }`}
+            >
               <div className="order-header-bar">
                 <h2>Pedido</h2>
                 <span className="item-count">
