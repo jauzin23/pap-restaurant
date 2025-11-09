@@ -75,6 +75,8 @@ function PedidoPageContent({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12); // Default, will be calculated
   const menuGridRef = React.useRef<HTMLDivElement>(null);
+  const [isOrderSectionVisible, setIsOrderSectionVisible] = useState(false);
+  const [isOrderSectionExiting, setIsOrderSectionExiting] = useState(false);
 
   const getAuthToken = () => {
     return localStorage.getItem("auth_token");
@@ -140,25 +142,16 @@ function PedidoPageContent({
         return;
       }
 
-      let tableIds: string[] = [];
-
-      if (cleanMesas.length === 1 && cleanMesas[0].includes(",")) {
-        const decodedString = decodeURIComponent(cleanMesas[0]);
-        tableIds = decodedString
-          .split(",")
-          .map((str) => str.trim())
-          .filter((str) => str !== "");
-      } else {
-        tableIds = cleanMesas
-          .map((item) => {
-            try {
-              return decodeURIComponent(String(item));
-            } catch (e) {
-              return String(item);
-            }
-          })
-          .filter((id) => id !== "");
-      }
+      // Decode each table ID from the URL segments
+      const tableIds = cleanMesas
+        .map((item) => {
+          try {
+            return decodeURIComponent(String(item));
+          } catch (e) {
+            return String(item);
+          }
+        })
+        .filter((id) => id !== "");
 
       if (tableIds.length === 0) {
         router.push("/pagina-teste-new");
@@ -276,6 +269,24 @@ function PedidoPageContent({
   useEffect(() => {
     setCurrentPage(1);
   }, [activeCategory]);
+
+  // Handle order section visibility with animation
+  useEffect(() => {
+    if (orderItems.length > 0) {
+      // Show immediately when items are added
+      setIsOrderSectionVisible(true);
+      setIsOrderSectionExiting(false);
+    } else if (isOrderSectionVisible && orderItems.length === 0) {
+      // Trigger slide-out animation when items are removed
+      setIsOrderSectionExiting(true);
+      // Hide after animation completes (400ms as per SCSS)
+      const timer = setTimeout(() => {
+        setIsOrderSectionVisible(false);
+        setIsOrderSectionExiting(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [orderItems.length, isOrderSectionVisible]);
 
   const addToOrder = useCallback((item: MenuItem) => {
     setOrderItems((prev) => {
@@ -415,7 +426,9 @@ function PedidoPageContent({
               <div className="pagination-controls">
                 <button
                   className="pagination-btn"
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   disabled={currentPage === 1}
                 >
                   <ChevronLeft size={20} />
@@ -496,114 +509,117 @@ function PedidoPageContent({
           </div>
 
           {/* Right: Order Summary */}
-          <div className="order-section">
-            <div className="order-header-bar">
-              <h2>Pedido</h2>
-              <span className="item-count">
-                {orderItems.length} {orderItems.length === 1 ? "item" : "itens"}
-              </span>
-            </div>
+          {isOrderSectionVisible && (
+            <div className={`order-section ${isOrderSectionExiting ? 'slide-out' : ''}`}>
+              <div className="order-header-bar">
+                <h2>Pedido</h2>
+                <span className="item-count">
+                  {orderItems.length}{" "}
+                  {orderItems.length === 1 ? "item" : "itens"}
+                </span>
+              </div>
 
-            <div className="order-items">
-              {orderItems.length === 0 ? (
-                <div className="empty-order">
-                  <UtensilsCrossed size={48} />
-                  <p>Selecione itens do menu</p>
+              <div className="order-items">
+                {orderItems.length === 0 ? (
+                  <div className="empty-order">
+                    <UtensilsCrossed size={48} />
+                    <p>Selecione itens do menu</p>
+                  </div>
+                ) : (
+                  orderItems.map((item) => {
+                    const imageUrl = getImageUrl(item.image_id);
+
+                    return (
+                      <div key={item.orderItemId} className="order-item">
+                        <div className="order-item-image">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={item.nome} />
+                          ) : (
+                            <div className="no-image-small">
+                              <UtensilsCrossed size={20} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="order-item-details">
+                          <h4>{item.nome}</h4>
+                          {item.notes && (
+                            <div className="item-notes">
+                              <MessageSquare size={12} />
+                              {item.notes}
+                            </div>
+                          )}
+                          <div className="item-actions">
+                            <button
+                              className="note-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openNoteModal(item);
+                              }}
+                            >
+                              <MessageSquare size={14} />
+                            </button>
+                            <button
+                              className="delete-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeFromOrder(item.orderItemId);
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="order-item-controls">
+                          <div className="item-price">
+                            €
+                            <NumberFlow
+                              value={item.preco || 0}
+                              format={{
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="order-footer">
+                <div className="order-total">
+                  <span>Total</span>
+                  <strong>
+                    €
+                    <NumberFlow
+                      value={total}
+                      format={{
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }}
+                    />
+                  </strong>
                 </div>
-              ) : (
-                orderItems.map((item) => {
-                  const imageUrl = getImageUrl(item.image_id);
-
-                  return (
-                    <div key={item.orderItemId} className="order-item">
-                      <div className="order-item-image">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={item.nome} />
-                        ) : (
-                          <div className="no-image-small">
-                            <UtensilsCrossed size={20} />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="order-item-details">
-                        <h4>{item.nome}</h4>
-                        {item.notes && (
-                          <div className="item-notes">
-                            <MessageSquare size={12} />
-                            {item.notes}
-                          </div>
-                        )}
-                        <div className="item-actions">
-                          <button
-                            className="note-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openNoteModal(item);
-                            }}
-                          >
-                            <MessageSquare size={14} />
-                          </button>
-                          <button
-                            className="delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFromOrder(item.orderItemId);
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="order-item-controls">
-                        <div className="item-price">
-                          €
-                          <NumberFlow
-                            value={item.preco || 0}
-                            format={{
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="order-footer">
-              <div className="order-total">
-                <span>Total</span>
-                <strong>
-                  €
-                  <NumberFlow
-                    value={total}
-                    format={{
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }}
-                  />
-                </strong>
-              </div>
-              <div className="order-actions">
-                <button onClick={cancelOrder} className="btn-cancel">
-                  <X size={18} />
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmOrder}
-                  className="btn-confirm"
-                  disabled={orderItems.length === 0 || isOrderSubmitting}
-                >
-                  <Check size={18} />
-                  Confirmar
-                </button>
+                <div className="order-actions">
+                  <button onClick={cancelOrder} className="btn-cancel">
+                    <X size={18} />
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmOrder}
+                    className="btn-confirm"
+                    disabled={orderItems.length === 0 || isOrderSubmitting}
+                  >
+                    <Check size={18} />
+                    Confirmar
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

@@ -14,7 +14,16 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
-import { Table, Tag, Button, Input, Avatar, Modal, Select, message } from "antd";
+import {
+  Table,
+  Tag,
+  Button,
+  Input,
+  Avatar,
+  Modal,
+  Select,
+  message,
+} from "antd";
 import NumberFlow from "@number-flow/react";
 import { auth, users, getAuthToken } from "../../lib/api";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
@@ -54,7 +63,10 @@ const ManagerStaffView = () => {
   const totalStaff = staffData.length;
   const onlineStaff = staffData.filter((s) => s.status === "online").length;
   const onVacation = staffData.filter((s) => s.ferias).length;
-  const totalHours = staffData.reduce((sum, s) => sum + (s.hoursWorked || 0), 0);
+  const totalHours = staffData.reduce(
+    (sum, s) => sum + (s.hoursWorked || 0),
+    0
+  );
 
   // Function to filter staff data
   const filteredStaffData = staffData.filter((staff) => {
@@ -211,7 +223,12 @@ const ManagerStaffView = () => {
   // Create new user
   const handleCreateUser = async () => {
     // Validation
-    if (!formData.email || !formData.username || !formData.password || !formData.name) {
+    if (
+      !formData.email ||
+      !formData.username ||
+      !formData.password ||
+      !formData.name
+    ) {
       message.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
@@ -276,7 +293,14 @@ const ManagerStaffView = () => {
       dataIndex: "name",
       key: "name",
       render: (text, record) => (
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: "200px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            minWidth: "200px",
+          }}
+        >
           <Avatar
             size={48}
             src={record.profileImg}
@@ -288,10 +312,25 @@ const ManagerStaffView = () => {
             }}
           />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px", whiteSpace: "nowrap" }}>
+            <div
+              style={{
+                fontWeight: 600,
+                color: "#1a1a1a",
+                fontSize: "14px",
+                whiteSpace: "nowrap",
+              }}
+            >
               {text}
             </div>
-            <div style={{ fontSize: "12px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#64748b",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {record.email}
             </div>
           </div>
@@ -304,7 +343,6 @@ const ManagerStaffView = () => {
       key: "role",
       render: (role) => (
         <Tag
-          color="blue"
           style={{
             padding: "4px 10px",
             borderRadius: "6px",
@@ -357,7 +395,9 @@ const ManagerStaffView = () => {
       key: "hoursWorked",
       sorter: (a, b) => a.hoursWorked - b.hoursWorked,
       render: (hours) => (
-        <span style={{ fontWeight: 700, color: "#059669", whiteSpace: "nowrap" }}>
+        <span
+          style={{ fontWeight: 700, color: "#059669", whiteSpace: "nowrap" }}
+        >
           <NumberFlow value={hours} />h
         </span>
       ),
@@ -367,7 +407,11 @@ const ManagerStaffView = () => {
       dataIndex: "contrato",
       key: "contrato",
       render: (text) => (
-        <span style={{ fontSize: "13px", color: "#64748b", whiteSpace: "nowrap" }}>{text}</span>
+        <span
+          style={{ fontSize: "13px", color: "#64748b", whiteSpace: "nowrap" }}
+        >
+          {text}
+        </span>
       ),
     },
     {
@@ -448,17 +492,7 @@ const ManagerStaffView = () => {
         <div className="stock-header-card">
           <div className="stock-header-card__content">
             <div className="stock-header-card__left">
-              <h1 className="stock-header-card__title">
-                Gestão de Equipa
-                {connected && (
-                  <span
-                    className="ws-indicator connected"
-                    title="WebSocket conectado - Updates em tempo real"
-                  >
-                    ●
-                  </span>
-                )}
-              </h1>
+              <h1 className="stock-header-card__title">Gestão de Equipa</h1>
               <p className="stock-header-card__description">
                 Gere a tua equipa, assiduidade e performance em tempo real.
               </p>
@@ -474,15 +508,6 @@ const ManagerStaffView = () => {
                   />
                   Atualizar
                 </button>
-                {isManager && (
-                  <button
-                    onClick={openCreateModal}
-                    className="stock-header-card__btn stock-header-card__btn--primary"
-                  >
-                    <Plus size={16} />
-                    Adicionar Funcionário
-                  </button>
-                )}
               </div>
             </div>
             <div className="stock-header-card__right">
@@ -622,9 +647,23 @@ const ManagerStaffView = () => {
             style: { background: "#0284c7" },
           }}
         >
-          <div style={{ padding: "16px 0", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{
+              padding: "16px 0",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
             <div>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                }}
+              >
                 Nome Completo *
               </label>
               <Input
@@ -635,9 +674,22 @@ const ManagerStaffView = () => {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
               <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   Email *
                 </label>
                 <Input
@@ -650,20 +702,36 @@ const ManagerStaffView = () => {
               </div>
 
               <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   Username *
                 </label>
                 <Input
                   placeholder="username"
                   value={formData.username}
-                  onChange={(e) => handleInputChange("username", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("username", e.target.value)
+                  }
                   size="large"
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                }}
+              >
                 Senha *
               </label>
               <Input.Password
@@ -674,21 +742,43 @@ const ManagerStaffView = () => {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
               <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   Telefone
                 </label>
                 <Input
                   placeholder="+351 XXX XXX XXX"
                   value={formData.telefone}
-                  onChange={(e) => handleInputChange("telefone", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("telefone", e.target.value)
+                  }
                   size="large"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   NIF
                 </label>
                 <Input
@@ -700,9 +790,22 @@ const ManagerStaffView = () => {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
               <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   Tipo de Contrato
                 </label>
                 <Select
@@ -720,7 +823,14 @@ const ManagerStaffView = () => {
               </div>
 
               <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                  }}
+                >
                   Horas Semanais
                 </label>
                 <Input
@@ -734,7 +844,14 @@ const ManagerStaffView = () => {
             </div>
 
             <div>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                }}
+              >
                 Funções / Labels
               </label>
               <Select
@@ -747,22 +864,37 @@ const ManagerStaffView = () => {
               >
                 <Select.Option value="manager">Manager</Select.Option>
                 <Select.Option value="empregado">Empregado</Select.Option>
-                <Select.Option value="chefe de cozinha">Chefe de Cozinha</Select.Option>
+                <Select.Option value="chefe de cozinha">
+                  Chefe de Cozinha
+                </Select.Option>
                 <Select.Option value="anfitrião">Anfitrião</Select.Option>
-                <Select.Option value="empregado de limpeza">Empregado de Limpeza</Select.Option>
+                <Select.Option value="empregado de limpeza">
+                  Empregado de Limpeza
+                </Select.Option>
                 <Select.Option value="barman">Barman</Select.Option>
               </Select>
             </div>
 
             <div>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={formData.ferias}
-                  onChange={(e) => handleInputChange("ferias", e.target.checked)}
+                  onChange={(e) =>
+                    handleInputChange("ferias", e.target.checked)
+                  }
                   style={{ width: "16px", height: "16px" }}
                 />
-                <span style={{ fontWeight: 600, fontSize: "13px" }}>De férias</span>
+                <span style={{ fontWeight: 600, fontSize: "13px" }}>
+                  De férias
+                </span>
               </label>
             </div>
 
@@ -775,7 +907,14 @@ const ManagerStaffView = () => {
                 borderLeft: "3px solid #d1d5db",
               }}
             >
-              <p style={{ margin: 0, fontSize: "11px", color: "#6b7280", fontWeight: 500 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "11px",
+                  color: "#6b7280",
+                  fontWeight: 500,
+                }}
+              >
                 * Campos obrigatórios: Nome, Email, Username e Senha
               </p>
             </div>

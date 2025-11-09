@@ -79,6 +79,7 @@ const apiCall = async (endpoint, options = {}) => {
 export default function StockComponent() {
   // Tab state
   const [activeTab, setActiveTab] = useState("items"); // "items" | "warehouses" | "suppliers"
+  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
 
   // Items tab state
   const [stockItems, setStockItems] = useState([]);
@@ -95,8 +96,7 @@ export default function StockComponent() {
     description: "",
     supplier_id: null,
     cost_price: 0,
-    min_qty: 0,
-    inventory: [], // Array of { warehouse_id, qty, position }
+    inventory: [], // Array of { warehouse_id, qty, min_qty, position }
   });
   const [addItemLoading, setAddItemLoading] = useState(false);
 
@@ -105,6 +105,9 @@ export default function StockComponent() {
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [warehouseInventory, setWarehouseInventory] = useState([]);
   const [warehousesLoading, setWarehousesLoading] = useState(false);
+
+  // Alerts state (warehouse-level)
+  const [stockAlerts, setStockAlerts] = useState([]);
 
   // Warehouse modals
   const [warehouseModalOpen, setWarehouseModalOpen] = useState(false);
@@ -128,6 +131,7 @@ export default function StockComponent() {
   // Warehouse inventory editing
   const [editingWarehouseItem, setEditingWarehouseItem] = useState(null);
   const [warehouseItemEditState, setWarehouseItemEditState] = useState({});
+  const [warehouseItemEditModalOpen, setWarehouseItemEditModalOpen] = useState(false);
 
   // Warehouse edit modal
   const [editWarehouseModalOpen, setEditWarehouseModalOpen] = useState(false);
@@ -148,6 +152,7 @@ export default function StockComponent() {
   const [addToWarehouseForm, setAddToWarehouseForm] = useState({
     item_id: null,
     qty: 0,
+    min_qty: 0,
     position: "",
   });
 
@@ -470,6 +475,7 @@ export default function StockComponent() {
                 ...item,
                 warehouse_qty: warehouseData.qty || 0,
                 warehouse_position: warehouseData.position || null,
+                min_qty: warehouseData.min_qty || 0,
                 inventory_id: warehouseData.inventory_id || null,
               }
             : i
@@ -526,17 +532,7 @@ export default function StockComponent() {
   }, []);
 
   const handleAlert = useCallback((alert) => {
-    // You can add toast notifications here if you have a toast library
     console.log("[Stock Alert]", alert.status, alert.message);
-
-    // Browser notification (if permitted)
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Stock Alert", {
-        body: alert.message,
-        icon: "/icon.png",
-        tag: `stock-alert-${alert.$id}`,
-      });
-    }
   }, []);
 
   // Handle real-time inventory updates from WebSocket
@@ -560,6 +556,7 @@ export default function StockComponent() {
               ...item,
               warehouse_qty: inventory.qty,
               warehouse_position: inventory.position,
+              min_qty: inventory.min_qty ?? item.min_qty,
             };
           }
           return item;
@@ -651,25 +648,16 @@ export default function StockComponent() {
     onError: (error) => console.error("[Stock WS Error]", error),
   });
 
-  // Request notification permission on mount
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
 
-  // Memoized computed values for performance
+  // Memoized computed values for performance (now warehouse-based)
   const criticalStock = useMemo(
-    () => stockItems.filter((item) => item.qty <= item.min_qty),
-    [stockItems]
+    () => stockAlerts.filter((alert) => alert.status === "critical"),
+    [stockAlerts]
   );
 
   const warningStock = useMemo(
-    () =>
-      stockItems.filter(
-        (item) => item.qty > item.min_qty && item.qty <= item.min_qty + 5
-      ),
-    [stockItems]
+    () => stockAlerts.filter((alert) => alert.status === "warning"),
+    [stockAlerts]
   );
 
   const filteredItems = useMemo(() => {
@@ -749,6 +737,16 @@ export default function StockComponent() {
       setLoading(false);
     }
   }, [loading]);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const response = await apiCall("/stock/alerts");
+      setStockAlerts(response.documents || []);
+    } catch (err) {
+      console.error("Error fetching alerts:", err);
+      setStockAlerts([]);
+    }
+  }, []);
 
   // Image management functions for items
   const updateItemImage = useCallback(
@@ -846,6 +844,7 @@ export default function StockComponent() {
             ...item,
             warehouse_qty: warehouseData.qty || 0,
             warehouse_position: warehouseData.position || null,
+            min_qty: warehouseData.min_qty || 0,
             inventory_id: warehouseData.inventory_id || null,
           };
         })
@@ -1030,6 +1029,8 @@ export default function StockComponent() {
                 data.position !== undefined
                   ? data.position
                   : item.warehouse_position,
+              min_qty:
+                data.min_qty !== undefined ? data.min_qty : item.min_qty,
             };
           }
           return item;
@@ -1044,6 +1045,8 @@ export default function StockComponent() {
             body: JSON.stringify(data),
           }
         );
+        // Refresh alerts after updating warehouse inventory
+        await fetchAlerts();
         return response;
       } catch (err) {
         console.error("Error updating warehouse inventory:", err);
@@ -1054,17 +1057,18 @@ export default function StockComponent() {
         throw err;
       }
     },
-    [selectedWarehouse, fetchWarehouseInventory]
+    [selectedWarehouse, fetchWarehouseInventory, fetchAlerts]
   );
 
   const addItemToWarehouse = useCallback(
-    async (itemId, warehouseId, qty, position) => {
+    async (itemId, warehouseId, qty, min_qty, position) => {
       try {
         const response = await apiCall(`/stock/items/${itemId}/inventory`, {
           method: "POST",
           body: JSON.stringify({
             warehouse_id: warehouseId,
             qty,
+            min_qty: min_qty || 0,
             position: position || null,
             operation: "set",
           }),
@@ -1073,17 +1077,34 @@ export default function StockComponent() {
           await fetchWarehouseInventory(selectedWarehouse.$id);
         }
         await fetchStock(); // Refresh main list too
+        await fetchAlerts(); // Refresh alerts too
         return response;
       } catch (err) {
         console.error("Error adding item to warehouse:", err);
         throw err;
       }
     },
-    [selectedWarehouse, fetchWarehouseInventory, fetchStock]
+    [selectedWarehouse, fetchWarehouseInventory, fetchStock, fetchAlerts]
   );
 
   const transferStock = useCallback(
     async (itemId, fromWarehouseId, toWarehouseId, qty) => {
+      // Optimistic update - update local state immediately
+      setWarehouseInventory((prevInventory) =>
+        prevInventory.map((item) => {
+          if (item.$id === itemId) {
+            // Only update if this is the "from" warehouse we're viewing
+            if (String(selectedWarehouse?.$id) === String(fromWarehouseId)) {
+              return {
+                ...item,
+                warehouse_qty: Math.max(0, (item.warehouse_qty || 0) - qty),
+              };
+            }
+          }
+          return item;
+        })
+      );
+
       try {
         const response = await apiCall(`/stock/items/${itemId}/transfer`, {
           method: "POST",
@@ -1093,17 +1114,43 @@ export default function StockComponent() {
             qty,
           }),
         });
+
+        // Silently refresh data in background without showing loading
         await fetchStock();
-        if (selectedWarehouse) {
-          await fetchWarehouseInventory(selectedWarehouse.$id);
-        }
+        await fetchAlerts();
+
+        // Fetch full item details to update warehouse inventory accurately
+        const itemDetails = await apiCall(`/stock/items/${itemId}`);
+        setWarehouseInventory((prevInventory) =>
+          prevInventory.map((item) => {
+            if (item.$id === itemId) {
+              const warehouseData = itemDetails.warehouses?.find(
+                (w) => String(w.warehouse_id) === String(selectedWarehouse?.$id)
+              );
+              if (warehouseData) {
+                return {
+                  ...item,
+                  warehouse_qty: warehouseData.qty || 0,
+                  warehouse_position: warehouseData.position || null,
+                  min_qty: warehouseData.min_qty || 0,
+                };
+              }
+            }
+            return item;
+          })
+        );
+
         return response;
       } catch (err) {
         console.error("Error transferring stock:", err);
+        // Revert optimistic update on error
+        if (selectedWarehouse) {
+          await fetchWarehouseInventory(selectedWarehouse.$id);
+        }
         throw err;
       }
     },
-    [fetchStock, selectedWarehouse, fetchWarehouseInventory]
+    [fetchStock, fetchAlerts, selectedWarehouse, fetchWarehouseInventory]
   );
 
   // Supplier CRUD operations
@@ -1161,6 +1208,7 @@ export default function StockComponent() {
   useEffect(() => {
     fetchStock();
     fetchWarehouses();
+    fetchAlerts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1287,7 +1335,6 @@ export default function StockComponent() {
           description: newItem.description?.trim() || null,
           supplier_id: newItem.supplier_id || null,
           cost_price: Math.max(0, parseFloat(newItem.cost_price) || 0),
-          min_qty: Math.max(0, parseInt(newItem.min_qty) || 0),
           image_id: imageId,
           inventory: newItem.inventory || [], // Send inventory array
         }),
@@ -1298,7 +1345,6 @@ export default function StockComponent() {
         description: "",
         supplier_id: null,
         cost_price: 0,
-        min_qty: 0,
         inventory: [],
       });
       resetImage();
@@ -1329,7 +1375,6 @@ export default function StockComponent() {
       description: "",
       supplier_id: null,
       cost_price: 0,
-      min_qty: 0,
       inventory: [],
     });
     resetImage();
@@ -1425,29 +1470,14 @@ export default function StockComponent() {
         key: "qty",
         sorter: (a, b) => a.qty - b.qty,
         render: (qty, record) => {
-          const statusInfo = getStatusInfo(qty || 0, record.min_qty || 0);
-
           return (
             <span
               style={{
                 fontWeight: 600,
                 fontSize: "14px",
-                color: statusInfo.color,
               }}
             >
               <NumberFlow value={qty || 0} />
-            </span>
-          );
-        },
-      },
-      {
-        title: "Mínimo",
-        dataIndex: "min_qty",
-        key: "min_qty",
-        render: (min_qty) => {
-          return (
-            <span style={{ fontSize: "14px" }}>
-              <NumberFlow value={min_qty || 0} />
             </span>
           );
         },
@@ -1521,37 +1551,6 @@ export default function StockComponent() {
         },
       },
       {
-        title: "Estado",
-        key: "status",
-        render: (_, record) => {
-          const statusInfo = getStatusInfo(
-            record.qty || 0,
-            record.min_qty || 0
-          );
-          const StatusIcon =
-            statusInfo.status === "critical"
-              ? AlertTriangle
-              : statusInfo.status === "warning"
-              ? TrendingDown
-              : Check;
-
-          return (
-            <Tag
-              color={statusInfo.color}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                width: "fit-content",
-              }}
-            >
-              <StatusIcon size={14} />
-              {statusInfo.label}
-            </Tag>
-          );
-        },
-      },
-      {
         title: "Preço",
         dataIndex: "cost_price",
         key: "cost_price",
@@ -1620,17 +1619,7 @@ export default function StockComponent() {
         <div className="stock-header-card">
           <div className="stock-header-card__content">
             <div className="stock-header-card__left">
-              <h1 className="stock-header-card__title">
-                Gestão de Stock
-                {wsConnected && (
-                  <span
-                    className="ws-indicator connected"
-                    title="WebSocket conectado - Updates em tempo real"
-                  >
-                    ●
-                  </span>
-                )}
-              </h1>
+              <h1 className="stock-header-card__title">Gestão de Stock</h1>
               <p className="stock-header-card__description">
                 Controla o inventário em múltiplos armazéns e mantém tudo
                 organizado.
@@ -1718,8 +1707,14 @@ export default function StockComponent() {
           <button
             className={`stock-tab ${activeTab === "items" ? "active" : ""}`}
             onClick={() => {
-              setActiveTab("items");
-              setSelectedWarehouse(null);
+              if (activeTab !== "items") {
+                setIsTabTransitioning(true);
+                setTimeout(() => {
+                  setActiveTab("items");
+                  setSelectedWarehouse(null);
+                  setTimeout(() => setIsTabTransitioning(false), 50);
+                }, 150);
+              }
             }}
           >
             <Package size={18} />
@@ -1729,14 +1724,30 @@ export default function StockComponent() {
             className={`stock-tab ${
               activeTab === "warehouses" ? "active" : ""
             }`}
-            onClick={() => setActiveTab("warehouses")}
+            onClick={() => {
+              if (activeTab !== "warehouses") {
+                setIsTabTransitioning(true);
+                setTimeout(() => {
+                  setActiveTab("warehouses");
+                  setTimeout(() => setIsTabTransitioning(false), 50);
+                }, 150);
+              }
+            }}
           >
             <Warehouse size={18} />
             Armazéns
           </button>
           <button
             className={`stock-tab ${activeTab === "suppliers" ? "active" : ""}`}
-            onClick={() => setActiveTab("suppliers")}
+            onClick={() => {
+              if (activeTab !== "suppliers") {
+                setIsTabTransitioning(true);
+                setTimeout(() => {
+                  setActiveTab("suppliers");
+                  setTimeout(() => setIsTabTransitioning(false), 50);
+                }, 150);
+              }
+            }}
           >
             <ShoppingCart size={18} />
             Fornecedores
@@ -1745,7 +1756,7 @@ export default function StockComponent() {
 
         {/* Items Tab Content */}
         {activeTab === "items" && (
-          <div className="stock-grid">
+          <div className={`stock-grid tab-content-wrapper ${isTabTransitioning ? 'transitioning' : 'active'}`}>
             {/* Stats Cards */}
             <div className="stats-section">
               <div className="stat-card">
@@ -1767,16 +1778,16 @@ export default function StockComponent() {
                 <div className="stat-value critical">
                   <NumberFlow value={criticalStock.length} />
                 </div>
-                <div className="stat-description">Itens abaixo do mínimo</div>
+                <div className="stat-description">Localizações abaixo do mínimo</div>
 
                 {criticalStock.length > 0 && (
                   <div className="critical-items-preview">
-                    {criticalStock.slice(0, 3).map((item) => (
-                      <div key={item.$id} className="critical-item-mini">
-                        <span className="item-name">{item.name}</span>
-                        <span className="item-qty">
-                          <NumberFlow value={item.qty} />/
-                          <NumberFlow value={item.min_qty} />
+                    {criticalStock.slice(0, 3).map((alert) => (
+                      <div key={alert.$id} className="critical-item-mini">
+                        <span className="item-name">{alert.name}</span>
+                        <span className="item-qty" style={{ fontSize: "11px" }}>
+                          {alert.warehouse_name}: <NumberFlow value={alert.qty} />/
+                          <NumberFlow value={alert.min_qty} />
                         </span>
                       </div>
                     ))}
@@ -1797,7 +1808,7 @@ export default function StockComponent() {
                 <div className="stat-value warning">
                   <NumberFlow value={warningStock.length} />
                 </div>
-                <div className="stat-description">Itens próximos do mínimo</div>
+                <div className="stat-description">Localizações próximas do mínimo</div>
               </div>
 
               <div className="stat-card">
@@ -1808,13 +1819,13 @@ export default function StockComponent() {
                 <div className="stat-value success">
                   <NumberFlow
                     value={
-                      stockItems.length -
+                      stockAlerts.length -
                       criticalStock.length -
                       warningStock.length
                     }
                   />
                 </div>
-                <div className="stat-description">Itens com stock adequado</div>
+                <div className="stat-description">Localizações com stock adequado</div>
               </div>
             </div>
 
@@ -2297,24 +2308,6 @@ export default function StockComponent() {
                       />
                     </div>
 
-                    <div className="form-group">
-                      <label>Stock Mínimo</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={newItem.min_qty || ""}
-                        onChange={(e) =>
-                          setNewItem((prev) => ({
-                            ...prev,
-                            min_qty: e.target.value,
-                          }))
-                        }
-                        placeholder="0"
-                        className="form-input"
-                        disabled={addItemLoading}
-                      />
-                    </div>
-
                     {/* Warehouse Inventory Section */}
                     <div className="form-group full-width">
                       <label
@@ -2393,6 +2386,7 @@ export default function StockComponent() {
                                         display: "flex",
                                         gap: "8px",
                                         alignItems: "center",
+                                        flexWrap: "wrap",
                                       }}
                                     >
                                       <input
@@ -2427,6 +2421,7 @@ export default function StockComponent() {
                                                 newInventory.push({
                                                   warehouse_id: warehouse.$id,
                                                   qty,
+                                                  min_qty: 0,
                                                   position: "",
                                                 });
                                               }
@@ -2445,6 +2440,55 @@ export default function StockComponent() {
                                         }}
                                         style={{
                                           width: "80px",
+                                          padding: "6px 10px",
+                                          border: "1px solid #d1d5db",
+                                          borderRadius: "4px",
+                                          fontSize: "14px",
+                                        }}
+                                        disabled={addItemLoading}
+                                      />
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Mín."
+                                        value={inventoryEntry?.min_qty || ""}
+                                        onChange={(e) => {
+                                          const min_qty =
+                                            parseInt(e.target.value) || 0;
+                                          setNewItem((prev) => {
+                                            const existingIndex =
+                                              prev.inventory.findIndex(
+                                                (inv) =>
+                                                  String(inv.warehouse_id) ===
+                                                  String(warehouse.$id)
+                                              );
+
+                                            const newInventory = [
+                                              ...prev.inventory,
+                                            ];
+
+                                            if (existingIndex >= 0) {
+                                              newInventory[existingIndex] = {
+                                                ...newInventory[existingIndex],
+                                                min_qty,
+                                              };
+                                            } else if (min_qty > 0) {
+                                              newInventory.push({
+                                                warehouse_id: warehouse.$id,
+                                                qty: 0,
+                                                min_qty,
+                                                position: "",
+                                              });
+                                            }
+
+                                            return {
+                                              ...prev,
+                                              inventory: newInventory,
+                                            };
+                                          });
+                                        }}
+                                        style={{
+                                          width: "70px",
                                           padding: "6px 10px",
                                           border: "1px solid #d1d5db",
                                           borderRadius: "4px",
@@ -2479,6 +2523,7 @@ export default function StockComponent() {
                                               newInventory.push({
                                                 warehouse_id: warehouse.$id,
                                                 qty: 0,
+                                                min_qty: 0,
                                                 position,
                                               });
                                             }
@@ -2619,7 +2664,7 @@ export default function StockComponent() {
 
         {/* Warehouses Tab Content */}
         {activeTab === "warehouses" && (
-          <div className="warehouses-view">
+          <div className={`warehouses-view tab-content-wrapper ${isTabTransitioning ? 'transitioning' : 'active'}`}>
             {!selectedWarehouse ? (
               /* Warehouse Grid View */
               <div className="warehouse-grid-container">
@@ -2819,7 +2864,7 @@ export default function StockComponent() {
                             <th>Categoria</th>
                             <th>Quantidade</th>
                             <th>Posição</th>
-                            <th>Min. Qty</th>
+                            <th>Qtd. Mín.</th>
                             <th>Status</th>
                             <th>Ações</th>
                           </tr>
@@ -2843,9 +2888,6 @@ export default function StockComponent() {
                               );
                             })
                             .map((item) => {
-                              const isEditing =
-                                editingWarehouseItem === item.$id;
-                              const editState = warehouseItemEditState;
                               const status =
                                 item.warehouse_qty <= item.min_qty
                                   ? "critical"
@@ -2898,48 +2940,11 @@ export default function StockComponent() {
                                   </td>
                                   <td>{item.category || "-"}</td>
                                   <td>
-                                    {isEditing ? (
-                                      <AntInput
-                                        type="number"
-                                        min="0"
-                                        value={
-                                          editState.qty ?? item.warehouse_qty
-                                        }
-                                        onChange={(e) =>
-                                          setWarehouseItemEditState({
-                                            ...editState,
-                                            qty: parseInt(e.target.value) || 0,
-                                          })
-                                        }
-                                        style={{ width: "80px" }}
-                                      />
-                                    ) : (
-                                      <NumberFlow
-                                        value={item.warehouse_qty || 0}
-                                      />
-                                    )}
+                                    <NumberFlow
+                                      value={item.warehouse_qty || 0}
+                                    />
                                   </td>
-                                  <td>
-                                    {isEditing ? (
-                                      <AntInput
-                                        value={
-                                          editState.position ??
-                                          item.warehouse_position ??
-                                          ""
-                                        }
-                                        onChange={(e) =>
-                                          setWarehouseItemEditState({
-                                            ...editState,
-                                            position: e.target.value,
-                                          })
-                                        }
-                                        placeholder="Ex: A1-B5"
-                                        style={{ width: "100px" }}
-                                      />
-                                    ) : (
-                                      item.warehouse_position || "-"
-                                    )}
-                                  </td>
+                                  <td>{item.warehouse_position || "-"}</td>
                                   <td>
                                     <NumberFlow value={item.min_qty || 0} />
                                   </td>
@@ -2962,147 +2967,82 @@ export default function StockComponent() {
                                   </td>
                                   <td>
                                     <div className="action-buttons">
-                                      {isEditing ? (
-                                        <>
-                                          <button
-                                            className="action-btn"
-                                            onClick={async () => {
-                                              try {
-                                                await updateWarehouseInventory(
-                                                  item.$id,
-                                                  selectedWarehouse.$id,
-                                                  editState
-                                                );
-                                                setEditingWarehouseItem(null);
-                                                setWarehouseItemEditState({});
-                                                alert(
-                                                  "✅ Quantidade atualizada!"
-                                                );
-                                              } catch (err) {
-                                                alert(
-                                                  `Erro ao atualizar: ${err.message}`
-                                                );
-                                              }
-                                            }}
-                                            title="Guardar"
-                                            style={{ color: "#10b981" }}
-                                          >
-                                            <Save size={16} />
-                                          </button>
-                                          <button
-                                            className="action-btn"
-                                            onClick={() => {
-                                              setEditingWarehouseItem(null);
-                                              setWarehouseItemEditState({});
-                                            }}
-                                            title="Cancelar"
-                                            style={{ color: "#6b7280" }}
-                                          >
-                                            <X size={16} />
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <button
-                                            className="action-btn"
-                                            onClick={async () => {
-                                              try {
-                                                const newQty =
-                                                  item.warehouse_qty + 1;
-                                                await updateWarehouseInventory(
-                                                  item.$id,
-                                                  selectedWarehouse.$id,
-                                                  {
-                                                    qty: newQty,
-                                                    position:
-                                                      item.warehouse_position,
-                                                  }
-                                                );
-                                              } catch (err) {
-                                                alert(`Erro: ${err.message}`);
-                                              }
-                                            }}
-                                            title="Adicionar +1"
-                                            style={{ color: "#10b981" }}
-                                          >
-                                            <Plus size={16} />
-                                          </button>
-                                          <button
-                                            className="action-btn"
-                                            onClick={async () => {
-                                              if (item.warehouse_qty <= 0) {
-                                                alert(
-                                                  "Quantidade já está em 0"
-                                                );
-                                                return;
-                                              }
-                                              try {
-                                                const newQty = Math.max(
-                                                  0,
-                                                  item.warehouse_qty - 1
-                                                );
-                                                await updateWarehouseInventory(
-                                                  item.$id,
-                                                  selectedWarehouse.$id,
-                                                  {
-                                                    qty: newQty,
-                                                    position:
-                                                      item.warehouse_position,
-                                                  }
-                                                );
-                                              } catch (err) {
-                                                alert(`Erro: ${err.message}`);
-                                              }
-                                            }}
-                                            title="Remover -1"
-                                            style={{ color: "#ef4444" }}
-                                            disabled={item.warehouse_qty <= 0}
-                                          >
-                                            <Minus size={16} />
-                                          </button>
-                                          <button
-                                            className="action-btn"
-                                            onClick={() => {
-                                              setBulkQtyForm({
-                                                item: item,
-                                                action: "add",
-                                                qty: 0,
-                                              });
-                                              setBulkQtyModalOpen(true);
-                                            }}
-                                            title="Adicionar/Remover quantidade em massa"
-                                            style={{
-                                              color: "#8b5cf6",
-                                              backgroundColor: "#f5f3ff",
-                                              padding: "6px 10px",
-                                              borderRadius: "6px",
-                                            }}
-                                          >
-                                            <span
-                                              style={{
-                                                fontSize: "12px",
-                                                fontWeight: "500",
-                                              }}
-                                            >
-                                              Qtd
-                                            </span>
-                                          </button>
-                                          <button
-                                            className="action-btn"
-                                            onClick={() => {
-                                              setEditingWarehouseItem(item.$id);
-                                              setWarehouseItemEditState({
-                                                qty: item.warehouse_qty,
+                                      <button
+                                        className="action-btn"
+                                        onClick={() => {
+                                          setEditingWarehouseItem(item);
+                                          setWarehouseItemEditState({
+                                            qty: item.warehouse_qty,
+                                            position: item.warehouse_position || "",
+                                            min_qty: item.min_qty || 0,
+                                          });
+                                          setWarehouseItemEditModalOpen(true);
+                                        }}
+                                        title="Editar"
+                                        style={{ color: "#3b82f6" }}
+                                      >
+                                        <Edit size={16} />
+                                      </button>
+                                      <button
+                                        className="action-btn"
+                                        onClick={async () => {
+                                          try {
+                                            const newQty =
+                                              item.warehouse_qty + 1;
+                                            await updateWarehouseInventory(
+                                              item.$id,
+                                              selectedWarehouse.$id,
+                                              {
+                                                qty: newQty,
                                                 position:
-                                                  item.warehouse_position || "",
-                                              });
-                                            }}
-                                            title="Editar quantidade e posição"
-                                            style={{ color: "#3b82f6" }}
-                                          >
-                                            <Edit size={16} />
-                                          </button>
-                                          <button
+                                                  item.warehouse_position,
+                                                min_qty: item.min_qty,
+                                              }
+                                            );
+                                          } catch (err) {
+                                            message.error(`Erro: ${err.message}`);
+                                          }
+                                        }}
+                                        title="Adicionar +1"
+                                        style={{ color: "#10b981" }}
+                                      >
+                                        <Plus size={16} />
+                                      </button>
+                                      <button
+                                        className="action-btn"
+                                        onClick={async () => {
+                                          if (item.warehouse_qty <= 0) {
+                                            message.warning(
+                                              "Quantidade já está em 0"
+                                            );
+                                            return;
+                                          }
+                                          try {
+                                            const newQty = Math.max(
+                                              0,
+                                              item.warehouse_qty - 1
+                                            );
+                                            await updateWarehouseInventory(
+                                              item.$id,
+                                              selectedWarehouse.$id,
+                                              {
+                                                qty: newQty,
+                                                position:
+                                                  item.warehouse_position,
+                                                min_qty: item.min_qty,
+                                              }
+                                            );
+                                          } catch (err) {
+                                            message.error(`Erro: ${err.message}`);
+                                          }
+                                        }}
+                                        title="Remover -1"
+                                        style={{ color: "#ef4444" }}
+                                        disabled={item.warehouse_qty <= 0}
+                                      >
+                                        <Minus size={16} />
+                                      </button>
+                                      <button
                                             className="action-btn transfer-btn"
                                             onClick={async () => {
                                               // Fetch full item details with warehouse breakdown
@@ -3120,7 +3060,7 @@ export default function StockComponent() {
                                                 });
                                                 setTransferModalOpen(true);
                                               } catch (err) {
-                                                alert(
+                                                message.error(
                                                   `Erro ao carregar detalhes: ${err.message}`
                                                 );
                                               }
@@ -3129,8 +3069,6 @@ export default function StockComponent() {
                                           >
                                             <Truck size={16} />
                                           </button>
-                                        </>
-                                      )}
                                     </div>
                                   </td>
                                 </tr>
@@ -3148,7 +3086,7 @@ export default function StockComponent() {
 
         {/* Suppliers Tab Content */}
         {activeTab === "suppliers" && (
-          <div className="suppliers-view">
+          <div className={`suppliers-view tab-content-wrapper ${isTabTransitioning ? 'transitioning' : 'active'}`}>
             {/* Main Content Card */}
             <div className="main-content-card">
               {/* Search Bar */}
@@ -3749,17 +3687,8 @@ export default function StockComponent() {
                       });
                     }}
                   >
-                    <X size={16} />
+                    <Trash2 size={16} />
                     Eliminar Armazém
-                  </button>
-                  <button
-                    className="warehouse-btn warehouse-btn-cancel"
-                    onClick={() => {
-                      setEditWarehouseModalOpen(false);
-                      setEditingWarehouse(null);
-                    }}
-                  >
-                    Cancelar
                   </button>
                   <button
                     className="warehouse-btn warehouse-btn-create"
@@ -3830,6 +3759,7 @@ export default function StockComponent() {
                       setAddToWarehouseForm({
                         item_id: null,
                         qty: 0,
+                        min_qty: 0,
                         position: "",
                       });
                     }}
@@ -3953,6 +3883,24 @@ export default function StockComponent() {
                   </div>
 
                   <div className="transfer-form-group">
+                    <label htmlFor="add-min-qty">Quantidade Mínima</label>
+                    <input
+                      id="add-min-qty"
+                      type="number"
+                      className="transfer-input"
+                      min="0"
+                      value={addToWarehouseForm.min_qty}
+                      onChange={(e) =>
+                        setAddToWarehouseForm({
+                          ...addToWarehouseForm,
+                          min_qty: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="Quantidade mínima de stock"
+                    />
+                  </div>
+
+                  <div className="transfer-form-group">
                     <label htmlFor="add-position">Posição (Opcional)</label>
                     <input
                       id="add-position"
@@ -3992,6 +3940,7 @@ export default function StockComponent() {
                       setAddToWarehouseForm({
                         item_id: null,
                         qty: 0,
+                        min_qty: 0,
                         position: "",
                       });
                     }}
@@ -4002,11 +3951,11 @@ export default function StockComponent() {
                     className="transfer-btn transfer-btn-submit"
                     onClick={async () => {
                       if (!addToWarehouseForm.item_id) {
-                        alert("Por favor selecione um item");
+                        message.warning("Por favor selecione um item");
                         return;
                       }
                       if (addToWarehouseForm.qty <= 0) {
-                        alert("Por favor insira uma quantidade válida");
+                        message.warning("Por favor insira uma quantidade válida");
                         return;
                       }
 
@@ -4015,12 +3964,14 @@ export default function StockComponent() {
                           addToWarehouseForm.item_id,
                           selectedWarehouse.$id,
                           addToWarehouseForm.qty,
+                          addToWarehouseForm.min_qty,
                           addToWarehouseForm.position
                         );
                         setAddToWarehouseModalOpen(false);
                         setAddToWarehouseForm({
                           item_id: null,
                           qty: 0,
+                          min_qty: 0,
                           position: "",
                         });
                         message.success(
@@ -4036,6 +3987,237 @@ export default function StockComponent() {
                   >
                     <Plus size={16} />
                     Adicionar Item
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+        {/* Edit Warehouse Inventory Modal */}
+        {warehouseItemEditModalOpen &&
+          typeof document !== "undefined" &&
+          editingWarehouseItem &&
+          createPortal(
+            <div
+              className="transfer-modal-overlay"
+              onClick={() => {
+                setWarehouseItemEditModalOpen(false);
+                setEditingWarehouseItem(null);
+                setWarehouseItemEditState({});
+              }}
+            >
+              <div
+                className="transfer-modal-container"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: "500px" }}
+              >
+                {/* Modal Header with Image */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    padding: "24px 24px 20px",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "600" }}>
+                      Editar Item no Armazém
+                    </h2>
+                    <button
+                      className="transfer-close-btn"
+                      onClick={() => {
+                        setWarehouseItemEditModalOpen(false);
+                        setEditingWarehouseItem(null);
+                        setWarehouseItemEditState({});
+                      }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Item Info Header */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      padding: "16px",
+                      backgroundColor: "#f9fafb",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    {editingWarehouseItem.image_id ? (
+                      <img
+                        src={getImageUrl(editingWarehouseItem.image_id)}
+                        alt={editingWarehouseItem.name}
+                        style={{
+                          width: "80px",
+                          height: "80px",
+                          borderRadius: "8px",
+                          objectFit: "contain",
+                          border: "1px solid #e5e7eb",
+                          backgroundColor: "white",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "80px",
+                          height: "80px",
+                          borderRadius: "8px",
+                          background: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px solid #e5e7eb",
+                        }}
+                      >
+                        <Package size={32} color="#9ca3af" />
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <h3
+                        style={{
+                          margin: "0 0 4px 0",
+                          fontSize: "16px",
+                          fontWeight: "600",
+                          color: "#1a1a1a",
+                        }}
+                      >
+                        {editingWarehouseItem.name}
+                      </h3>
+                      {editingWarehouseItem.category && (
+                        <p
+                          style={{
+                            margin: "0 0 4px 0",
+                            fontSize: "13px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          {editingWarehouseItem.category}
+                        </p>
+                      )}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontSize: "13px",
+                          color: "#0ea5e9",
+                          fontWeight: "500",
+                        }}
+                      >
+                        <Warehouse size={14} />
+                        {selectedWarehouse?.name}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Fields */}
+                <div className="transfer-modal-body">
+                  <div className="transfer-form-group">
+                    <label htmlFor="edit-qty">Quantidade *</label>
+                    <input
+                      id="edit-qty"
+                      type="number"
+                      className="transfer-input"
+                      min="0"
+                      value={warehouseItemEditState.qty ?? ""}
+                      onChange={(e) =>
+                        setWarehouseItemEditState({
+                          ...warehouseItemEditState,
+                          qty: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="Quantidade disponível"
+                    />
+                  </div>
+
+                  <div className="transfer-form-group">
+                    <label htmlFor="edit-min-qty">Quantidade Mínima</label>
+                    <input
+                      id="edit-min-qty"
+                      type="number"
+                      className="transfer-input"
+                      min="0"
+                      value={warehouseItemEditState.min_qty ?? ""}
+                      onChange={(e) =>
+                        setWarehouseItemEditState({
+                          ...warehouseItemEditState,
+                          min_qty: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="Quantidade mínima"
+                    />
+                  </div>
+
+                  <div className="transfer-form-group">
+                    <label htmlFor="edit-position">Posição no Armazém</label>
+                    <input
+                      id="edit-position"
+                      type="text"
+                      className="transfer-input"
+                      value={warehouseItemEditState.position ?? ""}
+                      onChange={(e) =>
+                        setWarehouseItemEditState({
+                          ...warehouseItemEditState,
+                          position: e.target.value,
+                        })
+                      }
+                      placeholder="Ex: A1-B5, Prateleira 3, etc."
+                    />
+                    <div
+                      className="transfer-hint"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <MapPin size={14} />
+                      <span>
+                        Use códigos de posição para facilitar a localização
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="transfer-modal-footer">
+                  <button
+                    className="transfer-btn transfer-btn-cancel"
+                    onClick={() => {
+                      setWarehouseItemEditModalOpen(false);
+                      setEditingWarehouseItem(null);
+                      setWarehouseItemEditState({});
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="transfer-btn transfer-btn-submit"
+                    onClick={async () => {
+                      try {
+                        await updateWarehouseInventory(
+                          editingWarehouseItem.$id,
+                          selectedWarehouse.$id,
+                          warehouseItemEditState
+                        );
+                        setWarehouseItemEditModalOpen(false);
+                        setEditingWarehouseItem(null);
+                        setWarehouseItemEditState({});
+                        message.success("Item atualizado com sucesso!");
+                      } catch (err) {
+                        message.error(`Erro ao atualizar: ${err.message}`);
+                      }
+                    }}
+                  >
+                    <Save size={16} />
+                    Guardar Alterações
                   </button>
                 </div>
               </div>
@@ -4096,54 +4278,39 @@ export default function StockComponent() {
                       </div>
 
                       <div className="transfer-form-group">
-                        <label htmlFor="transfer-from">De (Armazém) *</label>
-                        <select
-                          id="transfer-from"
-                          value={transferForm.from_warehouse_id || ""}
-                          onChange={(e) => {
-                            console.log(
-                              "Selected from warehouse:",
-                              e.target.value
-                            );
-                            setTransferForm({
-                              ...transferForm,
-                              from_warehouse_id: e.target.value || null,
-                            });
-                          }}
+                        <label htmlFor="transfer-from">De (Armazém)</label>
+                        <div
                           style={{
                             width: "100%",
                             padding: "10px 12px",
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             borderRadius: "6px",
-                            backgroundColor: "white",
+                            backgroundColor: "#f9fafb",
                             color: "#374151",
-                            cursor: "pointer",
-                            outline: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
                           }}
                         >
-                          <option value="">
-                            Selecione o armazém de origem
-                          </option>
-                          {warehouses.map((warehouse) => {
-                            const warehouseData =
-                              transferForm.item.warehouses?.find(
-                                (w) =>
-                                  String(w.warehouse_id) ===
-                                  String(warehouse.$id)
-                              );
-                            const qty = warehouseData?.qty || 0;
-                            return (
-                              <option
-                                key={warehouse.$id}
-                                value={warehouse.$id}
-                                disabled={qty === 0}
-                              >
-                                {warehouse.name} ({qty} unidades)
-                              </option>
-                            );
-                          })}
-                        </select>
+                          <Warehouse size={16} color="#0ea5e9" />
+                          <span style={{ fontWeight: "500" }}>
+                            {warehouses.find(
+                              (w) =>
+                                String(w.$id) ===
+                                String(transferForm.from_warehouse_id)
+                            )?.name || "Armazém atual"}
+                          </span>
+                          <span style={{ color: "#6b7280", marginLeft: "auto" }}>
+                            (
+                            {transferForm.item.warehouses?.find(
+                              (w) =>
+                                String(w.warehouse_id) ===
+                                String(transferForm.from_warehouse_id)
+                            )?.qty || 0}{" "}
+                            unidades)
+                          </span>
+                        </div>
                       </div>
 
                       <div className="transfer-form-group">
@@ -4157,22 +4324,15 @@ export default function StockComponent() {
                               to_warehouse_id: e.target.value || null,
                             })
                           }
-                          disabled={!transferForm.from_warehouse_id}
                           style={{
                             width: "100%",
                             padding: "10px 12px",
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             borderRadius: "6px",
-                            backgroundColor: transferForm.from_warehouse_id
-                              ? "white"
-                              : "#f3f4f6",
-                            color: transferForm.from_warehouse_id
-                              ? "#374151"
-                              : "#9ca3af",
-                            cursor: transferForm.from_warehouse_id
-                              ? "pointer"
-                              : "not-allowed",
+                            backgroundColor: "white",
+                            color: "#374151",
+                            cursor: "pointer",
                             outline: "none",
                           }}
                         >
@@ -4263,17 +4423,17 @@ export default function StockComponent() {
                         !transferForm.from_warehouse_id ||
                         !transferForm.to_warehouse_id
                       ) {
-                        alert(
+                        message.warning(
                           "Por favor selecione os armazéns de origem e destino"
                         );
                         return;
                       }
                       if (transferForm.qty <= 0) {
-                        alert("Por favor insira uma quantidade válida");
+                        message.warning("Por favor insira uma quantidade válida");
                         return;
                       }
                       if (transferForm.qty > maxQty) {
-                        alert(
+                        message.warning(
                           `Quantidade excede o disponível (${maxQty} unidades)`
                         );
                         return;
@@ -4634,7 +4794,7 @@ export default function StockComponent() {
                     className="transfer-btn transfer-btn-submit"
                     onClick={async () => {
                       if (bulkQtyForm.qty <= 0) {
-                        alert("Por favor insira uma quantidade válida");
+                        message.warning("Por favor insira uma quantidade válida");
                         return;
                       }
 
@@ -4642,7 +4802,7 @@ export default function StockComponent() {
                         bulkQtyForm.action === "remove" &&
                         bulkQtyForm.qty > bulkQtyForm.item.warehouse_qty
                       ) {
-                        alert(
+                        message.warning(
                           `Quantidade excede o disponível (${bulkQtyForm.item.warehouse_qty} unidades)`
                         );
                         return;
@@ -5457,7 +5617,7 @@ export default function StockComponent() {
                     <button
                       onClick={async () => {
                         if (!editingItem.name.trim()) {
-                          alert("Por favor insira o nome do item");
+                          message.warning("Por favor insira o nome do item");
                           return;
                         }
 

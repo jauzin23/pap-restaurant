@@ -38,27 +38,24 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 18px;
+    padding: 8px 16px;
     background: #f8f9fa;
-    border: none;
+    border: 1px solid #e2e8f0;
     border-radius: 16px;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     font-size: 14px;
     font-weight: 600;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 
     &:hover {
       background: #e9ecef;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-      transform: translateY(-1px);
     }
 
     &.active {
       background: #3b82f6;
       color: white;
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+      cursor: default;
 
       svg {
         color: white;
@@ -861,6 +858,8 @@
     min-height: 0;
     background: #f3f4f6;
     border-radius: 0 0 16px 16px;
+    border: 1px solid #e2e8f0;
+    border-top: none;
   }
 
   .layout-canvas {
@@ -907,13 +906,24 @@
 
     &.selected-for-order {
       .table {
-        border: 3px solid #3b82f6;
+        border: 3px solid #3b82f6 !important;
         color: white;
+
+        transition: all 0.2s ease;
       }
 
       .table-number {
         font-weight: bold;
+
+        transition: all 0.2s ease;
       }
+      .chair {
+        background-color: #3b82f6;
+
+        transition: all 0.2s ease;
+      }
+
+      transition: all 0.2s ease;
     }
 
     &.has-group-color .table::after {
@@ -1140,41 +1150,47 @@
   }
 
   .create-order-btn {
-    background: green;
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
+    padding: 8px 8px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
-    font-size: 14px;
     cursor: pointer;
-    max-height: 36px;
     transition: all 0.15s ease;
 
+    background: transparent;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    box-shadow: none;
+
     &:hover {
-      background: #27272a;
+      // green based hover, just like the X button
+      background: #f0fdf4;
+      border-color: #34d399;
+      color: #34d399;
     }
 
     &:active {
-      background: #3f3f46;
+      background: #f3f4f6;
       transform: scale(0.98);
     }
   }
 
   .clear-selection-btn {
-    background: #6b7280;
-    color: white;
-    border: none;
+    background: transparent;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
     padding: 10px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
-      background: #4b5563;
+      background: #fee2e2;
+      border-color: #fecaca;
     }
   }
 

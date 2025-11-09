@@ -761,7 +761,7 @@ function ProfilePageContent({
               <ArrowLeft size={20} />
             </button>
             <h1 className="page-title">
-              {isOwnProfile ? "Meu Perfil" : `Perfil de ${profileUser.name}`}
+              {isOwnProfile ? "O Meu Perfil" : `Perfil de ${profileUser.name}`}
             </h1>
           </div>
 

@@ -30,12 +30,6 @@
       "Helvetica Neue", Arial, sans-serif;
     min-height: 200px;
 
-    // Animation
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    animation-delay: 0.1s;
-
     &__content {
       display: flex;
       flex-direction: column;
@@ -56,19 +50,6 @@
       display: flex;
       align-items: center;
       gap: 12px;
-
-      .ws-indicator {
-        font-size: 10px;
-        margin-left: 8px;
-        opacity: 0.6;
-        transition: opacity 0.3s ease;
-
-        &.connected {
-          color: #10b981;
-          opacity: 1;
-          animation: pulse-dot 2s ease-in-out infinite;
-        }
-      }
     }
 
     &__description {
@@ -253,12 +234,38 @@
 
     &:hover {
       color: #3b82f6;
-      background: rgba(59, 130, 246, 0.05);
+      border-bottom-color: #93c5fd;
     }
 
     &.active {
       color: #3b82f6;
       border-bottom-color: #3b82f6;
+    }
+  }
+
+  // Tab content transitions
+  .tab-content-wrapper {
+    animation: fadeSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
+    &.transitioning {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    &.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
@@ -330,7 +337,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 8px;
 
       .warehouse-icon {
         width: 40px;
@@ -360,7 +367,7 @@
 
     .warehouse-card-content {
       flex-grow: 1;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .warehouse-description {
@@ -375,7 +382,8 @@
       align-items: center;
       gap: 6px;
       color: #9ca3af;
-      font-size: 13px;
+      font-size: 10px;
+      text-align: center;
 
       svg {
         flex-shrink: 0;
@@ -436,14 +444,21 @@
       display: flex;
       align-items: center;
       gap: 16px;
+      background-color: white;
+      padding: 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      width: fit-content;
 
       .back-btn {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 10px 16px;
-        background: white;
+        background: #f9fafb;
+        color: #374151;
         border: 1px solid #e5e7eb;
+        border-color: #d1d5db !important;
         border-radius: 8px;
         color: #6b7280;
         font-size: 14px;
@@ -453,9 +468,9 @@
         font-family: inherit;
 
         &:hover {
-          background: #f9fafb;
-          border-color: #d1d5db;
-          color: #374151;
+          background: #f3f4f6;
+          border-color: #9ca3af !important;
+          color: #1f2937;
         }
       }
 
@@ -620,19 +635,6 @@
         width: 32px;
         height: 32px;
         color: #ff6b35;
-      }
-
-      .ws-indicator {
-        font-size: 10px;
-        margin-left: 8px;
-        opacity: 0.6;
-        transition: opacity 0.3s ease;
-
-        &.connected {
-          color: #10b981;
-          opacity: 1;
-          animation: pulse-dot 2s ease-in-out infinite;
-        }
       }
     }
 
@@ -3200,7 +3202,7 @@
 
     .warehouse-modal-footer {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 12px;
       padding: 20px 24px;
       border-top: 1px solid #e5e7eb;
@@ -3208,15 +3210,14 @@
       flex-shrink: 0;
 
       .warehouse-btn {
-        padding: 12px 24px;
-        font-size: 14px;
+        padding: 8px;
+        font-size: 12px;
         font-weight: 600;
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
         border: none;
         font-family: inherit;
-        min-width: 100px;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -3265,7 +3266,6 @@
         &.warehouse-btn-delete {
           background: #ef4444;
           color: white;
-          margin-right: auto;
 
           &:hover {
             background: #dc2626;
@@ -3559,6 +3559,7 @@
   flex-direction: column;
   gap: 24px;
   max-width: 100%;
+  padding-top: 24px;
 
   .main-content-card {
     background: white;
@@ -3614,8 +3615,11 @@
 .suppliers-table {
   width: 100%;
   min-width: 1000px;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   border: 1px solid #d1d5db;
+  border-radius: 16px;
+  overflow: hidden;
 
   thead {
     tr {
@@ -3628,7 +3632,17 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
         background: #f9fafb;
-        border: 1px solid #d1d5db;
+        border-bottom: 1px solid #d1d5db;
+        border-right: 1px solid #d1d5db;
+
+        &:first-child {
+          border-top-left-radius: 16px;
+        }
+
+        &:last-child {
+          border-top-right-radius: 16px;
+          border-right: none;
+        }
       }
     }
   }
@@ -3641,12 +3655,31 @@
         background-color: #f9fafb;
       }
 
+      &:last-child {
+        td {
+          border-bottom: none;
+
+          &:first-child {
+            border-bottom-left-radius: 16px;
+          }
+
+          &:last-child {
+            border-bottom-right-radius: 16px;
+          }
+        }
+      }
+
       td {
         padding: 16px;
         font-size: 14px;
         font-weight: 500;
         color: #1a1a1a;
-        border: 1px solid #d1d5db;
+        border-bottom: 1px solid #d1d5db;
+        border-right: 1px solid #d1d5db;
+
+        &:last-child {
+          border-right: none;
+        }
 
         a {
           &:hover {

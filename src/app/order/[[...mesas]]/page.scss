@@ -246,13 +246,11 @@
             overflow: hidden;
 
             &:hover {
-              box-shadow: 0 8px 20px rgba(124, 58, 237, 0.15);
-              transform: translateY(-4px);
+              cursor: pointer;
             }
 
             &.in-order {
               background: #f0fdf4;
-              box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
             }
 
             .menu-card-image {
@@ -306,7 +304,7 @@
               width: 24px;
               height: 24px;
               border-radius: 50%;
-              background: yellowgreen;
+              background: #10b981;
               color: #ffffff;
               display: flex;
               align-items: center;
@@ -329,6 +327,33 @@
         height: 100%;
         border-top-left-radius: 8px;
         border-bottom-left-radius: 8px;
+
+        // right-to-left come in come out animation for order-section
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        animation: slide-in 0.4s ease forwards;
+
+        @keyframes slide-out {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
+        &.slide-out {
+          animation: slide-out 0.4s ease forwards;
+        }
 
         .order-header-bar {
           padding: 8px;

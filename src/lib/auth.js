@@ -1,6 +1,43 @@
 // Authentication utilities for the restaurant app
 
-import { auth, getAuthToken, removeAuthToken } from "./api";
+import { auth, getAuthToken, removeAuthToken, handleTokenExpiration } from "./api";
+
+// Check if an error is a token/auth error
+export const isTokenError = (error) => {
+  if (!error) return false;
+
+  const errorStr = typeof error === 'string' ? error : error.message || '';
+
+  return (
+    errorStr.includes("Token inválido") ||
+    errorStr.includes("expirado") ||
+    errorStr.includes("invalid token") ||
+    errorStr.includes("expired") ||
+    errorStr.includes("Session expired") ||
+    errorStr.includes("Authentication failed") ||
+    errorStr.includes("401") ||
+    errorStr.includes("403") ||
+    errorStr.includes("Unauthorized")
+  );
+};
+
+// Handle any API error - automatically logs out if token error
+export const handleApiError = (error, response = null) => {
+  console.error("API Error:", error);
+
+  // Check response status
+  if (response && (response.status === 401 || response.status === 403)) {
+    console.log("Auth error detected in response status - logging out");
+    handleTokenExpiration();
+    return;
+  }
+
+  // Check error message
+  if (isTokenError(error)) {
+    console.log("Token error detected - logging out");
+    handleTokenExpiration();
+  }
+};
 
 // Check if user is authenticated
 export const isAuthenticated = () => {

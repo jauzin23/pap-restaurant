@@ -149,7 +149,7 @@ const apiRequest = async (endpoint, options = {}) => {
       (response.status === 401 || response.status === 403) &&
       options.auth !== false
     ) {
-      console.log("Token expired or invalid");
+      console.log("Token expired or invalid - removing token and redirecting to login");
       handleTokenExpiration();
       throw new Error("Session expired. Please login again.");
     }
@@ -159,6 +159,19 @@ const apiRequest = async (endpoint, options = {}) => {
         .json()
         .catch(() => ({ error: "Request failed" }));
       console.error("API Error response:", errorData);
+
+      // Check for token error messages
+      if (errorData.error && (
+        errorData.error.includes("Token inválido") ||
+        errorData.error.includes("expirado") ||
+        errorData.error.includes("invalid token") ||
+        errorData.error.includes("expired")
+      )) {
+        console.log("Token error detected in response - removing token and redirecting");
+        handleTokenExpiration();
+        throw new Error("Session expired. Please login again.");
+      }
+
       throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
@@ -267,10 +280,14 @@ export const profileImages = {
 };
 
 // Export auth token utilities
-export { getAuthToken, setAuthToken, removeAuthToken };
+export { getAuthToken, setAuthToken, removeAuthToken, handleTokenExpiration };
+
+// Export the main API request function for direct use
+export { apiRequest };
 
 // Export API base URL for direct file access
 export const API_FILES_URL = `${API_BASE_URL}/files`;
+export { API_BASE_URL };
 
 // Table Layouts API
 export const tableLayouts = {

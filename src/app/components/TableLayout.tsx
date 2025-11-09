@@ -210,6 +210,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -453,18 +454,13 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
   // Handle table selection for orders
   const handleTableSelection = (tableNumber: number, tableId: string) => {
-    console.log("[TableLayout] Table clicked:", { tableNumber, tableId, mode });
-
     if (mode === "edit") {
-      console.log("[TableLayout] Ignoring click - in edit mode");
       return; // Don't handle selection in edit mode
     }
 
     const status = getTableStatus(tableId);
-    console.log("[TableLayout] Table status:", status);
 
     if (status !== "available") {
-      console.log("[TableLayout] Ignoring click - table not available");
       return; // Only allow selection of available tables
     }
 
@@ -474,12 +470,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         ? prev.filter((id) => id !== tableId)
         : [...prev, tableId];
 
-      console.log("[TableLayout] Selection updated:", {
-        isAlreadySelected,
-        previousSelection: prev,
-        newSelection,
-      });
-
       return newSelection;
     });
   };
@@ -487,17 +477,18 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   // Create order with selected tables
   const handleCreateOrder = () => {
     if (selectedTables.length === 0) {
-      console.log("[TableLayout] No tables selected");
       return;
     }
 
-    console.log("[TableLayout] Creating order for tables:", selectedTables);
+    // Show loading state
+    setIsCreatingOrder(true);
 
-    // selectedTables now contains table IDs
-    const tablesParam = selectedTables.join(",");
-    console.log("[TableLayout] Navigating to:", `/order/${tablesParam}`);
+    // Use separate path segments for catch-all route
+    // For [[...mesas]] route: /order/id1/id2/id3
+    const encodedTables = selectedTables.map((id: string) => encodeURIComponent(id));
+    const tablePath = encodedTables.join("/");
 
-    router.push(`/order/${tablesParam}`);
+    router.push(`/order/${tablePath}`);
 
     // Clear selection after order creation
     setSelectedTables([]);
@@ -1214,6 +1205,13 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         </div>
       )}
 
+      {isCreatingOrder && (
+        <div className="loading-overlay">
+          <Loader2 className="spinner" size={32} />
+          <span>A criar pedido...</span>
+        </div>
+      )}
+
       {error && (
         <div className="error-banner">
           <span>{error}</span>
@@ -1767,6 +1765,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                       prev.filter((o) => (o.id || o.$id) !== orderId)
                     );
                   }}
+                  setIsCreatingOrder={setIsCreatingOrder}
                 />,
                 document.body
               )
@@ -1785,6 +1784,7 @@ interface OrderDetailsModalProps {
   onRefresh: () => Promise<void>;
   onOrderUpdate: (orderId: string, updates: any) => void;
   onOrderDelete: (orderId: string) => void;
+  setIsCreatingOrder: (loading: boolean) => void;
 }
 
 const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
@@ -1794,6 +1794,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onRefresh,
   onOrderUpdate,
   onOrderDelete,
+  setIsCreatingOrder,
 }) => {
   const router = useRouter();
   const { socket, connected } = useWebSocketContext();
@@ -2179,8 +2180,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   // Handle adding more orders - navigate to order page with these table IDs
   const handleAddMoreOrders = () => {
     if (tableIds.length > 0) {
-      const tableIdsParam = tableIds.join(",");
-      router.push(`/order/${tableIdsParam}`);
+      // Show loading state
+      setIsCreatingOrder(true);
+
+      // Use separate path segments for catch-all route
+      const encodedTables = tableIds.map((id: string) => encodeURIComponent(id));
+      const tablePath = encodedTables.join("/");
+      router.push(`/order/${tablePath}`);
     }
   };
 

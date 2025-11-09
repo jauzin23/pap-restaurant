@@ -2,10 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
 const pool = require("../../db");
-const {
-  autenticarToken,
-  requerGestor,
-} = require("../intermediarios/autenticacao");
+const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
 const { garantirDiretorioUploads } = require("../utilitarios/sistemaFicheiros");
 
@@ -31,19 +28,19 @@ router.get("/warehouses", autenticarToken, async (req, res) => {
       ORDER BY name ASC
     `);
 
-    const documents = resultado.rows.map((row) => ({
+    const documents = resultado.rows.map(row => ({
       $id: row.id.toString(),
       name: row.name,
       description: row.description,
       address: row.address,
       is_active: row.is_active,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     }));
 
     res.json({
       documents: documents,
-      total: documents.length,
+      total: documents.length
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao listar warehouses:", erro);
@@ -73,7 +70,7 @@ router.get("/warehouses/:id", autenticarToken, async (req, res) => {
       address: row.address,
       is_active: row.is_active,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     res.json(warehouse);
@@ -96,12 +93,7 @@ router.post("/warehouses", autenticarToken, async (req, res) => {
       `INSERT INTO warehouses (name, description, address, is_active)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [
-        name.trim(),
-        description || null,
-        address || null,
-        is_active !== undefined ? is_active : true,
-      ]
+      [name.trim(), description || null, address || null, is_active !== undefined ? is_active : true]
     );
 
     const row = resultado.rows[0];
@@ -112,7 +104,7 @@ router.post("/warehouses", autenticarToken, async (req, res) => {
       address: row.address,
       is_active: row.is_active,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     // Emit WebSocket event
@@ -124,9 +116,7 @@ router.post("/warehouses", autenticarToken, async (req, res) => {
     res.status(201).json(warehouse);
   } catch (erro) {
     if (erro.code === "23505") {
-      return res
-        .status(400)
-        .json({ error: "Warehouse com esse nome já existe" });
+      return res.status(400).json({ error: "Warehouse com esse nome já existe" });
     }
     console.error("[STOCK] Erro ao criar warehouse:", erro);
     tratarErro(erro, res);
@@ -139,10 +129,7 @@ router.put("/warehouses/:id", autenticarToken, async (req, res) => {
     const { id } = req.params;
     const { name, description, address, is_active } = req.body;
 
-    const verificar = await pool.query(
-      "SELECT id FROM warehouses WHERE id = $1",
-      [id]
-    );
+    const verificar = await pool.query("SELECT id FROM warehouses WHERE id = $1", [id]);
     if (verificar.rows.length === 0) {
       return res.status(404).json({ error: "Warehouse não encontrado" });
     }
@@ -192,7 +179,7 @@ router.put("/warehouses/:id", autenticarToken, async (req, res) => {
       address: row.address,
       is_active: row.is_active,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     // Emit WebSocket event
@@ -221,15 +208,11 @@ router.delete("/warehouses/:id", autenticarToken, async (req, res) => {
 
     if (parseInt(inventoryCheck.rows[0].count) > 0) {
       return res.status(400).json({
-        error:
-          "Não é possível eliminar warehouse com inventário. Transfira ou remova os items primeiro.",
+        error: "Não é possível eliminar warehouse com inventário. Transfira ou remova os items primeiro."
       });
     }
 
-    const resultado = await pool.query(
-      "DELETE FROM warehouses WHERE id = $1 RETURNING id",
-      [id]
-    );
+    const resultado = await pool.query("DELETE FROM warehouses WHERE id = $1 RETURNING id", [id]);
 
     if (resultado.rows.length === 0) {
       return res.status(404).json({ error: "Warehouse não encontrado" });
@@ -264,7 +247,6 @@ router.get("/items", autenticarToken, async (req, res) => {
         si.supplier_id,
         s.name as supplier_name,
         si.cost_price,
-        si.min_qty,
         si.image_id,
         si.created_at,
         si.updated_at,
@@ -273,29 +255,28 @@ router.get("/items", autenticarToken, async (req, res) => {
       FROM stock_items si
       LEFT JOIN supplier s ON si.supplier_id = s.id
       LEFT JOIN stock_inventory inv ON si.id = inv.stock_item_id
-      GROUP BY si.id, si.name, si.category, si.description, si.supplier_id, s.name, si.cost_price, si.min_qty, si.image_id, si.created_at, si.updated_at
+      GROUP BY si.id, si.name, si.category, si.description, si.supplier_id, s.name, si.cost_price, si.image_id, si.created_at, si.updated_at
       ORDER BY si.name ASC
     `);
 
-    const documents = resultado.rows.map((row) => ({
+    const documents = resultado.rows.map(row => ({
       $id: row.id.toString(),
       name: row.name,
       category: row.category,
       description: row.description,
-      supplier_id: row.supplier_id ? row.supplier_id.toString() : null,
+      supplier_id: row.supplier_id,
       supplier_name: row.supplier_name,
       cost_price: parseFloat(row.cost_price) || 0,
       qty: parseInt(row.total_qty) || 0,
-      min_qty: row.min_qty || 0,
       num_warehouses: parseInt(row.num_warehouses) || 0,
       image_id: row.image_id,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     }));
 
     res.json({
       documents: documents,
-      total: documents.length,
+      total: documents.length
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao listar items:", erro);
@@ -330,6 +311,7 @@ router.get("/items/:id", autenticarToken, async (req, res) => {
         inv.warehouse_id,
         w.name as warehouse_name,
         inv.qty,
+        inv.min_qty,
         inv.position,
         inv.created_at,
         inv.updated_at
@@ -341,33 +323,30 @@ router.get("/items/:id", autenticarToken, async (req, res) => {
     );
 
     const row = itemResult.rows[0];
-    const totalQty = inventoryResult.rows.reduce(
-      (sum, inv) => sum + inv.qty,
-      0
-    );
+    const totalQty = inventoryResult.rows.reduce((sum, inv) => sum + inv.qty, 0);
 
     const item = {
       $id: row.id.toString(),
       name: row.name,
       category: row.category,
       description: row.description,
-      supplier_id: row.supplier_id ? row.supplier_id.toString() : null,
+      supplier_id: row.supplier_id,
       supplier_name: row.supplier_name,
       cost_price: parseFloat(row.cost_price) || 0,
       qty: totalQty,
-      min_qty: row.min_qty || 0,
       image_id: row.image_id,
       $createdAt: row.created_at,
       $updatedAt: row.updated_at,
-      warehouses: inventoryResult.rows.map((inv) => ({
+      warehouses: inventoryResult.rows.map(inv => ({
         inventory_id: inv.id.toString(),
         warehouse_id: inv.warehouse_id.toString(),
         warehouse_name: inv.warehouse_name,
         qty: inv.qty,
+        min_qty: inv.min_qty || 0,
         position: inv.position,
         created_at: inv.created_at,
-        updated_at: inv.updated_at,
-      })),
+        updated_at: inv.updated_at
+      }))
     };
 
     res.json(item);
@@ -386,9 +365,8 @@ router.post("/items", autenticarToken, async (req, res) => {
       description,
       supplier_id,
       cost_price,
-      min_qty,
       image_id,
-      inventory, // Array: [{ warehouse_id, qty, position }]
+      inventory // Array: [{ warehouse_id, qty, min_qty, position }]
     } = req.body;
 
     console.log("[STOCK] Criar novo item:", name);
@@ -400,13 +378,13 @@ router.post("/items", autenticarToken, async (req, res) => {
     // Start transaction
     const client = await pool.connect();
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       // Insert stock item
       const itemResult = await client.query(
         `INSERT INTO stock_items
-          (name, category, description, supplier_id, cost_price, min_qty, image_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+          (name, category, description, supplier_id, cost_price, image_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
         [
           name.trim(),
@@ -414,8 +392,7 @@ router.post("/items", autenticarToken, async (req, res) => {
           description || null,
           supplier_id || null,
           parseFloat(cost_price) || 0,
-          parseInt(min_qty) || 0,
-          image_id || null,
+          image_id || null
         ]
       );
 
@@ -430,15 +407,10 @@ router.post("/items", autenticarToken, async (req, res) => {
         for (const inv of inventory) {
           if (inv.warehouse_id && inv.qty > 0) {
             const invResult = await client.query(
-              `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, position)
-               VALUES ($1, $2, $3, $4)
+              `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, min_qty, position)
+               VALUES ($1, $2, $3, $4, $5)
                RETURNING *`,
-              [
-                itemId,
-                inv.warehouse_id,
-                parseInt(inv.qty) || 0,
-                inv.position || null,
-              ]
+              [itemId, inv.warehouse_id, parseInt(inv.qty) || 0, parseInt(inv.min_qty) || 0, inv.position || null]
             );
 
             totalQty += parseInt(inv.qty) || 0;
@@ -451,15 +423,16 @@ router.post("/items", autenticarToken, async (req, res) => {
             warehouseData.push({
               inventory_id: invResult.rows[0].id.toString(),
               warehouse_id: inv.warehouse_id.toString(),
-              warehouse_name: warehouseInfo.rows[0]?.name || "",
+              warehouse_name: warehouseInfo.rows[0]?.name || '',
               qty: parseInt(inv.qty) || 0,
-              position: inv.position || null,
+              min_qty: parseInt(inv.min_qty) || 0,
+              position: inv.position || null
             });
           }
         }
       }
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       // Get supplier name
       let supplierName = null;
@@ -476,15 +449,14 @@ router.post("/items", autenticarToken, async (req, res) => {
         name: itemRow.name,
         category: itemRow.category,
         description: itemRow.description,
-        supplier_id: itemRow.supplier_id ? itemRow.supplier_id.toString() : null,
+        supplier_id: itemRow.supplier_id,
         supplier_name: supplierName,
         cost_price: parseFloat(itemRow.cost_price) || 0,
         qty: totalQty,
-        min_qty: itemRow.min_qty || 0,
         image_id: itemRow.image_id,
         $createdAt: itemRow.created_at,
         $updatedAt: itemRow.updated_at,
-        warehouses: warehouseData,
+        warehouses: warehouseData
       };
 
       console.log("[STOCK] Item criado com sucesso:", item.$id);
@@ -494,25 +466,31 @@ router.post("/items", autenticarToken, async (req, res) => {
       if (emissores) {
         emissores.itemStockCriado(item);
 
-        // Check if item is at alert level
-        if (item.qty <= item.min_qty) {
-          emissores.alertaStockCriado({
-            ...item,
-            status: "critical",
-            message: `Item "${item.name}" está em nível crítico (${item.qty}/${item.min_qty})`,
-          });
-        } else if (item.qty <= item.min_qty + 5) {
-          emissores.alertaStockCriado({
-            ...item,
-            status: "warning",
-            message: `Item "${item.name}" está em nível de aviso (${item.qty}/${item.min_qty})`,
-          });
+        // Check if any warehouse is at alert level
+        for (const wh of warehouseData) {
+          if (wh.qty <= wh.min_qty) {
+            emissores.alertaStockCriado({
+              ...item,
+              warehouse_id: wh.warehouse_id,
+              warehouse_name: wh.warehouse_name,
+              status: "critical",
+              message: `Item "${item.name}" em ${wh.warehouse_name} está em nível crítico (${wh.qty}/${wh.min_qty})`
+            });
+          } else if (wh.qty <= wh.min_qty + 5) {
+            emissores.alertaStockCriado({
+              ...item,
+              warehouse_id: wh.warehouse_id,
+              warehouse_name: wh.warehouse_name,
+              status: "warning",
+              message: `Item "${item.name}" em ${wh.warehouse_name} está em nível de aviso (${wh.qty}/${wh.min_qty})`
+            });
+          }
         }
       }
 
       res.status(201).json(item);
     } catch (erro) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw erro;
     } finally {
       client.release();
@@ -533,17 +511,13 @@ router.put("/items/:id", autenticarToken, async (req, res) => {
       description,
       supplier_id,
       cost_price,
-      min_qty,
-      image_id,
+      image_id
     } = req.body;
 
     console.log("[STOCK] Atualizar item:", id);
 
     // Check if item exists
-    const verificar = await pool.query(
-      "SELECT id FROM stock_items WHERE id = $1",
-      [id]
-    );
+    const verificar = await pool.query("SELECT id FROM stock_items WHERE id = $1", [id]);
     if (verificar.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
     }
@@ -573,10 +547,6 @@ router.put("/items/:id", autenticarToken, async (req, res) => {
       updates.push(`cost_price = $${paramIndex++}`);
       values.push(parseFloat(cost_price) || 0);
     }
-    if (min_qty !== undefined) {
-      updates.push(`min_qty = $${paramIndex++}`);
-      values.push(Math.max(0, parseInt(min_qty) || 0));
-    }
     if (image_id !== undefined) {
       updates.push(`image_id = $${paramIndex++}`);
       values.push(image_id || null);
@@ -599,13 +569,9 @@ router.put("/items/:id", autenticarToken, async (req, res) => {
     const resultado = await pool.query(query, values);
     const row = resultado.rows[0];
 
-    // Get total quantity, number of warehouses, and supplier name
+    // Get total quantity and supplier name
     const totalsResult = await pool.query(
-      `SELECT
-        COALESCE(SUM(qty), 0) as total_qty,
-        COUNT(DISTINCT warehouse_id) as num_warehouses
-      FROM stock_inventory
-      WHERE stock_item_id = $1`,
+      `SELECT COALESCE(SUM(qty), 0) as total_qty FROM stock_inventory WHERE stock_item_id = $1`,
       [id]
     );
 
@@ -623,15 +589,13 @@ router.put("/items/:id", autenticarToken, async (req, res) => {
       name: row.name,
       category: row.category,
       description: row.description,
-      supplier_id: row.supplier_id ? row.supplier_id.toString() : null,
+      supplier_id: row.supplier_id,
       supplier_name: supplierName,
       cost_price: parseFloat(row.cost_price) || 0,
       qty: parseInt(totalsResult.rows[0].total_qty) || 0,
-      min_qty: row.min_qty || 0,
-      num_warehouses: parseInt(totalsResult.rows[0].num_warehouses) || 0,
       image_id: row.image_id,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     console.log("[STOCK] Item atualizado com sucesso");
@@ -640,21 +604,6 @@ router.put("/items/:id", autenticarToken, async (req, res) => {
     const emissores = req.app.get("emissoresClientes");
     if (emissores) {
       emissores.itemStockAtualizado(item);
-
-      // Check if item is at alert level
-      if (item.qty <= item.min_qty) {
-        emissores.alertaStockCriado({
-          ...item,
-          status: "critical",
-          message: `Item "${item.name}" está em nível crítico (${item.qty}/${item.min_qty})`,
-        });
-      } else if (item.qty <= item.min_qty + 5) {
-        emissores.alertaStockCriado({
-          ...item,
-          status: "warning",
-          message: `Item "${item.name}" está em nível de aviso (${item.qty}/${item.min_qty})`,
-        });
-      }
     }
 
     res.json(item);
@@ -672,10 +621,7 @@ router.delete("/items/:id", autenticarToken, async (req, res) => {
     console.log("[STOCK] Eliminar item:", id);
 
     // Get item to check for image
-    const item = await pool.query(
-      "SELECT image_id FROM stock_items WHERE id = $1",
-      [id]
-    );
+    const item = await pool.query("SELECT image_id FROM stock_items WHERE id = $1", [id]);
 
     if (item.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
@@ -728,10 +674,7 @@ router.get("/items/:id/inventory", autenticarToken, async (req, res) => {
     const { id } = req.params;
 
     // Check if item exists
-    const itemCheck = await pool.query(
-      "SELECT id FROM stock_items WHERE id = $1",
-      [id]
-    );
+    const itemCheck = await pool.query("SELECT id FROM stock_items WHERE id = $1", [id]);
     if (itemCheck.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
     }
@@ -743,6 +686,7 @@ router.get("/items/:id/inventory", autenticarToken, async (req, res) => {
         w.name as warehouse_name,
         w.description as warehouse_description,
         inv.qty,
+        inv.min_qty,
         inv.position,
         inv.created_at,
         inv.updated_at
@@ -753,20 +697,21 @@ router.get("/items/:id/inventory", autenticarToken, async (req, res) => {
       [id]
     );
 
-    const documents = resultado.rows.map((row) => ({
+    const documents = resultado.rows.map(row => ({
       $id: row.id.toString(),
       warehouse_id: row.warehouse_id.toString(),
       warehouse_name: row.warehouse_name,
       warehouse_description: row.warehouse_description,
       qty: row.qty,
+      min_qty: row.min_qty || 0,
       position: row.position,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     }));
 
     res.json({
       documents: documents,
-      total: documents.length,
+      total: documents.length
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao buscar inventory:", erro);
@@ -778,7 +723,7 @@ router.get("/items/:id/inventory", autenticarToken, async (req, res) => {
 router.post("/items/:id/inventory", autenticarToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { warehouse_id, qty, position, operation } = req.body;
+    const { warehouse_id, qty, min_qty, position, operation } = req.body;
 
     if (!warehouse_id) {
       return res.status(400).json({ error: "warehouse_id é obrigatório" });
@@ -789,19 +734,13 @@ router.post("/items/:id/inventory", autenticarToken, async (req, res) => {
     }
 
     // Check if item exists
-    const itemCheck = await pool.query(
-      "SELECT id FROM stock_items WHERE id = $1",
-      [id]
-    );
+    const itemCheck = await pool.query("SELECT id FROM stock_items WHERE id = $1", [id]);
     if (itemCheck.rows.length === 0) {
       return res.status(404).json({ error: "Item não encontrado" });
     }
 
     // Check if warehouse exists
-    const warehouseCheck = await pool.query(
-      "SELECT id FROM warehouses WHERE id = $1",
-      [warehouse_id]
-    );
+    const warehouseCheck = await pool.query("SELECT id FROM warehouses WHERE id = $1", [warehouse_id]);
     if (warehouseCheck.rows.length === 0) {
       return res.status(404).json({ error: "Warehouse não encontrado" });
     }
@@ -811,28 +750,30 @@ router.post("/items/:id/inventory", autenticarToken, async (req, res) => {
     if (operation === "add") {
       // Add to existing quantity
       resultado = await pool.query(
-        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, position)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, min_qty, position)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (stock_item_id, warehouse_id)
          DO UPDATE SET
            qty = stock_inventory.qty + EXCLUDED.qty,
+           min_qty = COALESCE(EXCLUDED.min_qty, stock_inventory.min_qty),
            position = COALESCE(EXCLUDED.position, stock_inventory.position),
            updated_at = CURRENT_TIMESTAMP
          RETURNING *`,
-        [id, warehouse_id, parseInt(qty), position || null]
+        [id, warehouse_id, parseInt(qty), parseInt(min_qty) || 0, position || null]
       );
     } else {
       // Set quantity (default)
       resultado = await pool.query(
-        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, position)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO stock_inventory (stock_item_id, warehouse_id, qty, min_qty, position)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (stock_item_id, warehouse_id)
          DO UPDATE SET
            qty = EXCLUDED.qty,
+           min_qty = COALESCE(EXCLUDED.min_qty, stock_inventory.min_qty),
            position = COALESCE(EXCLUDED.position, stock_inventory.position),
            updated_at = CURRENT_TIMESTAMP
          RETURNING *`,
-        [id, warehouse_id, parseInt(qty), position || null]
+        [id, warehouse_id, parseInt(qty), parseInt(min_qty) || 0, position || null]
       );
     }
 
@@ -850,9 +791,10 @@ router.post("/items/:id/inventory", autenticarToken, async (req, res) => {
       warehouse_id: row.warehouse_id.toString(),
       warehouse_name: warehouseInfo.rows[0].name,
       qty: row.qty,
+      min_qty: row.min_qty || 0,
       position: row.position,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     // Emit WebSocket event
@@ -869,120 +811,112 @@ router.post("/items/:id/inventory", autenticarToken, async (req, res) => {
 });
 
 // Update inventory at specific warehouse
-router.put(
-  "/items/:id/inventory/:warehouse_id",
-  autenticarToken,
-  async (req, res) => {
-    try {
-      const { id, warehouse_id } = req.params;
-      const { qty, position } = req.body;
+router.put("/items/:id/inventory/:warehouse_id", autenticarToken, async (req, res) => {
+  try {
+    const { id, warehouse_id } = req.params;
+    const { qty, min_qty, position } = req.body;
 
-      const updates = [];
-      const values = [];
-      let paramIndex = 1;
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
 
-      if (qty !== undefined) {
-        if (qty < 0) {
-          return res
-            .status(400)
-            .json({ error: "Quantidade não pode ser negativa" });
-        }
-        updates.push(`qty = $${paramIndex++}`);
-        values.push(parseInt(qty));
+    if (qty !== undefined) {
+      if (qty < 0) {
+        return res.status(400).json({ error: "Quantidade não pode ser negativa" });
       }
+      updates.push(`qty = $${paramIndex++}`);
+      values.push(parseInt(qty));
+    }
 
-      if (position !== undefined) {
-        updates.push(`position = $${paramIndex++}`);
-        values.push(position || null);
-      }
+    if (min_qty !== undefined) {
+      updates.push(`min_qty = $${paramIndex++}`);
+      values.push(Math.max(0, parseInt(min_qty) || 0));
+    }
 
-      if (updates.length === 0) {
-        return res.status(400).json({ error: "Nenhum campo para atualizar" });
-      }
+    if (position !== undefined) {
+      updates.push(`position = $${paramIndex++}`);
+      values.push(position || null);
+    }
 
-      updates.push(`updated_at = CURRENT_TIMESTAMP`);
-      values.push(id, warehouse_id);
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Nenhum campo para atualizar" });
+    }
 
-      const query = `
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id, warehouse_id);
+
+    const query = `
       UPDATE stock_inventory
       SET ${updates.join(", ")}
       WHERE stock_item_id = $${paramIndex} AND warehouse_id = $${paramIndex + 1}
       RETURNING *
     `;
 
-      const resultado = await pool.query(query, values);
+    const resultado = await pool.query(query, values);
 
-      if (resultado.rows.length === 0) {
-        return res
-          .status(404)
-          .json({ error: "Inventory não encontrado neste warehouse" });
-      }
-
-      const row = resultado.rows[0];
-
-      // Get warehouse name
-      const warehouseInfo = await pool.query(
-        `SELECT name FROM warehouses WHERE id = $1`,
-        [warehouse_id]
-      );
-
-      const inventory = {
-        $id: row.id.toString(),
-        stock_item_id: row.stock_item_id.toString(),
-        warehouse_id: row.warehouse_id.toString(),
-        warehouse_name: warehouseInfo.rows[0].name,
-        qty: row.qty,
-        position: row.position,
-        $createdAt: row.created_at,
-        $updatedAt: row.updated_at,
-      };
-
-      // Emit WebSocket event
-      const emissores = req.app.get("emissoresClientes");
-      if (emissores) {
-        emissores.inventoryAtualizado(inventory);
-      }
-
-      res.json(inventory);
-    } catch (erro) {
-      console.error("[STOCK] Erro ao atualizar inventory:", erro);
-      tratarErro(erro, res);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: "Inventory não encontrado neste warehouse" });
     }
+
+    const row = resultado.rows[0];
+
+    // Get warehouse name
+    const warehouseInfo = await pool.query(
+      `SELECT name FROM warehouses WHERE id = $1`,
+      [warehouse_id]
+    );
+
+    const inventory = {
+      $id: row.id.toString(),
+      stock_item_id: row.stock_item_id.toString(),
+      warehouse_id: row.warehouse_id.toString(),
+      warehouse_name: warehouseInfo.rows[0].name,
+      qty: row.qty,
+      min_qty: row.min_qty || 0,
+      position: row.position,
+      $createdAt: row.created_at,
+      $updatedAt: row.updated_at
+    };
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.inventoryAtualizado(inventory);
+    }
+
+    res.json(inventory);
+  } catch (erro) {
+    console.error("[STOCK] Erro ao atualizar inventory:", erro);
+    tratarErro(erro, res);
   }
-);
+});
 
 // Remove inventory from warehouse
-router.delete(
-  "/items/:id/inventory/:warehouse_id",
-  autenticarToken,
-  async (req, res) => {
-    try {
-      const { id, warehouse_id } = req.params;
+router.delete("/items/:id/inventory/:warehouse_id", autenticarToken, async (req, res) => {
+  try {
+    const { id, warehouse_id } = req.params;
 
-      const resultado = await pool.query(
-        "DELETE FROM stock_inventory WHERE stock_item_id = $1 AND warehouse_id = $2 RETURNING *",
-        [id, warehouse_id]
-      );
+    const resultado = await pool.query(
+      "DELETE FROM stock_inventory WHERE stock_item_id = $1 AND warehouse_id = $2 RETURNING *",
+      [id, warehouse_id]
+    );
 
-      if (resultado.rows.length === 0) {
-        return res
-          .status(404)
-          .json({ error: "Inventory não encontrado neste warehouse" });
-      }
-
-      // Emit WebSocket event
-      const emissores = req.app.get("emissoresClientes");
-      if (emissores) {
-        emissores.inventoryEliminado({ stock_item_id: id, warehouse_id });
-      }
-
-      res.json({ message: "Inventory removido com sucesso" });
-    } catch (erro) {
-      console.error("[STOCK] Erro ao remover inventory:", erro);
-      tratarErro(erro, res);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ error: "Inventory não encontrado neste warehouse" });
     }
+
+    // Emit WebSocket event
+    const emissores = req.app.get("emissoresClientes");
+    if (emissores) {
+      emissores.inventoryEliminado({ stock_item_id: id, warehouse_id });
+    }
+
+    res.json({ message: "Inventory removido com sucesso" });
+  } catch (erro) {
+    console.error("[STOCK] Erro ao remover inventory:", erro);
+    tratarErro(erro, res);
   }
-);
+});
 
 // Transfer stock between warehouses
 router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
@@ -991,28 +925,20 @@ router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
     const { from_warehouse_id, to_warehouse_id, qty } = req.body;
 
     if (!from_warehouse_id || !to_warehouse_id) {
-      return res
-        .status(400)
-        .json({
-          error: "from_warehouse_id e to_warehouse_id são obrigatórios",
-        });
+      return res.status(400).json({ error: "from_warehouse_id e to_warehouse_id são obrigatórios" });
     }
 
     if (!qty || qty <= 0) {
-      return res
-        .status(400)
-        .json({ error: "Quantidade deve ser maior que zero" });
+      return res.status(400).json({ error: "Quantidade deve ser maior que zero" });
     }
 
     if (from_warehouse_id === to_warehouse_id) {
-      return res
-        .status(400)
-        .json({ error: "Warehouses de origem e destino devem ser diferentes" });
+      return res.status(400).json({ error: "Warehouses de origem e destino devem ser diferentes" });
     }
 
     const client = await pool.connect();
     try {
-      await client.query("BEGIN");
+      await client.query('BEGIN');
 
       // Check source inventory
       const sourceCheck = await client.query(
@@ -1025,9 +951,7 @@ router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
       }
 
       if (sourceCheck.rows[0].qty < qty) {
-        throw new Error(
-          `Quantidade insuficiente no warehouse de origem (disponível: ${sourceCheck.rows[0].qty})`
-        );
+        throw new Error(`Quantidade insuficiente no warehouse de origem (disponível: ${sourceCheck.rows[0].qty})`);
       }
 
       // Decrease from source
@@ -1057,7 +981,7 @@ router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
         [id, to_warehouse_id, qty]
       );
 
-      await client.query("COMMIT");
+      await client.query('COMMIT');
 
       // Get warehouse names for response
       const warehouseNames = await pool.query(
@@ -1065,21 +989,17 @@ router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
         [from_warehouse_id, to_warehouse_id]
       );
 
-      const fromWarehouse = warehouseNames.rows.find(
-        (w) => w.id == from_warehouse_id
-      );
-      const toWarehouse = warehouseNames.rows.find(
-        (w) => w.id == to_warehouse_id
-      );
+      const fromWarehouse = warehouseNames.rows.find(w => w.id == from_warehouse_id);
+      const toWarehouse = warehouseNames.rows.find(w => w.id == to_warehouse_id);
 
       const transfer = {
         stock_item_id: id,
         from_warehouse_id: from_warehouse_id.toString(),
-        from_warehouse_name: fromWarehouse?.name || "",
+        from_warehouse_name: fromWarehouse?.name || '',
         to_warehouse_id: to_warehouse_id.toString(),
-        to_warehouse_name: toWarehouse?.name || "",
+        to_warehouse_name: toWarehouse?.name || '',
         qty: qty,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
 
       // Emit WebSocket event
@@ -1090,20 +1010,17 @@ router.post("/items/:id/transfer", autenticarToken, async (req, res) => {
 
       res.json({
         message: "Transferência realizada com sucesso",
-        transfer: transfer,
+        transfer: transfer
       });
     } catch (erro) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw erro;
     } finally {
       client.release();
     }
   } catch (erro) {
     console.error("[STOCK] Erro ao transferir stock:", erro);
-    if (
-      erro.message.includes("não existe") ||
-      erro.message.includes("insuficiente")
-    ) {
+    if (erro.message.includes("não existe") || erro.message.includes("insuficiente")) {
       return res.status(400).json({ error: erro.message });
     }
     tratarErro(erro, res);
@@ -1123,18 +1040,18 @@ router.get("/categories", autenticarToken, async (req, res) => {
       ORDER BY name ASC
     `);
 
-    const documents = resultado.rows.map((row) => ({
+    const documents = resultado.rows.map(row => ({
       $id: row.id.toString(),
       name: row.name,
       category: row.name, // for backwards compatibility
       description: row.description,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     }));
 
     res.json({
       documents: documents,
-      total: documents.length,
+      total: documents.length
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao listar categorias:", erro);
@@ -1165,7 +1082,7 @@ router.post("/categories", autenticarToken, async (req, res) => {
       category: row.name,
       description: row.description,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     // Emit WebSocket event
@@ -1176,8 +1093,7 @@ router.post("/categories", autenticarToken, async (req, res) => {
 
     res.status(201).json(categoria);
   } catch (erro) {
-    if (erro.code === "23505") {
-      // Unique violation
+    if (erro.code === "23505") { // Unique violation
       return res.status(400).json({ error: "Categoria já existe" });
     }
     console.error("[STOCK] Erro ao criar categoria:", erro);
@@ -1198,7 +1114,7 @@ router.get("/suppliers", autenticarToken, async (req, res) => {
       ORDER BY name ASC
     `);
 
-    const documents = resultado.rows.map((row) => ({
+    const documents = resultado.rows.map(row => ({
       $id: row.id.toString(),
       name: row.name,
       supplier: row.name, // for backwards compatibility
@@ -1208,12 +1124,12 @@ router.get("/suppliers", autenticarToken, async (req, res) => {
       address: row.address,
       notes: row.notes,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     }));
 
     res.json({
       documents: documents,
-      total: documents.length,
+      total: documents.length
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao listar fornecedores:", erro);
@@ -1227,9 +1143,7 @@ router.post("/suppliers", autenticarToken, async (req, res) => {
     const { name, contact_name, email, phone, address, notes } = req.body;
 
     if (!name || name.trim() === "") {
-      return res
-        .status(400)
-        .json({ error: "Nome do fornecedor é obrigatório" });
+      return res.status(400).json({ error: "Nome do fornecedor é obrigatório" });
     }
 
     const resultado = await pool.query(
@@ -1242,7 +1156,7 @@ router.post("/suppliers", autenticarToken, async (req, res) => {
         email || null,
         phone || null,
         address || null,
-        notes || null,
+        notes || null
       ]
     );
 
@@ -1257,7 +1171,7 @@ router.post("/suppliers", autenticarToken, async (req, res) => {
       address: row.address,
       notes: row.notes,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     // Emit WebSocket event
@@ -1268,8 +1182,7 @@ router.post("/suppliers", autenticarToken, async (req, res) => {
 
     res.status(201).json(fornecedor);
   } catch (erro) {
-    if (erro.code === "23505") {
-      // Unique violation
+    if (erro.code === "23505") { // Unique violation
       return res.status(400).json({ error: "Fornecedor já existe" });
     }
     console.error("[STOCK] Erro ao criar fornecedor:", erro);
@@ -1283,10 +1196,7 @@ router.put("/suppliers/:id", autenticarToken, async (req, res) => {
     const { id } = req.params;
     const { name, contact_name, email, phone, address, notes } = req.body;
 
-    const verificar = await pool.query(
-      "SELECT id FROM supplier WHERE id = $1",
-      [id]
-    );
+    const verificar = await pool.query("SELECT id FROM supplier WHERE id = $1", [id]);
     if (verificar.rows.length === 0) {
       return res.status(404).json({ error: "Fornecedor não encontrado" });
     }
@@ -1347,7 +1257,7 @@ router.put("/suppliers/:id", autenticarToken, async (req, res) => {
       address: row.address,
       notes: row.notes,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     };
 
     // Emit WebSocket event
@@ -1376,15 +1286,11 @@ router.delete("/suppliers/:id", autenticarToken, async (req, res) => {
 
     if (parseInt(itemsCheck.rows[0].count) > 0) {
       return res.status(400).json({
-        error:
-          "Não é possível eliminar fornecedor com items associados. Atualize ou remova os items primeiro.",
+        error: "Não é possível eliminar fornecedor com items associados. Atualize ou remova os items primeiro."
       });
     }
 
-    const resultado = await pool.query(
-      "DELETE FROM supplier WHERE id = $1 RETURNING id",
-      [id]
-    );
+    const resultado = await pool.query("DELETE FROM supplier WHERE id = $1 RETURNING id", [id]);
 
     if (resultado.rows.length === 0) {
       return res.status(404).json({ error: "Fornecedor não encontrado" });
@@ -1426,10 +1332,7 @@ router.post("/upload-image", autenticarToken, async (req, res) => {
 
     // Remover prefixo de data URL se presente
     const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
-    console.log(
-      "[STOCK] Base64 após remover prefixo, length:",
-      dadosBase64.length
-    );
+    console.log("[STOCK] Base64 após remover prefixo, length:", dadosBase64.length);
 
     // Gerar nome de ficheiro único
     const extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
@@ -1453,7 +1356,7 @@ router.post("/upload-image", autenticarToken, async (req, res) => {
       $id: nomeFicheiroUnico,
       filename: nomeFicheiroUnico,
       url: `/files/imagens-stock/${nomeFicheiroUnico}`,
-      message: "Imagem de stock carregada com sucesso",
+      message: "Imagem de stock carregada com sucesso"
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao fazer upload:", erro);
@@ -1524,16 +1427,12 @@ router.get("/stats", autenticarToken, async (req, res) => {
     const resultado = await pool.query(`
       SELECT
         COUNT(DISTINCT si.id) as total_items,
-        COUNT(DISTINCT si.id) FILTER (WHERE total_qty.qty <= si.min_qty) as critical_stock,
-        COUNT(DISTINCT si.id) FILTER (WHERE total_qty.qty > si.min_qty AND total_qty.qty <= si.min_qty + 5) as warning_stock,
-        COUNT(DISTINCT si.id) FILTER (WHERE total_qty.qty > si.min_qty + 5) as ok_stock,
-        SUM(total_qty.qty * si.cost_price) as total_stock_value
+        COUNT(DISTINCT inv.id) FILTER (WHERE inv.qty <= inv.min_qty) as critical_stock,
+        COUNT(DISTINCT inv.id) FILTER (WHERE inv.qty > inv.min_qty AND inv.qty <= inv.min_qty + 5) as warning_stock,
+        COUNT(DISTINCT inv.id) FILTER (WHERE inv.qty > inv.min_qty + 5) as ok_stock,
+        SUM(inv.qty * si.cost_price) as total_stock_value
       FROM stock_items si
-      LEFT JOIN (
-        SELECT stock_item_id, SUM(qty) as qty
-        FROM stock_inventory
-        GROUP BY stock_item_id
-      ) total_qty ON si.id = total_qty.stock_item_id
+      LEFT JOIN stock_inventory inv ON si.id = inv.stock_item_id
     `);
 
     const stats = resultado.rows[0];
@@ -1543,7 +1442,7 @@ router.get("/stats", autenticarToken, async (req, res) => {
       critical_stock: parseInt(stats.critical_stock) || 0,
       warning_stock: parseInt(stats.warning_stock) || 0,
       ok_stock: parseInt(stats.ok_stock) || 0,
-      total_stock_value: parseFloat(stats.total_stock_value) || 0,
+      total_stock_value: parseFloat(stats.total_stock_value) || 0
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao buscar estatísticas:", erro);
@@ -1560,50 +1459,53 @@ router.get("/alerts", autenticarToken, async (req, res) => {
         si.name,
         si.category,
         s.name as supplier_name,
-        si.min_qty,
+        inv.warehouse_id,
+        w.name as warehouse_name,
+        inv.min_qty,
+        inv.qty,
         si.cost_price,
         si.image_id,
         si.created_at,
         si.updated_at,
-        COALESCE(total_qty.qty, 0) as qty,
         CASE
-          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty THEN 'critical'
-          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty + 5 THEN 'warning'
+          WHEN inv.qty <= inv.min_qty THEN 'critical'
+          WHEN inv.qty <= inv.min_qty + 5 THEN 'warning'
           ELSE 'ok'
         END AS status
       FROM stock_items si
       LEFT JOIN supplier s ON si.supplier_id = s.id
-      LEFT JOIN (
-        SELECT stock_item_id, SUM(qty) as qty
-        FROM stock_inventory
-        GROUP BY stock_item_id
-      ) total_qty ON si.id = total_qty.stock_item_id
-      WHERE COALESCE(total_qty.qty, 0) <= si.min_qty + 5
+      INNER JOIN stock_inventory inv ON si.id = inv.stock_item_id
+      INNER JOIN warehouses w ON inv.warehouse_id = w.id
+      WHERE inv.qty <= inv.min_qty + 5
       ORDER BY
         CASE
-          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty THEN 1
-          WHEN COALESCE(total_qty.qty, 0) <= si.min_qty + 5 THEN 2
+          WHEN inv.qty <= inv.min_qty THEN 1
+          WHEN inv.qty <= inv.min_qty + 5 THEN 2
           ELSE 3
         END,
-        si.name
+        si.name,
+        w.name
       LIMIT 50
     `);
 
-    const documents = resultado.rows.map((row) => ({
-      $id: row.id.toString(),
+    const documents = resultado.rows.map(row => ({
+      $id: `${row.id}_${row.warehouse_id}`,
+      item_id: row.id.toString(),
       name: row.name,
       category: row.category,
       supplier_name: row.supplier_name,
+      warehouse_id: row.warehouse_id.toString(),
+      warehouse_name: row.warehouse_name,
       qty: parseInt(row.qty) || 0,
       min_qty: row.min_qty || 0,
       status: row.status,
       $createdAt: row.created_at,
-      $updatedAt: row.updated_at,
+      $updatedAt: row.updated_at
     }));
 
     res.json({
       documents: documents,
-      total: documents.length,
+      total: documents.length
     });
   } catch (erro) {
     console.error("[STOCK] Erro ao buscar alertas:", erro);

@@ -17,7 +17,9 @@
       "Bash(dir /s /b \"C:\\PROGRAMATION\\pap-restaurant\\api\\*.js\")",
       "Bash(powershell -Command \"(Get-Content ''C:\\PROGRAMATION\\pap-restaurant\\src\\app\\order\\[[...mesas]]\\page.scss'' | Measure-Object -Line).Lines\")",
       "Bash(powershell -Command \"(Get-Content ''C:\\PROGRAMATION\\pap-restaurant\\src\\app\\components\\StockComponent.jsx'' | Measure-Object -Line).Lines\")",
-      "Bash(powershell -Command \"(Get-Content ''C:\\PROGRAMATION\\pap-restaurant\\src\\app\\components\\TableLayout.tsx'' | Measure-Object -Line).Lines\")"
+      "Bash(powershell -Command \"(Get-Content ''C:\\PROGRAMATION\\pap-restaurant\\src\\app\\components\\TableLayout.tsx'' | Measure-Object -Line).Lines\")",
+      "Bash(dir /s /b \"C:\\PROGRAMATION\\pap-restaurant\\src\\app\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
