@@ -1,5 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
 
+.ant-input {
+  border-radius: 1.5rem !important;
+}
+
+.form-select {
+  border-radius: 1.5rem !important;
+}
 .stock-component {
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
@@ -75,7 +82,7 @@
       font-weight: 500;
       height: 2.5rem;
       padding: 0.5rem 1rem;
-      border-radius: 1rem;
+      border-radius: 1.5rem;
       border: none;
       cursor: pointer;
       transition: all 150ms ease;
@@ -131,7 +138,7 @@
 
       .circle {
         position: absolute;
-        border-radius: 50%;
+        border-radius: 1.5rem;
         backdrop-filter: blur(12px);
 
         &-1 {
@@ -211,16 +218,22 @@
   // Tab Navigation
   .stock-tabs {
     display: flex;
-    margin-top: 0.5rem;
+    margin-top: 1.5rem;
     border-bottom: 2px solid #e5e7eb;
     padding-bottom: 0;
+    padding-left: 24px;
+    background-color: white;
+    border-radius: 1.5rem 1.5rem 0 0;
+    border: 1px solid #e5e7eb;
+
+    gap: 12px;
   }
 
   .stock-tab {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 24px;
+    padding: 12px 12px;
     background: transparent;
     border: none;
     border-bottom: 3px solid transparent;
@@ -317,11 +330,10 @@
   .warehouse-card {
     background: white;
     border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    border-radius: 1.5rem;
     padding: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -403,7 +415,7 @@
         background: #3b82f6;
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
@@ -420,7 +432,7 @@
         background: #0ea5e9;
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
@@ -445,9 +457,9 @@
       align-items: center;
       gap: 16px;
       background-color: white;
-      padding: 16px;
+      padding: 16px 24px;
       border: 1px solid #e5e7eb;
-      border-radius: 12px;
+      border-radius: 1.5rem;
       width: fit-content;
 
       .back-btn {
@@ -459,7 +471,7 @@
         color: #374151;
         border: 1px solid #e5e7eb;
         border-color: #d1d5db !important;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         color: #6b7280;
         font-size: 14px;
         font-weight: 500;
@@ -493,7 +505,7 @@
     .warehouse-inventory-content {
       background: white;
       border: 1px solid #e5e7eb;
-      border-radius: 12px;
+      border-radius: 1.5rem;
       padding: 24px;
 
       .loading-state,
@@ -588,7 +600,7 @@
                 width: 32px;
                 height: 32px;
                 border: 1px solid #e5e7eb;
-                border-radius: 6px;
+                border-radius: 1.5rem;
                 background: white;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -597,6 +609,18 @@
                   border-color: #3b82f6;
                   background: #eff6ff;
                   color: #3b82f6;
+                }
+
+                &.bulk-qty-btn {
+                  color: #f59e0b;
+                  border-color: #fde68a;
+                  background: #fffbeb;
+
+                  &:hover {
+                    border-color: #f59e0b;
+                    background: #fef3c7;
+                    color: #d97706;
+                  }
                 }
 
                 &.transfer-btn:hover {
@@ -650,7 +674,7 @@
       align-items: center;
       gap: 8px;
       padding: 10px 16px;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
@@ -713,7 +737,7 @@
 
   .stat-card {
     background: #ffffff;
-    border-radius: 0.5rem;
+    border-radius: 1.5rem;
     padding: 1.25rem;
     border: 1px solid #e5e7eb;
 
@@ -782,7 +806,7 @@
           align-items: center;
           padding: 8px 12px;
           background: #fef2f2;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           border: 1px solid #fecaca;
 
           .item-name {
@@ -801,7 +825,7 @@
             color: #dc2626;
             background: white;
             padding: 4px 8px;
-            border-radius: 6px;
+            border-radius: 1.5rem;
             border: 1px solid #fca5a5;
           }
         }
@@ -820,7 +844,7 @@
   // Main Content Card
   .main-content-card {
     background: #ffffff;
-    border-radius: 0.5rem;
+    border-radius: 1.5rem;
     padding: 1.25rem;
     border: 1px solid #e5e7eb;
   }
@@ -851,7 +875,7 @@
       padding: clamp(0.625rem, 1.2vw, 0.75rem) clamp(0.75rem, 1.5vw, 1rem)
         clamp(0.625rem, 1.2vw, 0.75rem) clamp(2.5rem, 5vw, 3rem);
       border: 1px solid #d1d5db;
-      border-radius: 12px;
+      border-radius: 1.5rem;
       font-size: clamp(0.875rem, 1.5vw, 0.95rem);
       background: white;
       transition: all 0.2s ease;
@@ -930,7 +954,7 @@
     gap: 12px;
     padding: 12px 16px;
     background: #f8fafc;
-    border-radius: 12px 12px 0 0;
+    border-radius: 1.5rem;
     border: 1px solid #e5e7eb;
     border-bottom: 2px solid #e5e7eb;
 
@@ -950,7 +974,7 @@
     flex-direction: column;
     border: 1px solid #e5e7eb;
     border-top: none;
-    border-radius: 0 0 12px 12px;
+    border-radius: 1.5rem;
     overflow: hidden;
   }
 
@@ -986,7 +1010,7 @@
         .item-image {
           width: 48px;
           height: 48px;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           object-fit: contain;
           border: 1px solid #e5e7eb;
         }
@@ -994,7 +1018,7 @@
         .image-placeholder {
           width: 48px;
           height: 48px;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           background: #f8fafc;
           display: flex;
           align-items: center;
@@ -1041,7 +1065,7 @@
           width: 100%;
           padding: 8px 10px;
           border: 1px solid #d1d5db;
-          border-radius: 6px;
+          border-radius: 1.5rem;
           font-size: 14px;
           font-weight: 600;
           background: white;
@@ -1064,7 +1088,7 @@
           width: 100%;
           padding: 6px 8px;
           border: 1px solid #d1d5db;
-          border-radius: 6px;
+          border-radius: 1.5rem;
           font-size: 12px;
           font-weight: 500;
           background: white;
@@ -1090,7 +1114,7 @@
         .qty-value {
           font-weight: 700;
           padding: 4px 8px;
-          border-radius: 6px;
+          border-radius: 1.5rem;
           background: #f8fafc;
 
           &.critical {
@@ -1113,7 +1137,7 @@
           width: 70px;
           padding: 6px 8px;
           border: 1px solid #d1d5db;
-          border-radius: 6px;
+          border-radius: 1.5rem;
           font-size: 14px;
           font-weight: 600;
           text-align: center;
@@ -1134,7 +1158,7 @@
           align-items: center;
           gap: 6px;
           padding: 6px 10px;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           font-size: 12px;
           font-weight: 600;
           text-transform: uppercase;
@@ -1165,14 +1189,14 @@
           color: #059669;
           background: #f0fdf4;
           padding: 4px 8px;
-          border-radius: 6px;
+          border-radius: 1.5rem;
         }
 
         .price-input {
           width: 90px;
           padding: 6px 8px;
           border: 1px solid #d1d5db;
-          border-radius: 6px;
+          border-radius: 1.5rem;
           font-size: 14px;
           font-weight: 600;
           text-align: center;
@@ -1218,7 +1242,7 @@
           width: 100%;
           padding: 6px 8px;
           border: 1px solid #d1d5db;
-          border-radius: 6px;
+          border-radius: 1.5rem;
           font-size: 12px;
           font-weight: 500;
           background: white;
@@ -1249,7 +1273,7 @@
           justify-content: center;
           width: 36px;
           height: 36px;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           border: 1px solid #d1d5db;
           background: white;
           cursor: pointer;
@@ -1333,7 +1357,7 @@
     padding: clamp(1rem, 2vw, 1.5rem);
     margin-top: clamp(1rem, 2vw, 1.5rem);
     background: white;
-    border-radius: 12px;
+    border-radius: 1.5rem;
     border: 1px solid #e5e7eb;
 
     .page-button {
@@ -1342,7 +1366,7 @@
       justify-content: center;
       width: 40px;
       height: 40px;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       background: white;
       border: 1px solid #d1d5db;
       color: #4a5568;
@@ -1377,7 +1401,7 @@
   .cart-banner {
     background: white;
     border: 2px solid #e5e7eb;
-    border-radius: 10px;
+    border-radius: 1.5rem;
     padding: 16px 20px;
     margin-bottom: 16px;
     display: flex;
@@ -1416,7 +1440,7 @@
 
     .cart-banner-btn {
       padding: 8px 16px;
-      border-radius: 6px;
+      border-radius: 1.5rem;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
@@ -1473,7 +1497,7 @@
     max-width: 600px;
     max-height: 80vh;
     background: white;
-    border-radius: 20px;
+    border-radius: 1.5rem;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
       0 10px 10px -5px rgba(0, 0, 0, 0.08);
     z-index: 101;
@@ -1487,6 +1511,8 @@
       justify-content: space-between;
       padding: 24px;
       border-bottom: 1px solid #e5e7eb;
+      border-top-left-radius: 1.5rem;
+      border-top-right-radius: 1.5rem;
 
       .header-text {
         h2 {
@@ -1513,10 +1539,10 @@
       .close-button {
         width: 36px;
         height: 36px;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         background: white;
         border: 1px solid #d1d5db;
-        color: #64748b;
+        background-color: transparent !important;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -1546,7 +1572,7 @@
           justify-content: space-between;
           padding: 16px;
           background: #f8fafc;
-          border-radius: 12px;
+          border-radius: 1.5rem;
           border: 1px solid #e5e7eb;
           transition: all 0.2s ease;
 
@@ -1581,7 +1607,7 @@
 
             .cart-item-quantity {
               padding: 6px 12px;
-              border-radius: 8px;
+              border-radius: 1.5rem;
               font-size: 14px;
               font-weight: 700;
 
@@ -1601,7 +1627,7 @@
             .remove-btn {
               width: 32px;
               height: 32px;
-              border-radius: 6px;
+              border-radius: 1.5rem;
               background: white;
               border: 1px solid #d1d5db;
               color: #64748b;
@@ -1634,13 +1660,15 @@
       gap: 12px;
       padding: 24px;
       border-top: 1px solid #e5e7eb;
+      border-bottom-left-radius: 1.5rem;
+      border-bottom-right-radius: 1.5rem;
 
       .footer-button {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 12px 20px;
-        border-radius: 10px;
+        border-radius: 1.5rem;
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
@@ -1693,7 +1721,7 @@
   // Warning Section
   .warning-section {
     background: #fef2f2;
-    border-radius: 20px;
+    border-radius: 1.5rem;
     padding: clamp(1.25rem, 2.5vw, 1.75rem);
     border: 1px solid #fecaca;
     box-shadow: 0 1px 3px rgba(239, 68, 68, 0.12),
@@ -1708,7 +1736,7 @@
         width: 40px;
         height: 40px;
         background: #fee2e2;
-        border-radius: 10px;
+        border-radius: 1.5rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1734,7 +1762,7 @@
 
           .warning-badge {
             padding: 4px 10px;
-            border-radius: 6px;
+            border-radius: 1.5rem;
             font-size: clamp(0.75rem, 1.3vw, 0.875rem);
             font-weight: 700;
             background: #fee2e2;
@@ -1761,7 +1789,7 @@
             justify-content: space-between;
             padding: clamp(0.625rem, 1.2vw, 0.75rem) clamp(0.75rem, 1.5vw, 1rem);
             background: white;
-            border-radius: 10px;
+            border-radius: 1.5rem;
             border: 1px solid #fecaca;
             transition: all 0.2s ease;
 
@@ -1791,7 +1819,7 @@
             .warning-item-stock {
               .warning-item-quantity {
                 padding: 4px 10px;
-                border-radius: 6px;
+                border-radius: 1.5rem;
                 font-size: clamp(0.875rem, 1.5vw, 0.95rem);
                 font-weight: 700;
                 background: #fef2f2;
@@ -1829,7 +1857,7 @@
     height: 48px;
     border: 4px solid #e5e7eb;
     border-top-color: #ff6b35;
-    border-radius: 50%;
+    border-radius: 1.5rem;
     animation: spin 0.8s linear infinite;
   }
 
@@ -1844,7 +1872,7 @@
     width: clamp(48px, 10vw, 64px);
     height: clamp(48px, 10vw, 64px);
     background: #f1f5f9;
-    border-radius: 50%;
+    border-radius: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1868,341 +1896,7 @@
     max-width: 400px;
   }
 
-  // Modals (Add Item)
-  .modal-overlay {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    background-color: rgba(0, 0, 0, 0.5) !important;
-    z-index: 10000 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 20px !important;
-    margin: 0 !important;
-    transform: none !important;
-    clip: unset !important;
-    clip-path: none !important;
-    overflow-y: auto !important;
-    pointer-events: auto !important;
-  }
-
-  .modal-container {
-    background-color: white !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 12px !important;
-    width: 100% !important;
-    max-width: 600px !important;
-    max-height: 85vh !important;
-    height: auto !important;
-    overflow: hidden !important;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    z-index: 101 !important;
-    position: relative !important;
-    margin: auto !important;
-    transform: none !important;
-    clip: unset !important;
-    clip-path: none !important;
-    pointer-events: auto !important;
-  }
-
-  .modal-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding: 24px !important;
-    border-bottom: 1px solid #e5e7eb !important;
-    flex-shrink: 0 !important;
-    background: white !important;
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 1 !important;
-
-    .header-text {
-      flex: 1;
-
-      h2 {
-        margin: 0 0 4px 0;
-        font-size: 20px;
-        font-weight: 700;
-        color: #2d3748;
-        letter-spacing: -0.02em;
-      }
-
-      p {
-        margin: 0;
-        font-size: 14px;
-        color: #64748b;
-        font-weight: 400;
-      }
-    }
-
-    .close-button {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #f3f4f6;
-      border: none;
-      border-radius: 8px;
-      color: #6b7280;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-
-      &:hover:not(:disabled) {
-        background: #e5e7eb;
-        color: #374151;
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-    }
-  }
-
-  .modal-content {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    flex: 1 !important;
-    padding: 24px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 24px !important;
-    max-height: none !important;
-    background: #fafafa !important;
-
-    // Custom scrollbar for modal content
-    &::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 4px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-
-      &:hover {
-        background: #94a3b8;
-      }
-    }
-
-    // Firefox scrollbar
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
-  }
-
-  .modal-footer {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 12px !important;
-    padding: 20px 24px !important;
-    border-top: 1px solid #e5e7eb !important;
-    flex-shrink: 0 !important;
-    background-color: #f9fafb !important;
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 1 !important;
-
-    .footer-button {
-      padding: 12px 24px;
-      font-size: 14px;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-width: 120px;
-
-      &.cancel {
-        color: #475569;
-        background-color: white;
-        border: 1px solid #d1d5db;
-
-        &:hover {
-          background-color: #f1f5f9;
-          border-color: #94a3b8;
-        }
-
-        &:active {
-          background-color: #e2e8f0;
-        }
-      }
-
-      &.primary {
-        background: #ff6b35;
-        color: white;
-
-        &:hover:not(:disabled) {
-          background: #e85a2a;
-        }
-
-        &:active:not(:disabled) {
-          background: #d44920;
-        }
-
-        &:disabled {
-          background: #cbd5e1;
-          cursor: not-allowed;
-          opacity: 0.6;
-        }
-      }
-    }
-  }
-
-  // Form styles
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-
-    .form-group {
-      &.full-width {
-        grid-column: 1 / -1;
-      }
-
-      label {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 8px;
-      }
-
-      .form-input,
-      .form-select,
-      .form-textarea {
-        width: 100%;
-        padding: 0 14px;
-        background-color: white;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 14px;
-        transition: all 0.2s;
-        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
-          Roboto, sans-serif;
-        color: #2d3748;
-
-        &:hover {
-          border-color: #9ca3af;
-        }
-
-        &:focus {
-          outline: none;
-          border-color: #ff6b35;
-          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
-        }
-
-        &:disabled {
-          background-color: #f3f4f6;
-          color: #9ca3af;
-          cursor: not-allowed;
-        }
-
-        &::placeholder {
-          color: #9ca3af;
-        }
-      }
-
-      .form-input,
-      .form-select {
-        height: 44px;
-      }
-
-      .form-select {
-        cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 14px center;
-        padding-right: 40px;
-      }
-
-      .form-textarea {
-        padding: 12px 14px;
-        min-height: 100px;
-        resize: vertical;
-        line-height: 1.5;
-      }
-    }
-  }
-
-  // Image Upload Section
-  .image-upload-section {
-    .image-upload-label {
-      display: block;
-      font-size: 14px;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 12px;
-    }
-
-    .image-upload-area {
-      border: 2px dashed #d1d5db;
-      border-radius: 12px;
-      padding: 40px;
-      text-align: center;
-      cursor: pointer;
-      background-color: #fafafa;
-      transition: all 0.2s;
-
-      &:hover {
-        border-color: #ff6b35;
-        background-color: #fff5f2;
-      }
-
-      .upload-icon {
-        color: #9ca3af;
-        margin: 0 auto 16px;
-        display: block;
-      }
-
-      .upload-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #2d3748;
-        margin: 0 0 8px 0;
-      }
-
-      .upload-description {
-        font-size: 14px;
-        color: #64748b;
-        margin: 0;
-      }
-    }
-
-    .image-preview-container {
-      background-color: #fafafa;
-      border-radius: 12px;
-      padding: 20px;
-      border: 1px solid #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-
-      .image-preview-wrapper {
-        position: relative;
-      }
-    }
-  }
+  // Modals moved outside .stock-component - see after closing brace
 
   // Animations
   @keyframes spin {
@@ -2269,7 +1963,7 @@
       max-width: 100% !important;
       width: 100% !important;
       max-height: 100vh !important;
-      border-radius: 0 !important;
+      border-radius: 1.5rem;
     }
 
     .modal-header {
@@ -2316,7 +2010,7 @@
   .cart-banner {
     background: white;
     border: 2px solid #e5e7eb;
-    border-radius: 10px;
+    border-radius: 1.5rem;
     padding: 16px 20px;
     margin-bottom: 16px;
     display: flex;
@@ -2355,7 +2049,7 @@
 
     .cart-banner-btn {
       padding: 8px 16px;
-      border-radius: 6px;
+      border-radius: 1.5rem;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
@@ -2415,7 +2109,7 @@
 
   .cart-modal {
     background: white;
-    border-radius: 0.5rem;
+    border-radius: 1.5rem;
     width: 100%;
     max-width: 500px;
     max-height: 600px;
@@ -2446,7 +2140,7 @@
       background: #f3f4f6;
       border: none;
       padding: 8px;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       cursor: pointer;
       color: #6b7280;
       display: flex;
@@ -2476,7 +2170,7 @@
     align-items: center;
     padding: 14px;
     background: #f9fafb;
-    border-radius: 8px;
+    border-radius: 1.5rem;
     gap: 12px;
     border: 1px solid #e5e7eb;
 
@@ -2508,7 +2202,7 @@
         font-size: 13px;
         font-weight: 700;
         padding: 6px 12px;
-        border-radius: 6px;
+        border-radius: 1.5rem;
 
         &.positive {
           background: #d1fae5;
@@ -2525,7 +2219,7 @@
         background: white;
         border: 1px solid #e5e7eb;
         padding: 6px;
-        border-radius: 6px;
+        border-radius: 1.5rem;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -2558,7 +2252,7 @@
   .cart-btn {
     flex: 1;
     padding: 12px 16px;
-    border-radius: 8px;
+    border-radius: 1.5rem;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -2611,6 +2305,286 @@
   }
 }
 
+// Add Item Modal - Must be outside of .stock-component for portal rendering
+.stock-component .modal-overlay,
+body > .modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  margin: 0 !important;
+  transform: none !important;
+  clip: unset !important;
+  clip-path: none !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+
+  .modal-container {
+    background-color: white !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 1.5rem;
+    width: 100% !important;
+    max-width: 600px !important;
+    max-height: 85vh !important;
+    height: auto !important;
+    overflow: hidden !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 101 !important;
+    position: relative !important;
+    margin: auto !important;
+    transform: none !important;
+    clip: unset !important;
+    clip-path: none !important;
+    pointer-events: auto !important;
+  }
+
+  .modal-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 24px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    border-top-left-radius: 1.5rem !important;
+    border-top-right-radius: 1.5rem !important;
+    flex-shrink: 0 !important;
+    background: white !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1 !important;
+
+    .header-text {
+      flex: 1;
+
+      h2 {
+        margin: 0 0 4px 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+        letter-spacing: -0.02em;
+      }
+
+      p {
+        margin: 0;
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 400;
+      }
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: transparent;
+      border: none;
+      border-radius: 1.5rem;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+
+      &:hover:not(:disabled) {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .modal-content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex: 1 !important;
+    padding: 24px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+    max-height: none !important;
+    background: #fafafa !important;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 1.5rem;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 1.5rem;
+
+      &:hover {
+        background: #94a3b8;
+      }
+    }
+
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+
+  .modal-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    padding: 20px 24px !important;
+    border-top: 1px solid #e5e7eb !important;
+    border-bottom-left-radius: 1.5rem !important;
+    border-bottom-right-radius: 1.5rem !important;
+    flex-shrink: 0 !important;
+    background-color: #f9fafb !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 1 !important;
+
+    .footer-button {
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 120px;
+
+      &.cancel {
+        color: #475569;
+        background-color: white;
+        border: 1px solid #d1d5db;
+
+        &:hover {
+          background-color: #f1f5f9;
+          border-color: #94a3b8;
+        }
+
+        &:active {
+          background-color: #e2e8f0;
+        }
+      }
+
+      &.primary {
+        background: #ff6b35;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: #e85a2a;
+        }
+
+        &:active:not(:disabled) {
+          background: #d44920;
+        }
+
+        &:disabled {
+          background: #cbd5e1;
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+    .form-group {
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+      }
+
+      .form-input,
+      .form-select,
+      .form-textarea {
+        width: 100%;
+        padding: 0 14px;
+        background-color: white;
+        border: 1px solid #d1d5db;
+        border-radius: 1.5rem;
+        font-size: 14px;
+        transition: all 0.2s;
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        color: #2d3748;
+
+        &:hover {
+          border-color: #9ca3af;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: #ff6b35;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        &:disabled {
+          background-color: #f3f4f6;
+          color: #9ca3af;
+          cursor: not-allowed;
+        }
+
+        &::placeholder {
+          color: #9ca3af;
+        }
+      }
+
+      .form-input,
+      .form-select {
+        height: 44px;
+      }
+
+      .form-select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        padding-right: 40px;
+      }
+
+      .form-textarea {
+        padding: 12px 14px;
+        min-height: 100px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+    }
+  }
+}
+
 // Image Cropper Overlay - Must be outside of .stock-component for portal rendering
 .image-cropper-overlay {
   position: fixed !important;
@@ -2637,7 +2611,7 @@
 
 .image-cropper-modal {
   background-color: white;
-  border-radius: 12px;
+  border-radius: 1.5rem;
   width: 90%;
   max-width: 1100px;
   max-height: 92vh;
@@ -2673,7 +2647,7 @@
       padding: 8px;
       background-color: transparent;
       border: none;
-      border-radius: 6px;
+      border-radius: 1.5rem;
       cursor: pointer;
       color: #6b7280;
       transition: all 0.2s;
@@ -2710,7 +2684,7 @@
     .cropper {
       max-height: 400px;
       background: #ffffff;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       position: relative;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       overflow: hidden;
@@ -2816,7 +2790,7 @@
         border: 3px solid white !important;
         width: 16px !important;
         height: 16px !important;
-        border-radius: 50% !important;
+        border-radius: 1.5rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 
         &:hover {
@@ -2893,7 +2867,7 @@
       padding: 10px 20px;
       font-size: 14px;
       font-weight: 500;
-      border-radius: 6px;
+      border-radius: 1.5rem;
       cursor: pointer;
       transition: all 0.2s;
       border: none;
@@ -2954,7 +2928,7 @@
   .image-cropper-modal {
     width: 100%;
     max-height: 100vh;
-    border-radius: 0;
+    border-radius: 1.5rem;
 
     .cropper-header {
       padding: 12px;
@@ -3074,7 +3048,7 @@
 
   .warehouse-modal-container {
     background-color: white;
-    border-radius: 12px;
+    border-radius: 1.5rem;
     width: 100%;
     max-width: 500px;
     max-height: 90vh;
@@ -3108,7 +3082,7 @@
         justify-content: center;
         background: #f3f4f6;
         border: none;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         color: #6b7280;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -3147,7 +3121,7 @@
           padding: 12px 14px;
           background-color: white;
           border: 1px solid #d1d5db;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           font-size: 14px;
           font-family: inherit;
           transition: all 0.2s;
@@ -3208,12 +3182,14 @@
       border-top: 1px solid #e5e7eb;
       background-color: #f9fafb;
       flex-shrink: 0;
+      border-bottom-left-radius: 1.5rem;
+      border-bottom-right-radius: 1.5rem;
 
       .warehouse-btn {
         padding: 8px;
         font-size: 12px;
         font-weight: 600;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         cursor: pointer;
         transition: all 0.2s ease;
         border: none;
@@ -3320,7 +3296,7 @@
 
   .transfer-modal-container {
     background-color: white;
-    border-radius: 12px;
+    border-radius: 1.5rem !important;
     width: 100%;
     max-width: 550px;
     max-height: 90vh;
@@ -3354,7 +3330,7 @@
         justify-content: center;
         background: #f3f4f6;
         border: none;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         color: #6b7280;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -3375,7 +3351,7 @@
       .transfer-item-card {
         padding: 16px;
         background-color: #f9fafb;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         border: 1px solid #e5e7eb;
         margin-bottom: 20px;
 
@@ -3432,7 +3408,7 @@
           padding: 0 14px;
           background-color: white;
           border: 1px solid #d1d5db;
-          border-radius: 8px;
+          border-radius: 1.5rem;
           font-size: 14px;
           font-family: inherit;
           transition: all 0.2s;
@@ -3463,6 +3439,8 @@
       gap: 12px;
       padding: 20px 24px;
       border-top: 1px solid #e5e7eb;
+      border-bottom-left-radius: 1.5rem;
+      border-bottom-right-radius: 1.5rem;
       background-color: #f9fafb;
       flex-shrink: 0;
 
@@ -3470,7 +3448,7 @@
         padding: 12px 24px;
         font-size: 14px;
         font-weight: 600;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         cursor: pointer;
         transition: all 0.2s ease;
         border: none;
@@ -3563,7 +3541,7 @@
 
   .main-content-card {
     background: white;
-    border-radius: 16px;
+    border-radius: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 24px;
     overflow: hidden;
@@ -3589,7 +3567,7 @@
         width: 100%;
         padding: 12px 12px 12px 44px;
         border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        border-radius: 1.5rem;
         font-size: 14px;
         transition: all 0.2s;
 
@@ -3618,7 +3596,7 @@
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid #d1d5db;
-  border-radius: 16px;
+  border-radius: 1.5rem;
   overflow: hidden;
 
   thead {
@@ -3705,7 +3683,7 @@
     padding: 6px 12px;
     color: #1d4ed8;
     border: 1px solid #93c5fd;
-    border-radius: 6px;
+    border-radius: 1.5rem;
     font-size: 12px;
     font-weight: 700;
     width: fit-content;
@@ -3744,7 +3722,7 @@
       background: #f8fafc;
       color: #475569;
       border: 1px solid #e2e8f0;
-      border-radius: 4px;
+      border-radius: 1.5rem;
       font-size: 11px;
       font-weight: 600;
       white-space: nowrap;

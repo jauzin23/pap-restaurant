@@ -106,7 +106,15 @@ function PedidoPageContent({
 
   const getImageUrl = (imageId: string | undefined) => {
     if (!imageId || imageId === "undefined" || imageId === "null") return null;
-    return `${API_BASE_URL}/files/imagens-menu/${imageId}`;
+
+    // Get S3 bucket URL from environment (fallback to API redirect if not set)
+    const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+
+    if (S3_BUCKET_URL) {
+      return `${S3_BUCKET_URL}/imagens-menu/${imageId}`;
+    } else {
+      return `${API_BASE_URL}/upload/files/imagens-menu/${imageId}`;
+    }
   };
 
   const fetchMenuItems = async () => {

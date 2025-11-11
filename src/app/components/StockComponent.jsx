@@ -131,7 +131,8 @@ export default function StockComponent() {
   // Warehouse inventory editing
   const [editingWarehouseItem, setEditingWarehouseItem] = useState(null);
   const [warehouseItemEditState, setWarehouseItemEditState] = useState({});
-  const [warehouseItemEditModalOpen, setWarehouseItemEditModalOpen] = useState(false);
+  const [warehouseItemEditModalOpen, setWarehouseItemEditModalOpen] =
+    useState(false);
 
   // Warehouse edit modal
   const [editWarehouseModalOpen, setEditWarehouseModalOpen] = useState(false);
@@ -214,7 +215,16 @@ export default function StockComponent() {
 
     // Simply return the URL without state updates to avoid setState during render
     try {
-      return `${API_BASE_URL}/files/imagens-stock/${imageId}`;
+      // Get S3 bucket URL from environment (fallback to API redirect if not set)
+      const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+
+      if (S3_BUCKET_URL) {
+        // Direct S3 URL
+        return `${S3_BUCKET_URL}/imagens-stock/${imageId}`;
+      } else {
+        // Fallback to API redirect
+        return `${API_BASE_URL}/upload/files/imagens-stock/${imageId}`;
+      }
     } catch (error) {
       console.error("Error getting image URL:", error);
       return null;
@@ -407,7 +417,7 @@ export default function StockComponent() {
       const imageData = await base64Promise;
       const fileName = `stock-${Date.now()}.jpg`;
 
-      const response = await apiCall("/stock/upload-image", {
+      const response = await apiCall("/upload/stock-image", {
         method: "POST",
         body: JSON.stringify({
           imageData,
@@ -415,7 +425,8 @@ export default function StockComponent() {
         }),
       });
 
-      return response.$id;
+      // Return the filename (not full URL) - database stores just filename
+      return response.filename || response.$id;
     } catch (error) {
       console.error("Error uploading image:", error);
       throw new Error("Erro ao fazer upload da imagem");
@@ -647,7 +658,6 @@ export default function StockComponent() {
     onDisconnected: () => setWsConnected(false),
     onError: (error) => console.error("[Stock WS Error]", error),
   });
-
 
   // Memoized computed values for performance (now warehouse-based)
   const criticalStock = useMemo(
@@ -1029,8 +1039,7 @@ export default function StockComponent() {
                 data.position !== undefined
                   ? data.position
                   : item.warehouse_position,
-              min_qty:
-                data.min_qty !== undefined ? data.min_qty : item.min_qty,
+              min_qty: data.min_qty !== undefined ? data.min_qty : item.min_qty,
             };
           }
           return item;
@@ -1315,7 +1324,7 @@ export default function StockComponent() {
 
     const trimmedName = newItem.name?.trim();
     if (!trimmedName) {
-      message.warning("Nome do produto é obrigatório");
+      alert("Nome do produto é obrigatório");
       return;
     }
 
@@ -1351,12 +1360,10 @@ export default function StockComponent() {
       setIsAddModalOpen(false);
 
       await fetchStock();
-      message.success("Item adicionado com sucesso!");
+      console.log("Item adicionado com sucesso!");
     } catch (err) {
       console.error("Error adding new item:", err);
-      message.error(
-        "Erro ao adicionar produto. Verifique os dados e tente novamente."
-      );
+      alert("Erro ao adicionar produto. Verifique os dados e tente novamente.");
     } finally {
       setAddItemLoading(false);
     }
@@ -1756,7 +1763,11 @@ export default function StockComponent() {
 
         {/* Items Tab Content */}
         {activeTab === "items" && (
-          <div className={`stock-grid tab-content-wrapper ${isTabTransitioning ? 'transitioning' : 'active'}`}>
+          <div
+            className={`stock-grid tab-content-wrapper ${
+              isTabTransitioning ? "transitioning" : "active"
+            }`}
+          >
             {/* Stats Cards */}
             <div className="stats-section">
               <div className="stat-card">
@@ -1778,7 +1789,9 @@ export default function StockComponent() {
                 <div className="stat-value critical">
                   <NumberFlow value={criticalStock.length} />
                 </div>
-                <div className="stat-description">Localizações abaixo do mínimo</div>
+                <div className="stat-description">
+                  Localizações abaixo do mínimo
+                </div>
 
                 {criticalStock.length > 0 && (
                   <div className="critical-items-preview">
@@ -1786,7 +1799,8 @@ export default function StockComponent() {
                       <div key={alert.$id} className="critical-item-mini">
                         <span className="item-name">{alert.name}</span>
                         <span className="item-qty" style={{ fontSize: "11px" }}>
-                          {alert.warehouse_name}: <NumberFlow value={alert.qty} />/
+                          {alert.warehouse_name}:{" "}
+                          <NumberFlow value={alert.qty} />/
                           <NumberFlow value={alert.min_qty} />
                         </span>
                       </div>
@@ -1808,7 +1822,9 @@ export default function StockComponent() {
                 <div className="stat-value warning">
                   <NumberFlow value={warningStock.length} />
                 </div>
-                <div className="stat-description">Localizações próximas do mínimo</div>
+                <div className="stat-description">
+                  Localizações próximas do mínimo
+                </div>
               </div>
 
               <div className="stat-card">
@@ -1825,7 +1841,9 @@ export default function StockComponent() {
                     }
                   />
                 </div>
-                <div className="stat-description">Localizações com stock adequado</div>
+                <div className="stat-description">
+                  Localizações com stock adequado
+                </div>
               </div>
             </div>
 
@@ -1934,7 +1952,7 @@ export default function StockComponent() {
                         onClick={() => fileInputRef.current?.click()}
                         style={{
                           border: "2px dashed #d1d5db",
-                          borderRadius: "8px",
+                          borderRadius: "1.5rem",
                           padding: "32px",
                           textAlign: "center",
                           cursor: "pointer",
@@ -2025,7 +2043,7 @@ export default function StockComponent() {
                                 padding: "4px 8px",
                                 backgroundColor: "#10b981",
                                 color: "white",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "12px",
                                 fontWeight: "500",
                                 display: "flex",
@@ -2084,7 +2102,7 @@ export default function StockComponent() {
                               backgroundColor: "#3b82f6",
                               color: "white",
                               border: "none",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               fontSize: "14px",
                               fontWeight: "500",
                               cursor: "pointer",
@@ -2115,7 +2133,7 @@ export default function StockComponent() {
                                   : "#10b981",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "14px",
                                 fontWeight: "500",
                                 cursor: removingBackground
@@ -2160,7 +2178,7 @@ export default function StockComponent() {
                                 backgroundColor: "#f59e0b",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "14px",
                                 fontWeight: "500",
                                 cursor: "pointer",
@@ -2192,7 +2210,7 @@ export default function StockComponent() {
                               backgroundColor: "#f3f4f6",
                               color: "#374151",
                               border: "1px solid #d1d5db",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               fontSize: "14px",
                               fontWeight: "500",
                               cursor: removingBackground
@@ -2322,7 +2340,7 @@ export default function StockComponent() {
                       <div
                         style={{
                           border: "1px solid #e5e7eb",
-                          borderRadius: "8px",
+                          borderRadius: "1.5rem",
                           padding: "16px",
                           backgroundColor: "#f9fafb",
                         }}
@@ -2351,7 +2369,7 @@ export default function StockComponent() {
                                     marginBottom: "12px",
                                     padding: "12px",
                                     backgroundColor: "white",
-                                    borderRadius: "6px",
+                                    borderRadius: "1.5rem",
                                     border: "1px solid #e5e7eb",
                                   }}
                                 >
@@ -2442,7 +2460,7 @@ export default function StockComponent() {
                                           width: "80px",
                                           padding: "6px 10px",
                                           border: "1px solid #d1d5db",
-                                          borderRadius: "4px",
+                                          borderRadius: "1.5rem",
                                           fontSize: "14px",
                                         }}
                                         disabled={addItemLoading}
@@ -2491,7 +2509,7 @@ export default function StockComponent() {
                                           width: "70px",
                                           padding: "6px 10px",
                                           border: "1px solid #d1d5db",
-                                          borderRadius: "4px",
+                                          borderRadius: "1.5rem",
                                           fontSize: "14px",
                                         }}
                                         disabled={addItemLoading}
@@ -2538,7 +2556,7 @@ export default function StockComponent() {
                                           width: "140px",
                                           padding: "6px 10px",
                                           border: "1px solid #d1d5db",
-                                          borderRadius: "4px",
+                                          borderRadius: "1.5rem",
                                           fontSize: "14px",
                                         }}
                                         disabled={addItemLoading}
@@ -2573,86 +2591,21 @@ export default function StockComponent() {
                 </div>
 
                 {/* Modal Footer */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: "12px",
-                    padding: "20px 24px",
-                    borderTop: "1px solid #e5e7eb",
-                    flexShrink: 0,
-                    backgroundColor: "#f9fafb",
-                    position: "sticky",
-                    bottom: 0,
-                    zIndex: 1,
-                  }}
-                >
+                <div className="modal-footer">
                   <button
                     onClick={() => {
                       setIsAddModalOpen(false);
                       resetAddItemForm();
                     }}
                     disabled={addItemLoading}
-                    style={{
-                      padding: "10px 20px",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      color: "#374151",
-                      backgroundColor: "white",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      cursor: addItemLoading ? "not-allowed" : "pointer",
-                      transition: "all 0.2s ease",
-                      opacity: addItemLoading ? 0.6 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!addItemLoading) {
-                        e.currentTarget.style.backgroundColor = "#f1f5f9";
-                        e.currentTarget.style.borderColor = "#94a3b8";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!addItemLoading) {
-                        e.currentTarget.style.backgroundColor = "white";
-                        e.currentTarget.style.borderColor = "#d1d5db";
-                      }
-                    }}
+                    className="footer-button cancel"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleAddNewItem}
                     disabled={addItemLoading || !newItem.name?.trim()}
-                    style={{
-                      padding: "10px 20px",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      borderRadius: "6px",
-                      border: "none",
-                      cursor:
-                        addItemLoading || !newItem.name?.trim()
-                          ? "not-allowed"
-                          : "pointer",
-                      backgroundColor:
-                        addItemLoading || !newItem.name?.trim()
-                          ? "#cbd5e1"
-                          : "#ff6b35",
-                      color: "white",
-                      opacity:
-                        addItemLoading || !newItem.name?.trim() ? 0.6 : 1,
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!addItemLoading && newItem.name?.trim()) {
-                        e.currentTarget.style.backgroundColor = "#e85a2a";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!addItemLoading && newItem.name?.trim()) {
-                        e.currentTarget.style.backgroundColor = "#ff6b35";
-                      }
-                    }}
+                    className="footer-button primary"
                   >
                     {addItemLoading ? "A guardar..." : "Adicionar Item"}
                   </button>
@@ -2664,7 +2617,11 @@ export default function StockComponent() {
 
         {/* Warehouses Tab Content */}
         {activeTab === "warehouses" && (
-          <div className={`warehouses-view tab-content-wrapper ${isTabTransitioning ? 'transitioning' : 'active'}`}>
+          <div
+            className={`warehouses-view tab-content-wrapper ${
+              isTabTransitioning ? "transitioning" : "active"
+            }`}
+          >
             {!selectedWarehouse ? (
               /* Warehouse Grid View */
               <div className="warehouse-grid-container">
@@ -2969,22 +2926,6 @@ export default function StockComponent() {
                                     <div className="action-buttons">
                                       <button
                                         className="action-btn"
-                                        onClick={() => {
-                                          setEditingWarehouseItem(item);
-                                          setWarehouseItemEditState({
-                                            qty: item.warehouse_qty,
-                                            position: item.warehouse_position || "",
-                                            min_qty: item.min_qty || 0,
-                                          });
-                                          setWarehouseItemEditModalOpen(true);
-                                        }}
-                                        title="Editar"
-                                        style={{ color: "#3b82f6" }}
-                                      >
-                                        <Edit size={16} />
-                                      </button>
-                                      <button
-                                        className="action-btn"
                                         onClick={async () => {
                                           try {
                                             const newQty =
@@ -3000,7 +2941,9 @@ export default function StockComponent() {
                                               }
                                             );
                                           } catch (err) {
-                                            message.error(`Erro: ${err.message}`);
+                                            message.error(
+                                              `Erro: ${err.message}`
+                                            );
                                           }
                                         }}
                                         title="Adicionar +1"
@@ -3033,7 +2976,9 @@ export default function StockComponent() {
                                               }
                                             );
                                           } catch (err) {
-                                            message.error(`Erro: ${err.message}`);
+                                            message.error(
+                                              `Erro: ${err.message}`
+                                            );
                                           }
                                         }}
                                         title="Remover -1"
@@ -3043,32 +2988,62 @@ export default function StockComponent() {
                                         <Minus size={16} />
                                       </button>
                                       <button
-                                            className="action-btn transfer-btn"
-                                            onClick={async () => {
-                                              // Fetch full item details with warehouse breakdown
-                                              try {
-                                                const itemDetails =
-                                                  await apiCall(
-                                                    `/stock/items/${item.$id}`
-                                                  );
-                                                setTransferForm({
-                                                  item: itemDetails,
-                                                  from_warehouse_id:
-                                                    selectedWarehouse.$id,
-                                                  to_warehouse_id: null,
-                                                  qty: 0,
-                                                });
-                                                setTransferModalOpen(true);
-                                              } catch (err) {
-                                                message.error(
-                                                  `Erro ao carregar detalhes: ${err.message}`
-                                                );
-                                              }
-                                            }}
-                                            title="Transferir"
-                                          >
-                                            <Truck size={16} />
-                                          </button>
+                                        className="action-btn bulk-qty-btn"
+                                        onClick={() => {
+                                          setBulkQtyForm({
+                                            item: item,
+                                            action: "add",
+                                            qty: 0,
+                                          });
+                                          setBulkQtyModalOpen(true);
+                                        }}
+                                        title="Ajuste Rápido"
+                                      >
+                                        <PackageCheck size={16} />
+                                      </button>
+                                      <button
+                                        className="action-btn transfer-btn"
+                                        onClick={async () => {
+                                          // Fetch full item details with warehouse breakdown
+                                          try {
+                                            const itemDetails = await apiCall(
+                                              `/stock/items/${item.$id}`
+                                            );
+                                            setTransferForm({
+                                              item: itemDetails,
+                                              from_warehouse_id:
+                                                selectedWarehouse.$id,
+                                              to_warehouse_id: null,
+                                              qty: 0,
+                                            });
+                                            setTransferModalOpen(true);
+                                          } catch (err) {
+                                            message.error(
+                                              `Erro ao carregar detalhes: ${err.message}`
+                                            );
+                                          }
+                                        }}
+                                        title="Transferir"
+                                      >
+                                        <Truck size={16} />
+                                      </button>
+                                      <button
+                                        className="action-btn"
+                                        onClick={() => {
+                                          setEditingWarehouseItem(item);
+                                          setWarehouseItemEditState({
+                                            qty: item.warehouse_qty,
+                                            position:
+                                              item.warehouse_position || "",
+                                            min_qty: item.min_qty || 0,
+                                          });
+                                          setWarehouseItemEditModalOpen(true);
+                                        }}
+                                        title="Editar"
+                                        style={{ color: "#3b82f6" }}
+                                      >
+                                        <Edit size={16} />
+                                      </button>
                                     </div>
                                   </td>
                                 </tr>
@@ -3086,7 +3061,11 @@ export default function StockComponent() {
 
         {/* Suppliers Tab Content */}
         {activeTab === "suppliers" && (
-          <div className={`suppliers-view tab-content-wrapper ${isTabTransitioning ? 'transitioning' : 'active'}`}>
+          <div
+            className={`suppliers-view tab-content-wrapper ${
+              isTabTransitioning ? "transitioning" : "active"
+            }`}
+          >
             {/* Main Content Card */}
             <div className="main-content-card">
               {/* Search Bar */}
@@ -3294,7 +3273,7 @@ export default function StockComponent() {
                                     backgroundColor: "#0ea5e9",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "6px",
+                                    borderRadius: "1.5rem",
                                     cursor: "pointer",
                                     fontSize: "13px",
                                     display: "flex",
@@ -3346,7 +3325,7 @@ export default function StockComponent() {
                                     backgroundColor: "#ef4444",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "6px",
+                                    borderRadius: "1.5rem",
                                     cursor: "pointer",
                                     fontSize: "13px",
                                     display: "flex",
@@ -3955,7 +3934,9 @@ export default function StockComponent() {
                         return;
                       }
                       if (addToWarehouseForm.qty <= 0) {
-                        message.warning("Por favor insira uma quantidade válida");
+                        message.warning(
+                          "Por favor insira uma quantidade válida"
+                        );
                         return;
                       }
 
@@ -4022,8 +4003,16 @@ export default function StockComponent() {
                     borderBottom: "1px solid #e5e7eb",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "600" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <h2
+                      style={{ margin: 0, fontSize: "20px", fontWeight: "600" }}
+                    >
                       Editar Item no Armazém
                     </h2>
                     <button
@@ -4285,7 +4274,7 @@ export default function StockComponent() {
                             padding: "10px 12px",
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
-                            borderRadius: "6px",
+                            borderRadius: "1.5rem",
                             backgroundColor: "#f9fafb",
                             color: "#374151",
                             display: "flex",
@@ -4301,7 +4290,9 @@ export default function StockComponent() {
                                 String(transferForm.from_warehouse_id)
                             )?.name || "Armazém atual"}
                           </span>
-                          <span style={{ color: "#6b7280", marginLeft: "auto" }}>
+                          <span
+                            style={{ color: "#6b7280", marginLeft: "auto" }}
+                          >
                             (
                             {transferForm.item.warehouses?.find(
                               (w) =>
@@ -4329,7 +4320,7 @@ export default function StockComponent() {
                             padding: "10px 12px",
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
-                            borderRadius: "6px",
+                            borderRadius: "1.5rem",
                             backgroundColor: "white",
                             color: "#374151",
                             cursor: "pointer",
@@ -4429,7 +4420,9 @@ export default function StockComponent() {
                         return;
                       }
                       if (transferForm.qty <= 0) {
-                        message.warning("Por favor insira uma quantidade válida");
+                        message.warning(
+                          "Por favor insira uma quantidade válida"
+                        );
                         return;
                       }
                       if (transferForm.qty > maxQty) {
@@ -4645,48 +4638,15 @@ export default function StockComponent() {
                         <Minus size={18} />
                         <span>Remover</span>
                       </button>
-                      <button
-                        onClick={() =>
-                          setBulkQtyForm({ ...bulkQtyForm, action: "set" })
-                        }
-                        style={{
-                          flex: 1,
-                          padding: "12px",
-                          borderRadius: "8px",
-                          border:
-                            bulkQtyForm.action === "set"
-                              ? "2px solid #3b82f6"
-                              : "1px solid #d1d5db",
-                          backgroundColor:
-                            bulkQtyForm.action === "set" ? "#dbeafe" : "white",
-                          color:
-                            bulkQtyForm.action === "set"
-                              ? "#1e40af"
-                              : "#6b7280",
-                          fontWeight: "500",
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "6px",
-                        }}
-                      >
-                        <Check size={18} />
-                        <span>Definir</span>
-                      </button>
                     </div>
                   </div>
 
                   {/* Quantity Input */}
                   <div className="transfer-form-group">
                     <label htmlFor="bulk-qty">
-                      {bulkQtyForm.action === "add" &&
-                        "Quantidade a Adicionar *"}
-                      {bulkQtyForm.action === "remove" &&
-                        "Quantidade a Remover *"}
-                      {bulkQtyForm.action === "set" &&
-                        "Nova Quantidade Total *"}
+                      {bulkQtyForm.action === "add"
+                        ? "Quantidade a Adicionar *"
+                        : "Quantidade a Remover *"}
                     </label>
                     <input
                       id="bulk-qty"
@@ -4708,9 +4668,7 @@ export default function StockComponent() {
                       placeholder={
                         bulkQtyForm.action === "add"
                           ? "Ex: 1000"
-                          : bulkQtyForm.action === "remove"
-                          ? `Máx: ${bulkQtyForm.item.warehouse_qty}`
-                          : "Ex: 5000"
+                          : `Máx: ${bulkQtyForm.item.warehouse_qty}`
                       }
                       style={{ fontSize: "16px", padding: "12px" }}
                     />
@@ -4766,13 +4724,11 @@ export default function StockComponent() {
                           {bulkQtyForm.action === "add"
                             ? (bulkQtyForm.item.warehouse_qty || 0) +
                               bulkQtyForm.qty
-                            : bulkQtyForm.action === "remove"
-                            ? Math.max(
+                            : Math.max(
                                 0,
                                 (bulkQtyForm.item.warehouse_qty || 0) -
                                   bulkQtyForm.qty
-                              )
-                            : bulkQtyForm.qty}{" "}
+                              )}{" "}
                           unidades
                         </div>
                       </div>
@@ -4794,7 +4750,9 @@ export default function StockComponent() {
                     className="transfer-btn transfer-btn-submit"
                     onClick={async () => {
                       if (bulkQtyForm.qty <= 0) {
-                        message.warning("Por favor insira uma quantidade válida");
+                        message.warning(
+                          "Por favor insira uma quantidade válida"
+                        );
                         return;
                       }
 
@@ -4809,20 +4767,15 @@ export default function StockComponent() {
                       }
 
                       try {
-                        let newQty;
-                        if (bulkQtyForm.action === "add") {
-                          newQty =
-                            (bulkQtyForm.item.warehouse_qty || 0) +
-                            bulkQtyForm.qty;
-                        } else if (bulkQtyForm.action === "remove") {
-                          newQty = Math.max(
-                            0,
-                            (bulkQtyForm.item.warehouse_qty || 0) -
+                        const newQty =
+                          bulkQtyForm.action === "add"
+                            ? (bulkQtyForm.item.warehouse_qty || 0) +
                               bulkQtyForm.qty
-                          );
-                        } else {
-                          newQty = bulkQtyForm.qty;
-                        }
+                            : Math.max(
+                                0,
+                                (bulkQtyForm.item.warehouse_qty || 0) -
+                                  bulkQtyForm.qty
+                              );
 
                         await updateWarehouseInventory(
                           bulkQtyForm.item.$id,
@@ -4845,24 +4798,23 @@ export default function StockComponent() {
                     disabled={bulkQtyForm.qty <= 0}
                     style={{
                       backgroundColor:
-                        bulkQtyForm.action === "add"
-                          ? "#10b981"
-                          : bulkQtyForm.action === "remove"
-                          ? "#ef4444"
-                          : "#3b82f6",
+                        bulkQtyForm.action === "add" ? "#10b981" : "#ef4444",
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
                     }}
                   >
-                    {bulkQtyForm.action === "add" && <Plus size={18} />}
-                    {bulkQtyForm.action === "remove" && <Minus size={18} />}
-                    {bulkQtyForm.action === "set" && <Check size={18} />}
-                    <span>
-                      {bulkQtyForm.action === "add" && "Adicionar"}
-                      {bulkQtyForm.action === "remove" && "Remover"}
-                      {bulkQtyForm.action === "set" && "Definir"}
-                    </span>
+                    {bulkQtyForm.action === "add" ? (
+                      <>
+                        <Plus size={18} />
+                        <span>Adicionar</span>
+                      </>
+                    ) : (
+                      <>
+                        <Minus size={18} />
+                        <span>Remover</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -4932,7 +4884,7 @@ export default function StockComponent() {
                               backgroundSize: "contain",
                               backgroundRepeat: "no-repeat",
                               backgroundPosition: "center",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               marginBottom: "12px",
                               border: "1px solid #e5e7eb",
                             }}
@@ -4956,7 +4908,7 @@ export default function StockComponent() {
                                 backgroundColor: "#3b82f6",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "14px",
                                 cursor: "pointer",
                               }}
@@ -4982,7 +4934,7 @@ export default function StockComponent() {
                                 backgroundColor: "#ef4444",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "14px",
                                 cursor: "pointer",
                               }}
@@ -5092,7 +5044,7 @@ export default function StockComponent() {
                                 padding: "4px 8px",
                                 backgroundColor: "#10b981",
                                 color: "white",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "12px",
                                 fontWeight: "500",
                                 display: "flex",
@@ -5150,7 +5102,7 @@ export default function StockComponent() {
                               backgroundColor: "#3b82f6",
                               color: "white",
                               border: "none",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               fontSize: "14px",
                               fontWeight: "500",
                               cursor: "pointer",
@@ -5175,7 +5127,7 @@ export default function StockComponent() {
                                   : "#10b981",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "14px",
                                 fontWeight: "500",
                                 cursor: removingBackground
@@ -5208,7 +5160,7 @@ export default function StockComponent() {
                                 backgroundColor: "#f59e0b",
                                 color: "white",
                                 border: "none",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 fontSize: "14px",
                                 fontWeight: "500",
                                 cursor: "pointer",
@@ -5232,7 +5184,7 @@ export default function StockComponent() {
                               backgroundColor: "#f3f4f6",
                               color: "#374151",
                               border: "1px solid #d1d5db",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               fontSize: "14px",
                               fontWeight: "500",
                               cursor: removingBackground
@@ -5454,7 +5406,7 @@ export default function StockComponent() {
                                 justifyContent: "space-between",
                                 padding: "12px",
                                 backgroundColor: "#f9fafb",
-                                borderRadius: "6px",
+                                borderRadius: "1.5rem",
                                 border: "1px solid #e5e7eb",
                               }}
                             >
@@ -5586,7 +5538,7 @@ export default function StockComponent() {
                       color: "white",
                       backgroundColor: "#dc2626",
                       border: "none",
-                      borderRadius: "6px",
+                      borderRadius: "1.5rem",
                       cursor: "pointer",
                     }}
                   >
@@ -5608,7 +5560,7 @@ export default function StockComponent() {
                         color: "#374151",
                         backgroundColor: "white",
                         border: "1px solid #d1d5db",
-                        borderRadius: "6px",
+                        borderRadius: "1.5rem",
                         cursor: "pointer",
                       }}
                     >
@@ -5695,7 +5647,7 @@ export default function StockComponent() {
                         padding: "8px 16px",
                         fontSize: "14px",
                         fontWeight: "500",
-                        borderRadius: "6px",
+                        borderRadius: "1.5rem",
                         border: "none",
                         cursor: !editingItem.name.trim()
                           ? "not-allowed"

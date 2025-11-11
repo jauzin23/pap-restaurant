@@ -19,6 +19,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import NumberFlow from "@number-flow/react";
 import "./ManagerView.scss";
+import { getImageUrl as getImageUrlHelper } from "../../lib/api";
 import WeeklyRevenueChart from "./WeeklyRevenueChart";
 import TableLayoutManager from "./TableLayout";
 
@@ -151,20 +152,8 @@ const ManagerView = ({
       // If it's already a full URL, use it
       if (imageSrc.startsWith("http")) return imageSrc;
 
-      // For your custom API, construct the correct URL
-      // Try different URL patterns based on your API endpoints
-      if (imageSrc) {
-        // First try the direct files endpoint
-        const directUrl = `${API_BASE_URL}/files/imagens-perfil/${imageSrc}`;
-
-        // For compatibility, also try the preview endpoint
-        const previewUrl = `${API_BASE_URL}/v1/storage/buckets/user-images/files/${imageSrc}/preview`;
-
-        // Return the direct URL first (this should work based on your API)
-        return directUrl;
-      }
-
-      return imageSrc;
+      // Use the helper to get S3 or API redirect URL
+      return getImageUrlHelper("imagens-perfil", imageSrc);
     };
 
     const imageUrl = getImageUrl(src);

@@ -2,15 +2,13 @@ const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+require("dotenv").config(); // Carregar variáveis de ambiente
 
 // Importar configuração
 const { PORTA } = require("./src/configuracao/constantes");
 
 // Importar intermediários
 const intermediarioCors = require("./src/intermediarios/cors");
-
-// Importar utilitários
-const { garantirDiretorioUploads } = require("./src/utilitarios/sistemaFicheiros");
 
 // Importar configuração WebSocket
 const intermediarioAutenticacaoSocket = require("./src/websocket/autenticacaoSocket");
@@ -61,9 +59,6 @@ app.use(
   })
 );
 
-// Servir ficheiros estáticos
-app.use("/files", express.static(path.join(__dirname, "uploads")));
-
 // Intermediário de autenticação WebSocket
 io.use(intermediarioAutenticacaoSocket);
 
@@ -90,45 +85,12 @@ app.use("/tables", rotasMesas);
 app.use("/orders", rotasPedidos);
 app.use("/stock", rotasStock);
 
-// Também montar rota de preview de ficheiros ao nível raiz para compatibilidade
-app.get("/v1/storage/buckets/:bucketId/files/:fileId/preview", (req, res) => {
-  try {
-    const { fileId } = req.params;
-
-    const caminhospossiveis = [
-      path.join(__dirname, "uploads", "imagens-menu", fileId),
-      path.join(__dirname, "uploads", "imagens-perfil", fileId),
-      path.join(__dirname, "uploads", "imagens-stock", fileId),
-      path.join(__dirname, "uploads", "menu-images", fileId),
-      path.join(__dirname, "uploads", "profile-images", fileId),
-      path.join(__dirname, "uploads", fileId),
-    ];
-
-    let caminhoEncontrado = null;
-    for (const caminhoFicheiro of caminhospossiveis) {
-      if (require("fs").existsSync(caminhoFicheiro)) {
-        caminhoEncontrado = caminhoFicheiro;
-        break;
-      }
-    }
-
-    if (caminhoEncontrado) {
-      res.sendFile(caminhoEncontrado);
-    } else {
-      res.status(404).json({ error: "Ficheiro não encontrado" });
-    }
-  } catch (erro) {
-    res.status(500).json({ error: "Erro ao servir ficheiro" });
-  }
-});
-
 // Iniciar servidor
-servidorHttp.listen(PORTA, async () => {
-  await garantirDiretorioUploads();
+servidorHttp.listen(PORTA, () => {
   console.log(`🚀 Servidor a correr na porta ${PORTA}`);
-  console.log(`📁 Ficheiros estáticos servidos de /files`);
   console.log(`🔗 URL Base da API: http://localhost:${PORTA}`);
   console.log(`🔌 WebSocket ativo em ws://localhost:${PORTA}`);
+  console.log(`☁️  Imagens armazenadas em: AWS S3 (${process.env.AWS_S3_BUCKET_NAME || 'não configurado'})`);
 });
 
 module.exports = { app, servidorHttp, io };

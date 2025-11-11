@@ -503,7 +503,11 @@ function ProfilePageContent({
           });
         }
       } else if (profileUser?.profile_image) {
-        const imageUrl = `${API_BASE_URL}/files/imagens-perfil/${profileUser.profile_image}`;
+        // Get S3 bucket URL from environment (fallback to API redirect if not set)
+        const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+        const imageUrl = S3_BUCKET_URL
+          ? `${S3_BUCKET_URL}/imagens-perfil/${profileUser.profile_image}`
+          : `${API_BASE_URL}/upload/files/imagens-perfil/${profileUser.profile_image}`;
         const response = await fetch(imageUrl);
         const blob = await response.blob();
         const reader = new FileReader();
@@ -782,7 +786,13 @@ function ProfilePageContent({
                   <ProfileImage
                     src={
                       profileUser.profile_image
-                        ? `${API_BASE_URL}/files/imagens-perfil/${profileUser.profile_image}`
+                        ? (() => {
+                            const S3_BUCKET_URL =
+                              process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+                            return S3_BUCKET_URL
+                              ? `${S3_BUCKET_URL}/imagens-perfil/${profileUser.profile_image}`
+                              : `${API_BASE_URL}/upload/files/imagens-perfil/${profileUser.profile_image}`;
+                          })()
                         : undefined
                     }
                     alt={profileUser.name}
@@ -934,14 +944,16 @@ function ProfilePageContent({
                         <span
                           style={{
                             background: "#f1f3f5",
-                            border: "1px solid #e9ecef",
-                            borderRadius: "8px 0 0 8px",
-                            padding: "0.75rem 0.75rem",
-                            fontSize: "clamp(0.875rem, 1.5vw, 1rem)",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "1.5rem 0 0 1.5rem",
+                            padding: "10px 12px",
+                            fontSize: "clamp(0.875rem, 1.5vw, 0.9375rem)",
                             color: "#6c757d",
                             fontWeight: 600,
                             borderRight: "none",
                             userSelect: "none",
+                            display: "flex",
+                            alignItems: "center",
                           }}
                         >
                           @
@@ -958,7 +970,7 @@ function ProfilePageContent({
                           }}
                           placeholder="Nome de utilizador"
                           style={{
-                            borderRadius: "0 8px 8px 0",
+                            borderRadius: "0 1.5rem 1.5rem 0",
                             borderLeft: "none",
                           }}
                           className="slide-in-edit"

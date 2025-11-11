@@ -171,7 +171,17 @@ export default function MenuComponent() {
     }
 
     try {
-      const imageUrl = `${API_BASE_URL}/files/imagens-menu/${imageId}`;
+      // Get S3 bucket URL from environment (fallback to API redirect if not set)
+      const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+
+      let imageUrl;
+      if (S3_BUCKET_URL) {
+        // Direct S3 URL
+        imageUrl = `${S3_BUCKET_URL}/imagens-menu/${imageId}`;
+      } else {
+        // Fallback to API redirect
+        imageUrl = `${API_BASE_URL}/upload/files/imagens-menu/${imageId}`;
+      }
 
       // Cache the URL
       imageCache.current.set(cacheKey, imageUrl);
@@ -593,7 +603,11 @@ export default function MenuComponent() {
 
     if (item.image_id) {
       setCurrentImageId(item.image_id);
-      const previewUrl = `${API_BASE_URL}/files/imagens-menu/${item.image_id}`;
+      // Get S3 bucket URL from environment (fallback to API redirect if not set)
+      const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+      const previewUrl = S3_BUCKET_URL
+        ? `${S3_BUCKET_URL}/imagens-menu/${item.image_id}`
+        : `${API_BASE_URL}/upload/files/imagens-menu/${item.image_id}`;
       setImagePreview(previewUrl);
     } else {
       resetImage();

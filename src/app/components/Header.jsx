@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import "./header.scss";
 import { logout } from "../../lib/auth";
+import { getImageUrl } from "../../lib/api";
 
 const Header = ({
   activeNavItem = "Painel",
@@ -42,13 +43,7 @@ const Header = ({
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
     // Handle custom API URLs for profile images
-    const getImageUrl = (imageSrc) => {
-      if (!imageSrc) return null;
-      if (imageSrc.startsWith("http")) return imageSrc;
-      return `${API_BASE_URL}/files/imagens-perfil/${imageSrc}`;
-    };
-
-    const imageUrl = getImageUrl(src);
+    const imageUrl = getImageUrl("imagens-perfil", src);
 
     if (hasError || !imageUrl) {
       return (

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Clock,
   UserCircle,
@@ -13,19 +14,12 @@ import {
   Calendar,
   UserCheck,
   X,
+  UserPlus,
+  ChevronDown,
 } from "lucide-react";
-import {
-  Table,
-  Tag,
-  Button,
-  Input,
-  Avatar,
-  Modal,
-  Select,
-  message,
-} from "antd";
+import { Table, Tag, Button, Input, Avatar, message } from "antd";
 import NumberFlow from "@number-flow/react";
-import { auth, users, getAuthToken } from "../../lib/api";
+import { auth, users, getAuthToken, getImageUrl } from "../../lib/api";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import "./ManagerStaffView.scss";
 
@@ -121,7 +115,7 @@ const ManagerStaffView = () => {
           hoursWorked: u.hrs || 0,
           status: u.status || "offline",
           profileImg: u.profile_image
-            ? `${API_BASE_URL}/files/imagens-perfil/${u.profile_image}`
+            ? getImageUrl("imagens-perfil", u.profile_image)
             : "",
           joinDate: u.created_at || new Date().toISOString(),
           specialties: u.labels || [],
@@ -508,6 +502,15 @@ const ManagerStaffView = () => {
                   />
                   Atualizar
                 </button>
+                {isManager && (
+                  <button
+                    onClick={openCreateModal}
+                    className="stock-header-card__btn stock-header-card__btn--primary"
+                  >
+                    <UserPlus size={16} />
+                    Adicionar Funcionário
+                  </button>
+                )}
               </div>
             </div>
             <div className="stock-header-card__right">
@@ -629,297 +632,227 @@ const ManagerStaffView = () => {
         </div>
 
         {/* Create User Modal */}
-        <Modal
-          title={
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <UserCircle size={20} />
-              <span>Adicionar Novo Funcionário</span>
-            </div>
-          }
-          open={createModalOpen}
-          onOk={handleCreateUser}
-          onCancel={closeCreateModal}
-          confirmLoading={creatingUser}
-          okText="Criar"
-          cancelText="Cancelar"
-          width={600}
-          okButtonProps={{
-            style: { background: "#0284c7" },
-          }}
-        >
-          <div
-            style={{
-              padding: "16px 0",
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-            }}
-          >
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: 600,
-                  fontSize: "13px",
-                }}
+        {createModalOpen &&
+          typeof document !== "undefined" &&
+          createPortal(
+            <div className="modal-overlay" onClick={closeCreateModal}>
+              <div
+                className="modal-container"
+                onClick={(e) => e.stopPropagation()}
               >
-                Nome Completo *
-              </label>
-              <Input
-                placeholder="Ex: João Silva"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                size="large"
-              />
-            </div>
+                {/* Modal Header */}
+                <div className="modal-header">
+                  <div className="header-text">
+                    <h2>
+                      <UserCircle
+                        size={20}
+                        style={{ display: "inline", marginRight: "8px" }}
+                      />
+                      Adicionar Novo Funcionário
+                    </h2>
+                    <p>Preencha os dados do novo funcionário</p>
+                  </div>
+                  <button
+                    onClick={closeCreateModal}
+                    className="close-button"
+                    disabled={creatingUser}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Email *
-                </label>
-                <Input
-                  type="email"
-                  placeholder="email@exemplo.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  size="large"
-                />
+                {/* Modal Content */}
+                <div className="modal-content">
+                  <div className="form-grid">
+                    <div className="form-group full-width">
+                      <label>Nome Completo *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Ex: João Silva"
+                        value={formData.name}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Email *</label>
+                      <input
+                        type="email"
+                        className="form-input"
+                        placeholder="email@exemplo.com"
+                        value={formData.email}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Username *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="username"
+                        value={formData.username}
+                        onChange={(e) =>
+                          handleInputChange("username", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Senha *</label>
+                      <input
+                        type="password"
+                        className="form-input"
+                        placeholder="Mínimo 6 caracteres"
+                        value={formData.password}
+                        onChange={(e) =>
+                          handleInputChange("password", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Telefone</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="+351 XXX XXX XXX"
+                        value={formData.telefone}
+                        onChange={(e) =>
+                          handleInputChange("telefone", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>NIF</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="123456789"
+                        value={formData.nif}
+                        onChange={(e) =>
+                          handleInputChange("nif", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Tipo de Contrato</label>
+                      <select
+                        className="form-select"
+                        value={formData.contrato}
+                        onChange={(e) =>
+                          handleInputChange("contrato", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      >
+                        <option value="">Selecione o tipo</option>
+                        <option value="Efetivo">Efetivo</option>
+                        <option value="Estagiário">Estagiário</option>
+                        <option value="Temporário">Temporário</option>
+                        <option value="Freelancer">Freelancer</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Horas Semanais</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="40"
+                        value={formData.hrs}
+                        onChange={(e) =>
+                          handleInputChange("hrs", e.target.value)
+                        }
+                        disabled={creatingUser}
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Funções / Labels</label>
+                      <div className="labels-checkboxes">
+                        {[
+                          { value: "manager", label: "Manager" },
+                          {
+                            value: "Empregado de Mesa",
+                            label: "Empregado de Mesa",
+                          },
+                          { value: "chef", label: "chef" },
+                          { value: "Limpeza", label: "Limpeza" },
+                          { value: "Rececionista", label: "Rececionista" },
+                        ].map((role) => (
+                          <div key={role.value} className="label-checkbox-item">
+                            <input
+                              type="checkbox"
+                              id={`role-${role.value}`}
+                              checked={formData.labels.includes(role.value)}
+                              onChange={(e) => {
+                                const newLabels = e.target.checked
+                                  ? [...formData.labels, role.value]
+                                  : formData.labels.filter(
+                                      (l) => l !== role.value
+                                    );
+                                handleInputChange("labels", newLabels);
+                              }}
+                              disabled={creatingUser}
+                            />
+                            <label htmlFor={`role-${role.value}`}>
+                              {role.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.ferias}
+                          onChange={(e) =>
+                            handleInputChange("ferias", e.target.checked)
+                          }
+                          disabled={creatingUser}
+                        />
+                        <span>De férias</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="modal-footer">
+                  <button
+                    onClick={closeCreateModal}
+                    className="footer-button cancel"
+                    disabled={creatingUser}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleCreateUser}
+                    className="footer-button primary"
+                    disabled={creatingUser}
+                  >
+                    {creatingUser ? "A criar..." : "Criar"}
+                  </button>
+                </div>
               </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Username *
-                </label>
-                <Input
-                  placeholder="username"
-                  value={formData.username}
-                  onChange={(e) =>
-                    handleInputChange("username", e.target.value)
-                  }
-                  size="large"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: 600,
-                  fontSize: "13px",
-                }}
-              >
-                Senha *
-              </label>
-              <Input.Password
-                placeholder="Mínimo 6 caracteres"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                size="large"
-              />
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Telefone
-                </label>
-                <Input
-                  placeholder="+351 XXX XXX XXX"
-                  value={formData.telefone}
-                  onChange={(e) =>
-                    handleInputChange("telefone", e.target.value)
-                  }
-                  size="large"
-                />
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  NIF
-                </label>
-                <Input
-                  placeholder="123456789"
-                  value={formData.nif}
-                  onChange={(e) => handleInputChange("nif", e.target.value)}
-                  size="large"
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Tipo de Contrato
-                </label>
-                <Select
-                  placeholder="Selecione o tipo"
-                  value={formData.contrato || undefined}
-                  onChange={(value) => handleInputChange("contrato", value)}
-                  size="large"
-                  style={{ width: "100%" }}
-                >
-                  <Select.Option value="Efetivo">Efetivo</Select.Option>
-                  <Select.Option value="Estagiário">Estagiário</Select.Option>
-                  <Select.Option value="Temporário">Temporário</Select.Option>
-                  <Select.Option value="Freelancer">Freelancer</Select.Option>
-                </Select>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                  }}
-                >
-                  Horas Semanais
-                </label>
-                <Input
-                  type="number"
-                  placeholder="40"
-                  value={formData.hrs}
-                  onChange={(e) => handleInputChange("hrs", e.target.value)}
-                  size="large"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: 600,
-                  fontSize: "13px",
-                }}
-              >
-                Funções / Labels
-              </label>
-              <Select
-                mode="tags"
-                placeholder="Ex: empregado, chefe de cozinha, manager"
-                value={formData.labels}
-                onChange={(value) => handleInputChange("labels", value)}
-                size="large"
-                style={{ width: "100%" }}
-              >
-                <Select.Option value="manager">Manager</Select.Option>
-                <Select.Option value="empregado">Empregado</Select.Option>
-                <Select.Option value="chefe de cozinha">
-                  Chefe de Cozinha
-                </Select.Option>
-                <Select.Option value="anfitrião">Anfitrião</Select.Option>
-                <Select.Option value="empregado de limpeza">
-                  Empregado de Limpeza
-                </Select.Option>
-                <Select.Option value="barman">Barman</Select.Option>
-              </Select>
-            </div>
-
-            <div>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.ferias}
-                  onChange={(e) =>
-                    handleInputChange("ferias", e.target.checked)
-                  }
-                  style={{ width: "16px", height: "16px" }}
-                />
-                <span style={{ fontWeight: 600, fontSize: "13px" }}>
-                  De férias
-                </span>
-              </label>
-            </div>
-
-            <div
-              style={{
-                marginTop: "4px",
-                padding: "8px 12px",
-                background: "#f9fafb",
-                borderRadius: "6px",
-                borderLeft: "3px solid #d1d5db",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "11px",
-                  color: "#6b7280",
-                  fontWeight: 500,
-                }}
-              >
-                * Campos obrigatórios: Nome, Email, Username e Senha
-              </p>
-            </div>
-          </div>
-        </Modal>
+            </div>,
+            document.body
+          )}
       </div>
     </div>
   );

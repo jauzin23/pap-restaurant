@@ -53,7 +53,7 @@
       align-items: center;
       gap: 8px;
       padding: 10px 16px;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
@@ -123,7 +123,6 @@
 
   // Main Grid Layout
   .staff-grid {
-    padding-top: 24px;
     display: flex;
     flex-direction: column;
     gap: clamp(1rem, 2vw, 1.5rem);
@@ -141,16 +140,13 @@
 
   .stat-card {
     background: #ffffff;
-    border-radius: 0.5rem;
+    border-radius: 1.5rem;
     padding: 1.25rem;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
     &:hover {
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-        0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      transform: translateY(-1px);
+      transform: translateY(-1.5px);
     }
 
     .stat-header {
@@ -203,10 +199,9 @@
   // Main Content Card
   .main-content-card {
     background: #ffffff;
-    border-radius: 0.5rem;
+    border-radius: 1.5rem;
     padding: 1.25rem;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   }
 
   // Content Controls
@@ -276,6 +271,10 @@
     }
   }
 
+  .ant-input-affix-wrapper {
+    border-radius: 1.5rem !important;
+  }
+
   .ant-table-wrapper {
     .ant-table {
       font-family: inherit;
@@ -316,7 +315,7 @@
       margin-top: 1.5rem;
 
       .ant-pagination-item {
-        border-radius: 6px;
+        border-radius: 1.5rem;
         border-color: #e5e7eb;
       }
 
@@ -375,7 +374,7 @@
     color: white;
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
     min-height: 200px;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 
     &__content {
       display: flex;
@@ -422,7 +421,7 @@
       font-weight: 500;
       height: 2.5rem;
       padding: 0.5rem 1rem;
-      border-radius: 1rem;
+      border-radius: 1.5rem;
       border: none;
       cursor: pointer;
       transition: all 150ms ease;
@@ -563,6 +562,388 @@
   .manager-staff-view .stock-header-card {
     &__right {
       display: block;
+    }
+  }
+}
+
+// Custom Modal Styles
+.manager-staff-view .modal-overlay,
+body > .modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  margin: 0 !important;
+  overflow-y: auto !important;
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+
+  .modal-container {
+    background-color: white !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 1.5rem;
+    width: 100% !important;
+    max-width: 600px !important;
+    max-height: 85vh !important;
+    height: auto !important;
+    overflow: hidden !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 101 !important;
+    position: relative !important;
+    margin: auto !important;
+  }
+
+  .modal-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 24px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    border-top-left-radius: 1.5rem !important;
+    border-top-right-radius: 1.5rem !important;
+    flex-shrink: 0 !important;
+    background: white !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1 !important;
+
+    .header-text {
+      flex: 1;
+
+      h2 {
+        margin: 0 0 4px 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      p {
+        margin: 0;
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 400;
+      }
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f3f4f6;
+      border: none;
+      border-radius: 1.5rem;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+
+      &:hover:not(:disabled) {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .modal-content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex: 1 !important;
+    padding: 24px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+    max-height: none !important;
+    background: #fafafa !important;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 1.5rem;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 1.5rem;
+
+      &:hover {
+        background: #94a3b8;
+      }
+    }
+
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+
+  .modal-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    padding: 20px 24px !important;
+    border-top: 1px solid #e5e7eb !important;
+    border-bottom-left-radius: 1.5rem !important;
+    border-bottom-right-radius: 1.5rem !important;
+    flex-shrink: 0 !important;
+    background-color: #f9fafb !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 1 !important;
+
+    .footer-button {
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 120px;
+
+      &.cancel {
+        color: #475569;
+        background-color: white;
+        border: 1px solid #d1d5db;
+
+        &:hover:not(:disabled) {
+          background-color: #f1f5f9;
+          border-color: #94a3b8;
+        }
+
+        &:active:not(:disabled) {
+          background-color: #e2e8f0;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+
+      &.primary {
+        background: #0284c7;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: #0369a1;
+        }
+
+        &:active:not(:disabled) {
+          background: #075985;
+        }
+
+        &:disabled {
+          background: #cbd5e1;
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+    .form-group {
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+
+        &.checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+
+          input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+          }
+
+          span {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+          }
+        }
+      }
+
+      .form-input,
+      .form-select {
+        width: 100%;
+        height: 42px;
+        padding: 0 14px;
+        background-color: white;
+        border: 1px solid #d1d5db;
+        border-radius: 1.5rem;
+        font-size: 14px;
+        transition: all 0.2s;
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        color: #2d3748;
+
+        &:hover {
+          border-color: #9ca3af;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: #0284c7;
+          box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+        }
+
+        &:disabled {
+          background-color: #f3f4f6;
+          color: #9ca3af;
+          cursor: not-allowed;
+        }
+
+        &::placeholder {
+          color: #9ca3af;
+        }
+      }
+
+      .form-select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        padding-right: 40px;
+      }
+
+      .labels-checkboxes {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 1.5rem;
+        border: 1px solid #e2e8f0;
+
+        .label-checkbox-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #0284c7;
+            flex-shrink: 0;
+
+            &:disabled {
+              cursor: not-allowed;
+              opacity: 0.5;
+            }
+          }
+
+          label {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+            user-select: none;
+
+            &:hover {
+              color: #0284c7;
+            }
+          }
+
+          &:has(input:disabled) label {
+            cursor: not-allowed;
+            opacity: 0.5;
+          }
+        }
+      }
+    }
+  }
+
+  // Responsive adjustments
+  @media (max-width: 640px) {
+    padding: 10px !important;
+
+    .modal-container {
+      max-width: 100% !important;
+      max-height: 95vh !important;
+      border-radius: 1.5rem;
+    }
+
+    .modal-header {
+      padding: 20px !important;
+
+      .header-text {
+        h2 {
+          font-size: 18px;
+        }
+
+        p {
+          font-size: 13px;
+        }
+      }
+    }
+
+    .modal-content {
+      padding: 20px !important;
+    }
+
+    .form-grid {
+      grid-template-columns: 1fr !important;
+      gap: 16px;
+
+      .form-group {
+        grid-column: 1 / -1 !important;
+      }
+    }
+
+    .modal-footer {
+      padding: 16px 20px !important;
+      flex-direction: column !important;
+      gap: 12px;
+
+      .footer-button {
+        width: 100%;
+      }
     }
   }
 }

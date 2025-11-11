@@ -22,8 +22,7 @@
     margin-left: 0;
     margin-right: 0;
     margin-top: 0px;
-    border: none;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
+    border: 1px solid #e5e7eb;
     position: relative;
   }
 
@@ -41,7 +40,7 @@
     padding: 8px 16px;
     background: #f8f9fa;
     border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    border-radius: 1.5rem;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -56,6 +55,7 @@
       background: #3b82f6;
       color: white;
       cursor: default;
+      border: 1px solid #e3e8f0;
 
       svg {
         color: white;
@@ -160,8 +160,6 @@
       background: #f8f9fa;
       border-color: #7c3aed;
       color: #7c3aed;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
 
       svg {
         transform: rotate(90deg);
@@ -180,8 +178,7 @@
     padding: 16px 16px;
     background: white;
     border: 1px solid #e2e8f0;
-    border-radius: 16px 16px 0 0;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+    border-radius: 1.5rem 1.5rem 0 0;
     position: relative;
   }
 
@@ -208,16 +205,27 @@
       background: #f7fafc;
       padding: 4px 10px;
       border-radius: 12px;
+
+      color: #718096;
+      background: #f7fafc;
     }
 
     .selected-count {
-      background: #ff6b35;
-      color: white;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      background: transparent;
+      color: #6b7280;
+      border: 1px solid #3b82f6;
       font-weight: 500;
-      margin-left: 8px;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      box-shadow: none;
     }
   }
 
@@ -228,7 +236,7 @@
     padding: 8px;
     background: #f8f9fa;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 1.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
 
@@ -265,7 +273,7 @@
     padding: 6px 12px;
     border: 1px solid #e5e7eb;
     background: transparent;
-    border-radius: 6px;
+    border-radius: 1.5rem;
     font-size: 13px;
     font-weight: 500;
     color: #6b7280;
@@ -355,7 +363,7 @@
     background: transparent;
     color: #6b7280;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border-radius: 1.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
     margin-left: 8px;
@@ -406,18 +414,11 @@
 
   .sidebar-panel {
     background: white;
-    border-radius: 12px;
-    border: 1px solid #e9ecef;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: fit-content;
 
-    &:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-
     &.selected {
       border-color: #ff6b35;
-      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
     }
 
     .zoom-controls {
@@ -427,7 +428,7 @@
       gap: 8px;
       background: #f8f9fa;
       padding: 12px;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       border: 1px solid #e2e8f0;
     }
 
@@ -439,7 +440,7 @@
       height: 36px;
       background: white;
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      border-radius: 1.5rem;
       cursor: pointer;
       transition: all 0.2s ease;
 
@@ -466,7 +467,6 @@
     .zoom-reset {
       border-left: 1px solid #e2e8f0;
       margin-left: 6px;
-      padding-left: 6px;
     }
 
     .zoom-level {
@@ -484,8 +484,8 @@
     align-items: center;
     padding: 14px 16px;
     background: #f8f9fa;
-    border: none;
-    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
@@ -500,7 +500,7 @@
     &.active {
       background: #fff5f2;
       color: #ff6b35;
-      border-radius: 12px 12px 0 0;
+      border-radius: 1.5rem 1.5rem 0 0;
 
       svg {
         color: #ff6b35;
@@ -517,8 +517,10 @@
   .panel-content {
     padding: 16px;
     background: white;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 1.5rem 1.5rem;
     animation: panelSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #e2e8f0;
+    border-top: none !important;
   }
 
   .add-table-buttons {
@@ -592,7 +594,7 @@
     input {
       padding: 10px 12px;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 1.5rem;
       font-size: 14px;
       font-weight: 500;
       transition: all 0.2s ease;
@@ -1150,8 +1152,8 @@
   }
 
   .create-order-btn {
-    padding: 8px 8px;
-    border-radius: 8px;
+    padding: 8px 12px;
+    border-radius: 1.5rem;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1184,7 +1186,7 @@
     color: #6b7280;
     border: 1px solid #e5e7eb;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 1.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
 
@@ -1459,8 +1461,14 @@
   animation: fadeIn 0.2s ease;
 }
 
+.order-cell-image {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 .clean-order-modal {
-  border-radius: 0.5rem;
+  border-radius: 1.5rem;
   max-width: 900px;
   width: 95%;
   max-height: 90vh;
@@ -1496,7 +1504,7 @@
   height: 32px;
   background: #f3f4f6;
   border: none;
-  border-radius: 8px;
+  border-radius: 1.5rem;
   color: #6b7280;
   cursor: pointer;
   display: flex;
@@ -1694,8 +1702,9 @@
 
 .status-badge {
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: 1.5rem;
   font-size: 12px;
+  border: 1px solid #e5e7eb;
   font-weight: 600;
   text-transform: capitalize;
   letter-spacing: -0.01em;
@@ -1709,8 +1718,7 @@
     user-select: none;
 
     &:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      background: #f3f4f6;
       filter: brightness(0.95);
     }
 
@@ -1759,7 +1767,7 @@
 .action-btn-delete {
   padding: 6px 12px;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: 1.5rem;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -1817,7 +1825,7 @@
   textarea {
     padding: 8px 12px;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
+    border-radius: 1.5rem;
     font-size: 14px;
     font-family: inherit;
     background: white;
@@ -1843,16 +1851,16 @@
   gap: 10px;
   padding: 10px;
   background: #f9fafb;
-  border-radius: 8px;
+  border-radius: 1.5rem;
   border: 1px solid #e5e7eb;
 }
 
 .item-thumb {
   width: 40px;
   height: 40px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  object-fit: contain;
+  border-radius: none;
+  border: none;
 }
 
 .item-name {
@@ -1873,7 +1881,7 @@
 .btn-cancel {
   padding: 8px 16px;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: 1.5rem;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -1923,7 +1931,7 @@
   background: #3b82f6;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 1.5rem;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1986,13 +1994,16 @@
 .delete-modal-icon {
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  background: #fef2f2;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ef4444;
   margin: 0 auto;
+
+  svg {
+    width: 32px;
+    height: 32px;
+  }
 }
 
 .delete-modal-text {

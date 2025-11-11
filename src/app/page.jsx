@@ -202,39 +202,17 @@ const RestaurantDashboardContent = () => {
 
         const userId = user.$id || user.id;
 
-        try {
-          // Try to get profile image bucket info
-          const bucketResult = await profileImages.getBucketInfo(userId);
-          let profileImageFile = "";
-
-          if (bucketResult.documents && bucketResult.documents.length > 0) {
-            profileImageFile = bucketResult.documents[0].bucket_id;
-          }
-
-          if (profileImageFile) {
-            // Use the new API preview URL
-            const fileUrl = profileImages.getPreviewUrl(profileImageFile, {
-              width: 400,
-              height: 400,
-              quality: 80,
-            });
-            setProfileImg(fileUrl);
-          } else if (user.profile_image) {
-            // If user has profile_image field directly, use it
-            const fileUrl = `${API_FILES_URL}/${user.profile_image}`;
-            setProfileImg(fileUrl);
-          } else {
-            // Try fallback with user ID
-            const fallbackUrl = profileImages.getPreviewUrl(userId, {
-              width: 400,
-              height: 400,
-              quality: 80,
-            });
-            setProfileImg(fallbackUrl);
-          }
-        } catch (err) {
+        // Profile image handling - backend stores filename in user.profile_image
+        if (user.profile_image) {
+          const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+          const fileUrl = S3_BUCKET_URL
+            ? `${S3_BUCKET_URL}/imagens-perfil/${user.profile_image}`
+            : `${API_FILES_URL}/imagens-perfil/${user.profile_image}`;
+          setProfileImg(fileUrl);
+        } else {
           setProfileImg("");
         }
+
         setIsLoading(false);
       })
       .catch((err) => {

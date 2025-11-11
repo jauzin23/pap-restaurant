@@ -4,7 +4,12 @@ const fs = require("fs").promises;
 const pool = require("../../db");
 const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
-const { garantirDiretorioUploads } = require("../utilitarios/sistemaFicheiros");
+const {
+  uploadToS3,
+  deleteFromS3,
+  getContentType,
+  getPublicUrl,
+} = require("../utilitarios/s3");
 
 const router = express.Router();
 
@@ -632,19 +637,14 @@ router.delete("/items/:id", autenticarToken, async (req, res) => {
     // Delete from database (cascades to stock_inventory)
     await pool.query("DELETE FROM stock_items WHERE id = $1", [id]);
 
-    // Delete image file if exists
+    // Delete image from S3 if exists
     if (imageId) {
       try {
-        const caminhoImagem = path.join(
-          __dirname,
-          "../../uploads",
-          "imagens-stock",
-          imageId
-        );
-        await fs.unlink(caminhoImagem);
-        console.log("[STOCK] Imagem eliminada:", imageId);
+        const s3Key = `imagens-stock/${imageId}`;
+        await deleteFromS3(s3Key);
+        console.log("[STOCK] Imagem eliminada do S3:", imageId);
       } catch (erro) {
-        console.error("[STOCK] Erro ao eliminar imagem:", erro);
+        console.error("[STOCK] Erro ao eliminar imagem do S3:", erro);
         // Continue even if image deletion fails
       }
     }
@@ -1326,36 +1326,40 @@ router.post("/upload-image", autenticarToken, async (req, res) => {
       return res.status(400).json({ error: "Dados da imagem obrigatórios" });
     }
 
-    // Garantir que o diretório uploads existe
-    await garantirDiretorioUploads();
-    console.log("[STOCK] Diretórios verificados/criados");
-
     // Remover prefixo de data URL se presente
     const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
     console.log("[STOCK] Base64 após remover prefixo, length:", dadosBase64.length);
 
+    // Detectar tipo de imagem
+    let extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
+    let contentType = "image/jpeg"; // Default
+    const matchTipo = imageData.match(/^data:image\/([^;]+);base64,/);
+    if (matchTipo) {
+      const tipoImagem = matchTipo[1];
+      contentType = `image/${tipoImagem}`;
+    }
+
     // Gerar nome de ficheiro único
-    const extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
     const nomeFicheiroUnico = `${Date.now()}_stock_${Math.random()
       .toString(36)
       .substr(2, 9)}${extensaoFicheiro}`;
-    const caminhoFicheiro = path.join(
-      __dirname,
-      "../../uploads",
-      "imagens-stock",
-      nomeFicheiroUnico
-    );
+    
+    // Chave S3 (caminho no bucket)
+    const s3Key = `imagens-stock/${nomeFicheiroUnico}`;
 
-    console.log("[STOCK] Caminho do ficheiro:", caminhoFicheiro);
+    // Converter base64 para buffer
+    const bufferImagem = Buffer.from(dadosBase64, "base64");
 
-    // Guardar ficheiro
-    await fs.writeFile(caminhoFicheiro, dadosBase64, "base64");
-    console.log("[STOCK] Ficheiro guardado com sucesso!");
+    console.log("[STOCK] Fazendo upload para S3:", s3Key);
+
+    // Upload para S3
+    const { url } = await uploadToS3(bufferImagem, s3Key, contentType);
+    console.log("[STOCK] Upload para S3 concluído com sucesso!");
 
     res.json({
       $id: nomeFicheiroUnico,
       filename: nomeFicheiroUnico,
-      url: `/files/imagens-stock/${nomeFicheiroUnico}`,
+      url: url,
       message: "Imagem de stock carregada com sucesso"
     });
   } catch (erro) {
@@ -1365,27 +1369,24 @@ router.post("/upload-image", autenticarToken, async (req, res) => {
 });
 
 // Get stock image (serves file)
+// Nota: Este endpoint pode ser removido se usar URLs S3 diretos no frontend
 router.get("/image/:imageId", async (req, res) => {
   try {
     const { imageId } = req.params;
-    const caminhoImagem = path.join(
-      __dirname,
-      "../../uploads",
-      "imagens-stock",
-      imageId
-    );
+    const s3Key = `imagens-stock/${imageId}`;
 
-    // Check if file exists
-    await fs.access(caminhoImagem);
-
-    // Send file
-    res.sendFile(caminhoImagem);
+    console.log("[STOCK] Redirecionando para imagem S3:", s3Key);
+    
+    // Opção 1: Redirecionar para URL público do S3
+    const publicUrl = getPublicUrl(s3Key);
+    res.redirect(publicUrl);
+    
+    // Opção 2 (alternativa): Fazer stream do S3 através do servidor
+    // const stream = await streamFromS3(s3Key);
+    // stream.pipe(res);
   } catch (erro) {
-    if (erro.code === "ENOENT") {
-      res.status(404).json({ error: "Imagem não encontrada" });
-    } else {
-      tratarErro(erro, res);
-    }
+    console.error("[STOCK] Erro ao obter imagem:", erro);
+    res.status(404).json({ error: "Imagem não encontrada" });
   }
 });
 
@@ -1393,23 +1394,16 @@ router.get("/image/:imageId", async (req, res) => {
 router.delete("/image/:imageId", autenticarToken, async (req, res) => {
   try {
     const { imageId } = req.params;
+    const s3Key = `imagens-stock/${imageId}`;
 
-    const caminhoImagem = path.join(
-      __dirname,
-      "../../uploads",
-      "imagens-stock",
-      imageId
-    );
+    console.log("[STOCK] Eliminando imagem do S3:", s3Key);
 
     try {
-      await fs.unlink(caminhoImagem);
+      await deleteFromS3(s3Key);
       res.json({ message: "Imagem eliminada com sucesso" });
     } catch (erro) {
-      if (erro.code === "ENOENT") {
-        res.status(404).json({ error: "Imagem não encontrada" });
-      } else {
-        throw erro;
-      }
+      console.error("[STOCK] Erro ao eliminar do S3:", erro);
+      res.status(404).json({ error: "Imagem não encontrada" });
     }
   } catch (erro) {
     console.error("[STOCK] Erro ao eliminar imagem:", erro);

@@ -149,7 +149,9 @@ const apiRequest = async (endpoint, options = {}) => {
       (response.status === 401 || response.status === 403) &&
       options.auth !== false
     ) {
-      console.log("Token expired or invalid - removing token and redirecting to login");
+      console.log(
+        "Token expired or invalid - removing token and redirecting to login"
+      );
       handleTokenExpiration();
       throw new Error("Session expired. Please login again.");
     }
@@ -161,13 +163,16 @@ const apiRequest = async (endpoint, options = {}) => {
       console.error("API Error response:", errorData);
 
       // Check for token error messages
-      if (errorData.error && (
-        errorData.error.includes("Token inválido") ||
-        errorData.error.includes("expirado") ||
-        errorData.error.includes("invalid token") ||
-        errorData.error.includes("expired")
-      )) {
-        console.log("Token error detected in response - removing token and redirecting");
+      if (
+        errorData.error &&
+        (errorData.error.includes("Token inválido") ||
+          errorData.error.includes("expirado") ||
+          errorData.error.includes("invalid token") ||
+          errorData.error.includes("expired"))
+      ) {
+        console.log(
+          "Token error detected in response - removing token and redirecting"
+        );
         handleTokenExpiration();
         throw new Error("Session expired. Please login again.");
       }
@@ -286,8 +291,29 @@ export { getAuthToken, setAuthToken, removeAuthToken, handleTokenExpiration };
 export { apiRequest };
 
 // Export API base URL for direct file access
-export const API_FILES_URL = `${API_BASE_URL}/files`;
+export const API_FILES_URL = `${API_BASE_URL}/upload/files`;
 export { API_BASE_URL };
+
+// Helper function to get image URL from S3 or API redirect
+export const getImageUrl = (folder, filename) => {
+  if (!filename) return null;
+
+  // If it's already a full URL, return as-is
+  if (filename.startsWith("http://") || filename.startsWith("https://")) {
+    return filename;
+  }
+
+  // Get S3 bucket URL from environment
+  const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+
+  if (S3_BUCKET_URL) {
+    // Direct S3 URL
+    return `${S3_BUCKET_URL}/${folder}/${filename}`;
+  } else {
+    // Fallback to API redirect
+    return `${API_BASE_URL}/upload/files/${folder}/${filename}`;
+  }
+};
 
 // Table Layouts API
 export const tableLayouts = {

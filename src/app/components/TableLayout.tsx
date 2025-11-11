@@ -485,7 +485,9 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
     // Use separate path segments for catch-all route
     // For [[...mesas]] route: /order/id1/id2/id3
-    const encodedTables = selectedTables.map((id: string) => encodeURIComponent(id));
+    const encodedTables = selectedTables.map((id: string) =>
+      encodeURIComponent(id)
+    );
     const tablePath = encodedTables.join("/");
 
     router.push(`/order/${tablePath}`);
@@ -1823,7 +1825,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   useEffect(() => {
     if (!socket || !connected) return;
 
-    console.log("🔌 OrderModal: Setting up WebSocket listeners, orders count:", orders.length);
+    console.log(
+      "🔌 OrderModal: Setting up WebSocket listeners, orders count:",
+      orders.length
+    );
 
     const handleOrderUpdate = (order: any) => {
       console.log("🔄 OrderModal: Order updated received:", order);
@@ -1835,7 +1840,12 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         (o) => (o.$id || o.id) === updatedOrderId
       );
 
-      console.log("OrderModal: Affected order found:", !!affectedOrder, "Updated order ID:", updatedOrderId);
+      console.log(
+        "OrderModal: Affected order found:",
+        !!affectedOrder,
+        "Updated order ID:",
+        updatedOrderId
+      );
 
       if (affectedOrder) {
         console.log("✅ OrderModal: Updating order in modal");
@@ -1869,7 +1879,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
       // Check if this new order belongs to any of the tables in this modal
       const orderTableIds = order.table_id || [];
-      const modalTableIds = orders.flatMap(o => o.table_id || []);
+      const modalTableIds = orders.flatMap((o) => o.table_id || []);
 
       // Check if there's any overlap between order tables and modal tables
       const hasMatchingTable = orderTableIds.some((tableId: string) =>
@@ -1897,7 +1907,15 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       (socket as Socket).off("order:deleted", handleOrderDelete);
       (socket as Socket).off("order:created", handleOrderCreate);
     };
-  }, [socket, connected, orders, onRefresh, onOrderUpdate, onOrderDelete, onClose]);
+  }, [
+    socket,
+    connected,
+    orders,
+    onRefresh,
+    onOrderUpdate,
+    onOrderDelete,
+    onClose,
+  ]);
 
   // Helper function to get menu item by ID
   const getMenuItem = (menuItemId: string) => {
@@ -1909,7 +1927,15 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   // Helper function to get image URL
   const getImageUrl = (imageId: string) => {
     if (!imageId || imageId === "undefined" || imageId === "null") return null;
-    return `${API_BASE_URL}/files/imagens-menu/${imageId}`;
+
+    // Get S3 bucket URL from environment (fallback to API redirect if not set)
+    const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+
+    if (S3_BUCKET_URL) {
+      return `${S3_BUCKET_URL}/imagens-menu/${imageId}`;
+    } else {
+      return `${API_BASE_URL}/upload/files/imagens-menu/${imageId}`;
+    }
   };
 
   // Start editing an order
@@ -2184,7 +2210,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       setIsCreatingOrder(true);
 
       // Use separate path segments for catch-all route
-      const encodedTables = tableIds.map((id: string) => encodeURIComponent(id));
+      const encodedTables = tableIds.map((id: string) =>
+        encodeURIComponent(id)
+      );
       const tablePath = encodedTables.join("/");
       router.push(`/order/${tablePath}`);
     }
@@ -2350,7 +2378,14 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                 {order.aceite_por_user && (
                                   <div className="staff-member">
                                     <img
-                                      src={`${API_BASE_URL}/files/imagens-perfil/${order.aceite_por_user.profile_image}`}
+                                      src={(() => {
+                                        const S3_BUCKET_URL =
+                                          process.env
+                                            .NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+                                        return S3_BUCKET_URL
+                                          ? `${S3_BUCKET_URL}/imagens-perfil/${order.aceite_por_user.profile_image}`
+                                          : `${API_BASE_URL}/upload/files/imagens-perfil/${order.aceite_por_user.profile_image}`;
+                                      })()}
                                       alt={order.aceite_por_user.nome}
                                       className="staff-pfp"
                                     />
@@ -2365,7 +2400,14 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                 {order.preparado_por_user && (
                                   <div className="staff-member">
                                     <img
-                                      src={`${API_BASE_URL}/files/imagens-perfil/${order.preparado_por_user.profile_image}`}
+                                      src={(() => {
+                                        const S3_BUCKET_URL =
+                                          process.env
+                                            .NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+                                        return S3_BUCKET_URL
+                                          ? `${S3_BUCKET_URL}/imagens-perfil/${order.preparado_por_user.profile_image}`
+                                          : `${API_BASE_URL}/upload/files/imagens-perfil/${order.preparado_por_user.profile_image}`;
+                                      })()}
                                       alt={order.preparado_por_user.nome}
                                       className="staff-pfp"
                                     />
@@ -2382,7 +2424,14 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                 {order.entregue_por_user && (
                                   <div className="staff-member">
                                     <img
-                                      src={`${API_BASE_URL}/files/imagens-perfil/${order.entregue_por_user.profile_image}`}
+                                      src={(() => {
+                                        const S3_BUCKET_URL =
+                                          process.env
+                                            .NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+                                        return S3_BUCKET_URL
+                                          ? `${S3_BUCKET_URL}/imagens-perfil/${order.entregue_por_user.profile_image}`
+                                          : `${API_BASE_URL}/upload/files/imagens-perfil/${order.entregue_por_user.profile_image}`;
+                                      })()}
                                       alt={order.entregue_por_user.nome}
                                       className="staff-pfp"
                                     />
@@ -2404,7 +2453,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         {/* Time Elapsed Cell */}
                         <div className="order-cell order-cell-time">
                           <span className="elapsed-time">
-                            {getElapsedTime(order.created_at || order.$createdAt)}
+                            {getElapsedTime(
+                              order.created_at || order.$createdAt
+                            )}
                           </span>
                         </div>
 
