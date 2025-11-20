@@ -513,7 +513,7 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 8px;
+      padding: 8px 16px;
       border: none;
       border-radius: 1.5rem;
       font-size: clamp(0.875rem, 1.5vw, 0.95rem);
@@ -573,6 +573,26 @@
 
       &:active:not(:disabled) {
         transform: scale(0.98);
+      }
+    }
+
+    .delete-button {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+
+      &:hover:not(:disabled) {
+        background: #fecaca;
+        border-color: #fca5a5;
+      }
+
+      &:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     }
   }

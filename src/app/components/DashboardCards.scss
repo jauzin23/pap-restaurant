@@ -5,19 +5,28 @@
   padding: 1rem;
 }
 
+.dashboard-cards-wrapper {
+  margin-bottom: 2rem;
+}
+
 .dashboard-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
   align-items: stretch;
   justify-content: center;
 
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1.25rem;
   }
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr !important;
   }
 
   &__title {
@@ -30,6 +39,12 @@
     transform: translateY(10px);
     animation: fadeInUp 0.5s ease forwards;
     animation-delay: 0.15s;
+
+    @media (max-width: 1400px) {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+      margin-bottom: 0.875rem;
+    }
   }
 }
 
@@ -51,26 +66,50 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.5rem 1.5rem 0.5rem;
+    padding: 1.25rem 1.25rem 0.5rem;
+
+    @media (max-width: 1400px) {
+      padding: 1rem 1rem 0.5rem;
+    }
   }
 
   &__icon-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 3rem;
-    width: 3rem;
+    height: 2.75rem;
+    width: 2.75rem;
     border-radius: 1rem;
+
+    @media (max-width: 1400px) {
+      height: 2.5rem;
+      width: 2.5rem;
+    }
+
+    svg {
+      @media (max-width: 1400px) {
+        width: 20px;
+        height: 20px;
+      }
+    }
   }
 
   &__content {
-    padding: 0 1.5rem 1rem;
+    padding: 0 1.25rem 1rem;
+
+    @media (max-width: 1400px) {
+      padding: 0 1rem 0.875rem;
+    }
   }
 
   &__title {
     font-size: 0.875rem;
     font-weight: 600;
     color: hsl(var(--muted-foreground));
+
+    @media (max-width: 1400px) {
+      font-size: 0.8125rem;
+    }
   }
 
   &__value {
@@ -80,6 +119,10 @@
     display: flex;
     align-items: baseline;
     gap: 0.125rem;
+
+    @media (max-width: 1400px) {
+      font-size: 1.25rem;
+    }
   }
 }
 

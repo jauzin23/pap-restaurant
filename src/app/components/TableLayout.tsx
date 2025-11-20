@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Maximize2,
   Plus,
+  Minus,
   Menu,
   ZoomIn,
   ZoomOut,
@@ -1568,33 +1569,85 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                           <div className="prop-group-row">
                             <div className="prop-group">
                               <label>Largura</label>
-                              <input
-                                type="number"
-                                value={selectedTableData.width}
-                                onChange={(e) =>
-                                  updateTable(selectedTableData.id, {
-                                    width:
-                                      Number.parseInt(e.target.value) || 60,
-                                  })
-                                }
-                                min={40}
-                                max={200}
-                              />
+                              <div className="stepper-input">
+                                <button
+                                  type="button"
+                                  className="stepper-btn"
+                                  onClick={() =>
+                                    updateTable(selectedTableData.id, {
+                                      width: Math.max(
+                                        20,
+                                        selectedTableData.width - 5
+                                      ),
+                                    })
+                                  }
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <input
+                                  type="number"
+                                  value={selectedTableData.width}
+                                  onChange={(e) =>
+                                    updateTable(selectedTableData.id, {
+                                      width:
+                                        Number.parseInt(e.target.value) || 60,
+                                    })
+                                  }
+                                  min={20}
+                                />
+                                <button
+                                  type="button"
+                                  className="stepper-btn"
+                                  onClick={() =>
+                                    updateTable(selectedTableData.id, {
+                                      width: selectedTableData.width + 5,
+                                    })
+                                  }
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
                             </div>
                             <div className="prop-group">
                               <label>Altura</label>
-                              <input
-                                type="number"
-                                value={selectedTableData.height}
-                                onChange={(e) =>
-                                  updateTable(selectedTableData.id, {
-                                    height:
-                                      Number.parseInt(e.target.value) || 40,
-                                  })
-                                }
-                                min={40}
-                                max={200}
-                              />
+                              <div className="stepper-input">
+                                <button
+                                  type="button"
+                                  className="stepper-btn"
+                                  onClick={() =>
+                                    updateTable(selectedTableData.id, {
+                                      height: Math.max(
+                                        20,
+                                        selectedTableData.height - 5
+                                      ),
+                                    })
+                                  }
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <input
+                                  type="number"
+                                  value={selectedTableData.height}
+                                  onChange={(e) =>
+                                    updateTable(selectedTableData.id, {
+                                      height:
+                                        Number.parseInt(e.target.value) || 40,
+                                    })
+                                  }
+                                  min={20}
+                                />
+                                <button
+                                  type="button"
+                                  className="stepper-btn"
+                                  onClick={() =>
+                                    updateTable(selectedTableData.id, {
+                                      height: selectedTableData.height + 5,
+                                    })
+                                  }
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
                             </div>
                           </div>
 
@@ -1805,6 +1858,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [editingStatus, setEditingStatus] = useState<string>("pendente");
   const [editingPrice, setEditingPrice] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState<
+    string | null
+  >(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     show: boolean;
     message: string;
@@ -2093,14 +2149,24 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       return;
     }
 
+    setUpdatingStatusOrderId(orderId);
     setIsSaving(true);
 
     try {
       const token = getAuthToken();
 
       // Get current user from auth
-      const currentUser = await auth.get();
-      const userId = currentUser?.$id || currentUser?.id;
+      let userId;
+      try {
+        const currentUser = await auth.get();
+        userId = currentUser?.$id || currentUser?.id;
+      } catch (authError) {
+        console.warn(
+          "Could not get current user, continuing without userId:",
+          authError
+        );
+        userId = null;
+      }
       const currentTimestamp = new Date().toISOString();
 
       // Determine which logging fields to send based on the status transition
@@ -2117,12 +2183,15 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         // aceite → pronto
         updateData.preparado_por = userId;
         updateData.preparado_a = currentTimestamp;
+      } else if (nextStatus === "a ser entregue") {
+        // pronto → a ser entregue (NEW: Waiter starts delivering)
+        updateData.a_ser_entregue_por = userId;
+        updateData.a_ser_entregue_a = currentTimestamp;
       } else if (nextStatus === "entregue") {
         // a ser entregue → entregue
         updateData.entregue_por = userId;
         updateData.entregue_a = currentTimestamp;
       }
-      // No logging needed for: pronto → a ser entregue
 
       const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
         method: "PUT",
@@ -2157,7 +2226,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       console.error("Error updating order status:", error);
       alert("Erro ao atualizar estado");
     } finally {
+      console.log("🔄 Clearing loading state for order:", orderId);
       setIsSaving(false);
+      setUpdatingStatusOrderId(null);
     }
   };
 
@@ -2236,132 +2307,140 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               <p>Nenhum pedido encontrado</p>
             </div>
           ) : (
-            <div className="orders-list">
-              {/* Table Header */}
-              <div className="orders-table-header">
-                <div>Imagem</div>
-                <div>Item</div>
-                <div>Tempo</div>
-                <div>Preço</div>
-                <div>Estado</div>
-                <div>Ações</div>
-              </div>
+            <div className="orders-table-wrapper">
+              <table className="orders-table">
+                <thead>
+                  <tr>
+                    <th>Imagem</th>
+                    <th>Item</th>
+                    <th>Tempo</th>
+                    <th>Preço</th>
+                    <th>Estado</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedOrders.map((order) => {
+                    const menuItem = getMenuItem(order.menu_item_id);
+                    const orderId = order.$id || order.id;
+                    const isEditing = editingOrderId === orderId;
+                    const imageUrl = menuItem?.image_id
+                      ? getImageUrl(menuItem.image_id)
+                      : null;
+                    const currentPrice = order.price || menuItem?.preco || 0;
+                    const currentQuantity = order.quantity || 1;
+                    const itemTotal = currentPrice * currentQuantity;
 
-              {/* Table Rows */}
-              {sortedOrders.map((order) => {
-                const menuItem = getMenuItem(order.menu_item_id);
-                const orderId = order.$id || order.id;
-                const isEditing = editingOrderId === orderId;
-                const imageUrl = menuItem?.image_id
-                  ? getImageUrl(menuItem.image_id)
-                  : null;
-                const currentPrice = order.price || menuItem?.preco || 0;
-                const currentQuantity = order.quantity || 1;
-                const itemTotal = currentPrice * currentQuantity;
+                    if (isEditing) {
+                      return (
+                        <tr key={orderId} className="order-row editing">
+                          <td colSpan={6}>
+                            <div className="order-edit-mode">
+                              <div className="edit-row">
+                                <div className="edit-group">
+                                  <label>Item</label>
+                                  <div className="order-modal-item-info">
+                                    {imageUrl && (
+                                      <img
+                                        src={imageUrl}
+                                        alt={menuItem?.nome || ""}
+                                        className="item-thumb"
+                                      />
+                                    )}
+                                    <span className="item-name">
+                                      {menuItem?.nome || "Item desconhecido"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
 
-                return (
-                  <div
-                    key={orderId}
-                    className={`order-item ${isEditing ? "editing" : ""}`}
-                  >
-                    {isEditing ? (
-                      // Edit Mode
-                      <div className="order-edit-mode">
-                        <div className="edit-row">
-                          <div className="edit-group">
-                            <label>Item</label>
-                            <div className="item-info">
-                              {imageUrl && (
-                                <img
-                                  src={imageUrl}
-                                  alt={menuItem?.nome || ""}
-                                  className="item-thumb"
-                                />
-                              )}
-                              <span className="item-name">
-                                {menuItem?.nome || "Item desconhecido"}
-                              </span>
+                              <div className="edit-row">
+                                <div className="edit-group">
+                                  <label>Estado</label>
+                                  <select
+                                    value={editingStatus}
+                                    onChange={(e) =>
+                                      setEditingStatus(e.target.value)
+                                    }
+                                  >
+                                    {statusOptions.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="edit-group">
+                                  <label>Preço</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={editingPrice}
+                                    onChange={(e) =>
+                                      setEditingPrice(
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="edit-row">
+                                <div className="edit-group full">
+                                  <label>Notas</label>
+                                  <textarea
+                                    value={editingNotes}
+                                    onChange={(e) =>
+                                      setEditingNotes(e.target.value)
+                                    }
+                                    placeholder="Notas do pedido..."
+                                    rows={2}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="edit-row">
+                                <div className="edit-actions">
+                                  <button
+                                    className="btn-save"
+                                    onClick={() => saveChanges(order)}
+                                    disabled={isSaving}
+                                  >
+                                    {isSaving ? "A guardar..." : "Guardar"}
+                                  </button>
+                                  <button
+                                    className="btn-cancel"
+                                    onClick={cancelEditing}
+                                    disabled={isSaving}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
+                      );
+                    }
 
-                        <div className="edit-row">
-                          <div className="edit-group">
-                            <label>Estado</label>
-                            <select
-                              value={editingStatus}
-                              onChange={(e) => setEditingStatus(e.target.value)}
-                            >
-                              {statusOptions.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="edit-group">
-                            <label>Preço</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={editingPrice}
-                              onChange={(e) =>
-                                setEditingPrice(parseFloat(e.target.value) || 0)
-                              }
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="edit-row">
-                          <div className="edit-group full">
-                            <label>Notas</label>
-                            <textarea
-                              value={editingNotes}
-                              onChange={(e) => setEditingNotes(e.target.value)}
-                              placeholder="Notas do pedido..."
-                              rows={2}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="edit-row">
-                          <div className="edit-actions">
-                            <button
-                              className="btn-save"
-                              onClick={() => saveChanges(order)}
-                              disabled={isSaving}
-                            >
-                              {isSaving ? "A guardar..." : "Guardar"}
-                            </button>
-                            <button
-                              className="btn-cancel"
-                              onClick={cancelEditing}
-                              disabled={isSaving}
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      // View Mode - Table Cells
-                      <>
+                    return (
+                      <tr key={orderId} className="order-row">
                         {/* Image Cell */}
-                        <div className="order-cell">
+                        <td className="image-cell">
                           {imageUrl && (
                             <img
                               src={imageUrl}
                               alt={menuItem?.nome || ""}
-                              className="order-cell-image"
+                              className="order-image"
                             />
                           )}
-                        </div>
+                        </td>
 
                         {/* Item Cell */}
-                        <div className="order-cell order-cell-item">
-                          <div className="order-cell-item-info">
+                        <td className="item-cell">
+                          <div className="item-info-wrapper">
                             <div className="order-item-name">
                               {menuItem?.nome || "Item desconhecido"}
                             </div>
@@ -2373,6 +2452,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                             {/* Staff workflow - professional display */}
                             {(order.aceite_por_user ||
                               order.preparado_por_user ||
+                              order.a_ser_entregue_por_user ||
                               order.entregue_por_user) && (
                               <div className="order-staff-workflow">
                                 {order.aceite_por_user && (
@@ -2421,6 +2501,30 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                     </div>
                                   </div>
                                 )}
+                                {order.a_ser_entregue_por_user && (
+                                  <div className="staff-member">
+                                    <img
+                                      src={(() => {
+                                        const S3_BUCKET_URL =
+                                          process.env
+                                            .NEXT_PUBLIC_AWS_S3_BUCKET_URL;
+                                        return S3_BUCKET_URL
+                                          ? `${S3_BUCKET_URL}/imagens-perfil/${order.a_ser_entregue_por_user.profile_image}`
+                                          : `${API_BASE_URL}/upload/files/imagens-perfil/${order.a_ser_entregue_por_user.profile_image}`;
+                                      })()}
+                                      alt={order.a_ser_entregue_por_user.nome}
+                                      className="staff-pfp"
+                                    />
+                                    <div className="staff-details">
+                                      <span className="staff-name">
+                                        {order.a_ser_entregue_por_user.nome}
+                                      </span>
+                                      <span className="staff-role">
+                                        A Entregar
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
                                 {order.entregue_por_user && (
                                   <div className="staff-member">
                                     <img
@@ -2448,19 +2552,19 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                               </div>
                             )}
                           </div>
-                        </div>
+                        </td>
 
-                        {/* Time Elapsed Cell */}
-                        <div className="order-cell order-cell-time">
+                        {/* Time Cell */}
+                        <td className="time-cell">
                           <span className="elapsed-time">
                             {getElapsedTime(
                               order.created_at || order.$createdAt
                             )}
                           </span>
-                        </div>
+                        </td>
 
                         {/* Price Cell */}
-                        <div className="order-cell order-cell-price">
+                        <td className="price-cell">
                           €
                           <NumberFlow
                             value={itemTotal}
@@ -2469,10 +2573,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                               maximumFractionDigits: 2,
                             }}
                           />
-                        </div>
+                        </td>
 
                         {/* Status Cell */}
-                        <div className="order-cell order-cell-status">
+                        <td className="status-cell">
                           <span
                             className={`status-badge status-${(
                               order.status || "pendente"
@@ -2480,29 +2584,43 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                               getNextStatus(order.status || "pendente")
                                 ? "clickable"
                                 : ""
+                            } ${
+                              updatingStatusOrderId === orderId
+                                ? "updating"
+                                : ""
                             }`}
                             onClick={() => {
-                              if (getNextStatus(order.status || "pendente")) {
+                              if (
+                                getNextStatus(order.status || "pendente") &&
+                                updatingStatusOrderId !== orderId
+                              ) {
                                 cycleStatusForward(order);
                               }
                             }}
                             title={
-                              getNextStatus(order.status || "pendente")
+                              updatingStatusOrderId === orderId
+                                ? "A atualizar..."
+                                : getNextStatus(order.status || "pendente")
                                 ? `Clicar para mudar para: ${getNextStatus(
                                     order.status || "pendente"
                                   )}`
                                 : "Estado final"
                             }
                           >
-                            {order.status || "pendente"}
-                            {getNextStatus(order.status || "pendente") && (
-                              <ChevronRight size={14} />
+                            {updatingStatusOrderId === orderId ? (
+                              <Loader2 size={14} className="spinner" />
+                            ) : (
+                              order.status || "pendente"
                             )}
+                            {getNextStatus(order.status || "pendente") &&
+                              updatingStatusOrderId !== orderId && (
+                                <ChevronRight size={14} />
+                              )}
                           </span>
-                        </div>
+                        </td>
 
                         {/* Actions Cell */}
-                        <div className="order-cell order-cell-actions">
+                        <td className="actions-cell">
                           <button
                             className="action-btn-edit"
                             onClick={() => startEditing(order)}
@@ -2515,12 +2633,12 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                           >
                             Eliminar
                           </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

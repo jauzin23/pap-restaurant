@@ -1826,25 +1826,6 @@ export default function StockComponent() {
                   Localizações próximas do mínimo
                 </div>
               </div>
-
-              <div className="stat-card">
-                <div className="stat-header">
-                  <span className="stat-title">Stock OK</span>
-                  <TrendingUp className="stat-icon" />
-                </div>
-                <div className="stat-value success">
-                  <NumberFlow
-                    value={
-                      stockAlerts.length -
-                      criticalStock.length -
-                      warningStock.length
-                    }
-                  />
-                </div>
-                <div className="stat-description">
-                  Localizações com stock adequado
-                </div>
-              </div>
             </div>
 
             {/* Main Content Card */}

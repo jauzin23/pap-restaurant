@@ -728,11 +728,8 @@
   // Stats Section
   .stats-section {
     display: grid;
-    grid-template-columns: repeat(
-      auto-fit,
-      minmax(clamp(200px, 22vw, 260px), 1fr)
-    );
-    gap: clamp(0.75rem, 1.5vw, 1rem);
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(1rem, 2vw, 1.5rem);
   }
 
   .stat-card {
@@ -740,36 +737,44 @@
     border-radius: 1.5rem;
     padding: 1.25rem;
     border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
 
     .stat-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.75rem;
+      margin-bottom: 1rem;
 
       .stat-title {
-        font-size: 0.7rem;
+        font-size: 0.875rem;
         font-weight: 700;
-        color: #4e73df;
+        color: #64748b;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
       .stat-icon {
-        width: 20px;
-        height: 20px;
-        color: #dddfeb;
+        width: 24px;
+        height: 24px;
+        color: #94a3b8;
+        opacity: 0.8;
       }
     }
 
     .stat-value {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #5a5c69;
-      margin-bottom: 0;
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
       line-height: 1;
 
       &.info {
-        color: #2d3748;
+        color: #3b82f6;
       }
 
       &.critical {
@@ -786,9 +791,10 @@
     }
 
     .stat-description {
-      font-size: clamp(0.75rem, 1.3vw, 0.875rem);
-      color: #94a3b8;
+      font-size: 0.875rem;
+      color: #64748b;
       font-weight: 500;
+      line-height: 1.4;
     }
 
     &.critical-card {
@@ -1907,6 +1913,10 @@
 
   // Responsive
   @media (max-width: 1024px) {
+    .stats-section {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
     .stock-table-header,
     .stock-table-row {
       grid-template-columns: 50px 2fr 80px 80px 100px 100px 1.5fr 130px;
@@ -1935,6 +1945,12 @@
 
     .stats-section {
       grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+      .stat-value {
+        font-size: 2rem;
+      }
     }
 
     .stock-table-header {

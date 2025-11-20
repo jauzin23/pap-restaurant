@@ -14,35 +14,9 @@ const {
   deleteFromS3,
   getContentType,
   getPublicUrl,
-  getPresignedUrl,
-  streamFromS3,
 } = require("../utilitarios/s3");
 
 const router = express.Router();
-
-// Servir imagem do S3
-router.get("/files/:pasta/:ficheiro", async (req, res) => {
-  try {
-    const { pasta, ficheiro } = req.params;
-
-    // Validar pasta
-    const pastasValidas = ["imagens-menu", "imagens-perfil", "imagens-stock"];
-    if (!pastasValidas.includes(pasta)) {
-      return res.status(400).json({ error: "Pasta inválida" });
-    }
-
-    const s3Key = `${pasta}/${ficheiro}`;
-
-    // Obter URL pública do S3
-    const url = getPublicUrl(s3Key);
-
-    // Redirecionar para a URL do S3
-    res.redirect(url);
-  } catch (erro) {
-    console.error("[UPLOAD] Erro ao servir ficheiro:", erro);
-    res.status(500).json({ error: "Erro ao servir ficheiro" });
-  }
-});
 
 // Upload de imagem de perfil
 router.post("/profile-image", autenticarToken, async (req, res) => {
@@ -227,68 +201,6 @@ router.post("/menu-image", autenticarToken, requerGestor, async (req, res) => {
       filename: nomeFicheiroUnico,
       url: url,
       message: "Imagem de menu carregada com sucesso",
-    });
-  } catch (erro) {
-    console.error("[UPLOAD] Erro ao fazer upload:", erro);
-    tratarErro(erro, res);
-  }
-});
-
-// Upload de imagem de stock
-router.post("/stock-image", autenticarToken, requerGestor, async (req, res) => {
-  try {
-    const { imageData, filename } = req.body;
-
-    console.log("[UPLOAD] Recebido pedido de upload de imagem de stock");
-    console.log("[UPLOAD] Filename:", filename);
-    console.log("[UPLOAD] ImageData presente:", !!imageData);
-
-    if (!imageData) {
-      return res.status(400).json({ error: "Dados da imagem obrigatórios" });
-    }
-
-    // Remover prefixo de data URL se presente
-    const dadosBase64 = imageData.replace(/^data:image\/[^;]+;base64,/, "");
-
-    // Criar hash do conteúdo da imagem
-    const hashImagem = crypto
-      .createHash("sha256")
-      .update(dadosBase64)
-      .digest("hex")
-      .substring(0, 16);
-
-    // Gerar componente aleatório
-    const randomString = crypto.randomBytes(8).toString("hex");
-
-    // Detectar tipo de imagem
-    let extensaoFicheiro = filename ? path.extname(filename) : ".jpg";
-    let contentType = "image/jpeg";
-    const matchTipo = imageData.match(/^data:image\/([^;]+);base64,/);
-    if (matchTipo) {
-      const tipoImagem = matchTipo[1];
-      contentType = `image/${tipoImagem}`;
-    }
-
-    // Gerar nome de ficheiro único
-    const nomeFicheiroUnico = `${Date.now()}_${hashImagem}_${randomString}${extensaoFicheiro}`;
-
-    // Chave S3
-    const s3Key = `imagens-stock/${nomeFicheiroUnico}`;
-
-    // Converter base64 para buffer
-    const bufferImagem = Buffer.from(dadosBase64, "base64");
-
-    console.log("[UPLOAD] Fazendo upload para S3:", s3Key);
-
-    // Upload para S3
-    const { url } = await uploadToS3(bufferImagem, s3Key, contentType);
-    console.log("[UPLOAD] Upload para S3 concluído com sucesso!");
-
-    res.json({
-      $id: nomeFicheiroUnico,
-      filename: nomeFicheiroUnico,
-      url: url,
-      message: "Imagem de stock carregada com sucesso",
     });
   } catch (erro) {
     console.error("[UPLOAD] Erro ao fazer upload:", erro);

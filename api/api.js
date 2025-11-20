@@ -24,6 +24,10 @@ const rotasLayoutsMesas = require("./src/rotas/layoutsMesas");
 const rotasMesas = require("./src/rotas/mesas");
 const rotasPedidos = require("./src/rotas/pedidos");
 const rotasStock = require("./src/rotas/stock");
+const rotasPagamentos = require("./src/rotas/pagamentos");
+const rotasEstatisticas = require("./src/rotas/estatisticas");
+const rotasEstatisticasUtilizador = require("./src/rotas/estatisticas-utilizador");
+const rotasPontos = require("./src/rotas/pontos");
 
 // Inicializar aplicação Express
 const app = express();
@@ -70,6 +74,33 @@ const emissoresClientes = criarEmissores(io);
 app.set("io", io);
 app.set("emissoresClientes", emissoresClientes);
 
+// Tornar io globalmente acessível para sistemaPontos
+global.io = io;
+
+// Endpoint raiz - verificar se API está funcional
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    message: "PAP Backend API is running",
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: "/health",
+      auth: "/auth",
+      users: "/users",
+      upload: "/upload",
+      menu: "/menu",
+      tableLayouts: "/table-layouts",
+      tables: "/tables",
+      orders: "/orders",
+      stock: "/stock",
+      payments: "/payments",
+      stats: "/stats",
+      points: "/api/points",
+    },
+  });
+});
+
 // Endpoint de verificação de saúde
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
@@ -84,13 +115,21 @@ app.use("/table-layouts", rotasLayoutsMesas);
 app.use("/tables", rotasMesas);
 app.use("/orders", rotasPedidos);
 app.use("/stock", rotasStock);
+app.use("/payments", rotasPagamentos);
+app.use("/stats", rotasEstatisticas);
+app.use("/stats", rotasEstatisticasUtilizador);
+app.use("/api/points", rotasPontos);
 
 // Iniciar servidor
 servidorHttp.listen(PORTA, () => {
   console.log(`🚀 Servidor a correr na porta ${PORTA}`);
   console.log(`🔗 URL Base da API: http://localhost:${PORTA}`);
   console.log(`🔌 WebSocket ativo em ws://localhost:${PORTA}`);
-  console.log(`☁️  Imagens armazenadas em: AWS S3 (${process.env.AWS_S3_BUCKET_NAME || 'não configurado'})`);
+  console.log(
+    `☁️  Imagens armazenadas em: AWS S3 (${
+      process.env.AWS_S3_BUCKET_NAME || "não configurado"
+    })`
+  );
 });
 
 module.exports = { app, servidorHttp, io };

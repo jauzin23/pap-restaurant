@@ -865,10 +865,9 @@ body {
 
 .card {
   background: #ffffff;
-  border-radius: 0.35rem;
+  border-radius: 1.5rem;
   border: 1px solid #e3e6f0;
   padding: 1.25rem;
-  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 }
 
 .card-header {
@@ -1586,14 +1585,6 @@ body {
     font-size: 10px;
     color: #6c757d;
     font-weight: 500;
-  }
-
-  .card {
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
   }
 
   .card-header {

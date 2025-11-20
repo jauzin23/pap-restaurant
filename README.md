@@ -1,5 +1,3 @@
-checkout
-meter aquela calculadora de troco e etc...
 sys de noti e msg
 relatorios
 meter o reset pass;

@@ -48,7 +48,7 @@ const LoginPage = () => {
       if (result.success) {
         console.log("Login successful:", result.user);
         // Redirect to dashboard
-        window.location.href = "/";
+        window.location.href = "/pagina-teste-new";
       } else {
         console.error("Login failed with result:", result);
         setError(result.error || "Login failed");

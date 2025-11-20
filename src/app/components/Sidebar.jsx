@@ -16,6 +16,8 @@ import {
   UserCircle,
   User,
   LogOut,
+  CreditCard,
+  Trophy,
 } from "lucide-react";
 import { logout } from "../../lib/auth";
 import { getImageUrl } from "../../lib/api";
@@ -55,6 +57,8 @@ const Sidebar = ({
     { id: "Mesas", label: "Mesas", icon: RestLayoutIcon },
     { id: "Ementa", label: "Ementa", icon: UtensilsCrossed },
     { id: "Stock", label: "Stock", icon: Package },
+    { id: "Pagamentos", label: "Pagamentos", icon: CreditCard },
+    { id: "Gamificação", label: "Gamificação", icon: Trophy },
     { id: "Staff", label: "Pessoal", icon: Users },
   ];
 

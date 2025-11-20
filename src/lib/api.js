@@ -436,6 +436,76 @@ export const orders = {
   },
 };
 
+// Payments API
+export const payments = {
+  // Calculate payment totals
+  calculate: async (paymentData) => {
+    return await apiRequest("/payments/calculate", {
+      method: "POST",
+      body: JSON.stringify(paymentData),
+    });
+  },
+
+  // Process payment
+  create: async (paymentData) => {
+    return await apiRequest("/payments", {
+      method: "POST",
+      body: JSON.stringify(paymentData),
+    });
+  },
+
+  // Get unpaid items for table
+  getUnpaidByTable: async (tableId) => {
+    return await apiRequest(`/payments/table/${tableId}/unpaid`, {
+      method: "GET",
+    });
+  },
+
+  // Get payment details
+  get: async (paymentId) => {
+    return await apiRequest(`/payments/${paymentId}`, {
+      method: "GET",
+    });
+  },
+
+  // List payments with filters
+  list: async (filters = {}) => {
+    const params = new URLSearchParams(filters);
+    const queryString = params.toString();
+    return await apiRequest(
+      `/payments${queryString ? `?${queryString}` : ""}`,
+      {
+        method: "GET",
+      }
+    );
+  },
+
+  // Get daily report
+  getDailyReport: async (date) => {
+    return await apiRequest(
+      `/payments/reports/daily${date ? `?date=${date}` : ""}`,
+      {
+        method: "GET",
+      }
+    );
+  },
+
+  // Get discount presets
+  getDiscountPresets: async () => {
+    return await apiRequest("/payments/discounts/presets", {
+      method: "GET",
+    });
+  },
+
+  // Create discount preset (manager only)
+  createDiscountPreset: async (discountData) => {
+    return await apiRequest("/payments/discounts/presets", {
+      method: "POST",
+      body: JSON.stringify(discountData),
+    });
+  },
+};
+
 // Export a general API object for compatibility
 export const api = {
   getCurrentUser: auth.get,

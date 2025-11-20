@@ -153,6 +153,57 @@ const criarEmissores = (io) => {
       io.to("gestores").emit("user:deleted", { id: idUtilizador });
       io.to("utilizadores").emit("user:deleted", { id: idUtilizador });
     },
+
+    // Pagamentos
+    pagamentoCriado: (pagamento) => {
+      io.to("pagamentos").emit("payment:created", {
+        payment_id: pagamento.payment.id,
+        payment_number: pagamento.payment.payment_number,
+        table_ids: pagamento.payment.table_ids,
+        total_amount: pagamento.payment.total_amount,
+        status: pagamento.payment.status,
+        processed_by: pagamento.payment.processed_by_user,
+      });
+      // Emitir para mesas específicas
+      if (
+        pagamento.payment.table_ids &&
+        Array.isArray(pagamento.payment.table_ids)
+      ) {
+        pagamento.payment.table_ids.forEach((idMesa) => {
+          io.to(`mesa:${idMesa}`).emit("payment:created", pagamento);
+        });
+      }
+    },
+    pedidosPagos: (data) => {
+      io.to("pedidos").emit("order:paid", data);
+      // Emitir para mesas específicas
+      if (data.table_ids && Array.isArray(data.table_ids)) {
+        data.table_ids.forEach((idMesa) => {
+          io.to(`mesa:${idMesa}`).emit("order:paid", data);
+        });
+      }
+    },
+    pagamentoReembolsado: (data) => {
+      io.to("pagamentos").emit("payment:refunded", data);
+      io.to("gestores").emit("payment:refunded", data);
+    },
+
+    // Estatísticas - Real-time updates
+    estatisticasAtualizadas: (stats) => {
+      io.to("gestores").emit("stats:updated", stats);
+    },
+    estatisticasLiveAtualizadas: (liveStats) => {
+      io.to("gestores").emit("stats:live:updated", liveStats);
+    },
+    estatisticasStaffAtualizadas: (staffStats) => {
+      io.to("gestores").emit("stats:staff:updated", staffStats);
+    },
+    estatisticasTopItensAtualizadas: (topItems) => {
+      io.to("gestores").emit("stats:topitems:updated", topItems);
+    },
+    estatisticasUserAtualizadas: (userId, userStats) => {
+      io.to(`user:${userId}`).emit("stats:user:updated", userStats);
+    },
   };
 };
 

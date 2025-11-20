@@ -3,7 +3,9 @@ const { validateUUID } = require("../../uuid-validation");
 // Configurar handlers de eventos do WebSocket
 const configurarManipuladoresSocket = (io) => {
   io.on("connection", (socket) => {
-    console.log(`✅ Cliente conectado: ${socket.utilizador.username} (${socket.id})`);
+    console.log(
+      `✅ Cliente conectado: ${socket.utilizador.username} (${socket.id})`
+    );
 
     // Juntar rooms automáticas baseadas em permissões
     socket.join("pedidos"); // Todos recebem updates de pedidos
@@ -11,16 +13,36 @@ const configurarManipuladoresSocket = (io) => {
     socket.join("menu"); // Todos recebem updates de menu
     socket.join("stock"); // Todos recebem updates de stock
     socket.join("utilizadores"); // Todos recebem updates de utilizadores
+    socket.join(`user:${socket.utilizador.id}`); // Room pessoal do utilizador
 
     if (socket.eGestor) {
       socket.join("gestores"); // Room exclusiva para gestores
+      socket.join("estatisticas"); // Room de estatísticas para gestores
     }
+
+    // Evento: Cliente subscreve a estatísticas pessoais
+    socket.on("subscribe:stats:user", () => {
+      socket.join(`stats:user:${socket.utilizador.id}`);
+      console.log(
+        `📊 ${socket.utilizador.username} subscreveu às suas estatísticas`
+      );
+    });
+
+    // Evento: Cliente dessubscreve de estatísticas pessoais
+    socket.on("unsubscribe:stats:user", () => {
+      socket.leave(`stats:user:${socket.utilizador.id}`);
+      console.log(
+        `📊 ${socket.utilizador.username} dessubscreveu das suas estatísticas`
+      );
+    });
 
     // Evento: Cliente subscreve a mesas específicas
     socket.on("subscribe:table", (idMesa) => {
       if (validateUUID(idMesa).isValid) {
         socket.join(`mesa:${idMesa}`);
-        console.log(`📍 ${socket.utilizador.username} subscreveu à mesa ${idMesa}`);
+        console.log(
+          `📍 ${socket.utilizador.username} subscreveu à mesa ${idMesa}`
+        );
       }
     });
 

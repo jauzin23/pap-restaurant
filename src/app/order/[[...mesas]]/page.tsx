@@ -356,7 +356,7 @@ function PedidoPageContent({
 
       setOrderSuccess(true);
       setTimeout(() => {
-        router.push("/ ");
+        router.push("/pagina-teste-new");
       }, 2000);
     } catch (error) {
       console.error("Error creating order:", error);
@@ -365,7 +365,7 @@ function PedidoPageContent({
   };
 
   const cancelOrder = () => {
-    router.push("/ ");
+    router.push("/pagina-teste-new ");
   };
 
   if (loading || isLoading) {

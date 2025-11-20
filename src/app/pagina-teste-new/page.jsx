@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import BlurText from "../components/BlurText";
 import Sidebar from "../components/Sidebar";
 import WelcomeCard from "../components/WelcomeCard";
-import DashboardCards from "../components/DashboardCards";
 import { BackgroundBeams } from "../components/BackgroundBeams";
 import "./page.scss";
 import { auth, users, profileImages, API_FILES_URL } from "../../lib/api";
@@ -15,6 +13,8 @@ import MenuComponent from "../components/MenuComponent";
 import StockComponent from "../components/StockComponent";
 import TableLayoutManager from "../components/TableLayout";
 import ManagerStaffView from "../components/ManagerStaffView";
+import PayOrdersComponent from "../components/PayOrdersComponent";
+import GamificationView from "../components/GamificationView";
 import {
   WebSocketProvider,
   useWebSocketContext,
@@ -131,11 +131,19 @@ const RestaurantDashboardContent = () => {
 
   // Function to handle navigation clicks
   const handleNavClick = (navItem) => {
+    console.log("Navigation clicked:", navItem);
     setActiveNavItem(navItem);
     // Reset scroll to top when changing tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
-    // Reset to dashboard view when clicking on navigation items (except Ementa and Stock)
-    if (navItem !== "Ementa" && navItem !== "Stock" && currentView) {
+    // Reset to dashboard view when clicking on navigation items (except special tabs)
+    if (
+      navItem !== "Ementa" &&
+      navItem !== "Stock" &&
+      navItem !== "Mesas" &&
+      navItem !== "Staff" &&
+      navItem !== "Pagamentos" &&
+      currentView
+    ) {
       // Keep the current view type but show dashboard
       // currentView will be used to determine which dashboard to show
     }
@@ -323,8 +331,14 @@ const RestaurantDashboardContent = () => {
       >
         <main className="main-content fade-in-delayed">
           {/* Only render views when user data is loaded */}
-          {user && currentView && (
+          {user && (
             <>
+              {(() => {
+                console.log("Active nav item:", activeNavItem);
+                console.log("Current view:", currentView);
+                console.log("User:", user ? "loaded" : "not loaded");
+                return null;
+              })()}
               {activeNavItem === "Ementa" ? (
                 <MenuComponent />
               ) : activeNavItem === "Stock" ? (
@@ -333,15 +347,16 @@ const RestaurantDashboardContent = () => {
                 <TableLayoutManager user={user} />
               ) : activeNavItem === "Staff" ? (
                 <ManagerStaffView />
-              ) : (
+              ) : activeNavItem === "Pagamentos" ? (
+                <PayOrdersComponent />
+              ) : activeNavItem === "Gamificação" ? (
+                <GamificationView />
+              ) : currentView ? (
                 <>
                   {isManager && currentView === "manager" ? (
                     <>
                       {/* Welcome Card */}
                       <WelcomeCard />
-
-                      {/* Dashboard Cards */}
-                      <DashboardCards />
 
                       <ManagerView
                         expandedSections={expandedSections}
@@ -366,7 +381,7 @@ const RestaurantDashboardContent = () => {
                     />
                   )}
                 </>
-              )}
+              ) : null}
             </>
           )}
         </main>

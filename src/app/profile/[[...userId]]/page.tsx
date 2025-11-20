@@ -31,6 +31,7 @@ import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth, users, getAuthToken } from "../../../lib/api";
 import { isAuthenticated } from "../../../lib/auth";
 import { useWebSocketContext } from "../../../contexts/WebSocketContext";
+import { UserPersonalStats } from "../../components/UserPersonalStats";
 import "./page.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -71,6 +72,8 @@ function ProfilePageContent({
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userLabels, setUserLabels] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -353,7 +356,40 @@ function ProfilePageContent({
 
   // Go back
   const goBack = () => {
-    router.push("/ ");
+    router.push("/pagina-teste-new");
+  };
+
+  // Handle delete user
+  const handleDeleteUser = async () => {
+    if (!profileUser || !canEditManagerFields) return;
+
+    try {
+      setIsDeleting(true);
+      const token = getAuthToken();
+
+      const response = await fetch(`${API_BASE_URL}/users/${profileUser.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        showToast("Utilizador eliminado com sucesso", "success");
+        setTimeout(() => {
+          router.push("/pagina-teste-new");
+        }, 1500);
+      } else {
+        const error = await response.json();
+        showToast(error.error || "Erro ao eliminar utilizador", "error");
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      showToast("Erro ao eliminar utilizador", "error");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   // Image handling functions
@@ -1260,10 +1296,27 @@ function ProfilePageContent({
                   >
                     <X size={16} />
                   </button>
+                  {canEditManagerFields && !isOwnProfile && (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="delete-button"
+                      disabled={isSaving}
+                      style={{ marginLeft: "auto" }}
+                    >
+                      Eliminar
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Personal Statistics Section - Full Width */}
+          {profileUser && (
+            <div style={{ marginTop: "48px", width: "100%" }}>
+              <UserPersonalStats userId={profileUser.$id || profileUser.id} />
+            </div>
+          )}
         </div>
       </main>
 
@@ -1676,6 +1729,114 @@ function ProfilePageContent({
                   }}
                 >
                   Aplicar Corte
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 999999,
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "32px",
+                borderRadius: "16px",
+                maxWidth: "400px",
+                width: "90%",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                style={{
+                  margin: "0 0 16px 0",
+                  fontSize: "20px",
+                  fontWeight: "700",
+                  color: "#ef4444",
+                }}
+              >
+                Eliminar Utilizador
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 24px 0",
+                  color: "#64748b",
+                  lineHeight: "1.6",
+                }}
+              >
+                Tem a certeza que deseja eliminar{" "}
+                <strong>{profileUser?.name}</strong>? Esta ação não pode ser
+                revertida.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    border: "1px solid #e5e7eb",
+                    backgroundColor: "white",
+                    color: "#64748b",
+                    cursor: isDeleting ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    opacity: isDeleting ? 0.5 : 1,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={isDeleting}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#ef4444",
+                    color: "white",
+                    cursor: isDeleting ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: isDeleting ? 0.7 : 1,
+                  }}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 size={16} className="spinner" />A eliminar...
+                    </>
+                  ) : (
+                    "Eliminar"
+                  )}
                 </button>
               </div>
             </div>

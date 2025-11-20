@@ -13,15 +13,47 @@ import {
   Grid,
   Edit,
   Package,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
+  ShoppingCart,
+  ChefHat,
+  Utensils,
+  PieChart,
+  Activity,
 } from "lucide-react";
 import { Avatars } from "appwrite";
 import { useApp } from "@/contexts/AppContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
+import { useStatsWebSocket } from "@/hooks/useStatsWebSocket";
 import NumberFlow from "@number-flow/react";
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart as RechartsPie,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+} from "recharts";
 import "./ManagerView.scss";
 import { getImageUrl as getImageUrlHelper } from "../../lib/api";
-import WeeklyRevenueChart from "./WeeklyRevenueChart";
 import TableLayoutManager from "./TableLayout";
+import DashboardCards from "./DashboardCards";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -41,91 +73,208 @@ const ManagerView = ({
   const avatars = new Avatars(client);
   const { socket, connected } = useWebSocketContext();
 
+  // Use WebSocket hook for real-time stats
+  const {
+    liveStats,
+    staffStats,
+    topItems: topItemsData,
+    kitchenStats,
+    loading: statsLoading,
+  } = useStatsWebSocket();
+
   // State for table management view
   const [showTableManagement, setShowTableManagement] = React.useState(false);
 
   // State for real-time stats
-  const [activeOrders, setActiveOrders] = React.useState(24);
-  const [occupiedTables, setOccupiedTables] = React.useState({
-    occupied: 18,
-    total: 25,
-  });
-  const [todayReservations, setTodayReservations] = React.useState(32);
-  const [dailyProfit, setDailyProfit] = React.useState(2.8);
-  const [ordersServed, setOrdersServed] = React.useState(156);
-  const [occupancyRate, setOccupancyRate] = React.useState(89);
+  const [monthlyRevenue, setMonthlyRevenue] = React.useState(0);
 
-  // Fetch initial stats
+  // Statistics data states
+  const [topSellingItems, setTopSellingItems] = React.useState([]);
+  const [categoryPerformance, setCategoryPerformance] = React.useState([]);
+  const [hourlyRevenue, setHourlyRevenue] = React.useState([]);
+  const [staffPerformance, setStaffPerformance] = React.useState([]);
+  const [revenueOverview, setRevenueOverview] = React.useState(null);
+  const [weeklyPattern, setWeeklyPattern] = React.useState([]);
+  const [kitchenEfficiency, setKitchenEfficiency] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  // Update states when WebSocket data arrives
   React.useEffect(() => {
-    const fetchStats = async () => {
+    if (liveStats?.current) {
+      setMonthlyRevenue(liveStats.current.revenue_month || 0);
+    }
+  }, [liveStats]);
+
+  React.useEffect(() => {
+    if (staffStats?.staff) {
+      setStaffPerformance(
+        staffStats.staff.slice(0, 5).map((s) => ({
+          user_id: s.user_id,
+          name: s.name.split(" ")[0],
+          fullName: s.name,
+          profile_image: s.profile_image,
+          orders: s.orders_handled,
+          prepared: s.orders_prepared,
+          delivered: s.orders_delivered,
+        }))
+      );
+    }
+  }, [staffStats]);
+
+  React.useEffect(() => {
+    if (topItemsData?.items) {
+      setTopSellingItems(
+        topItemsData.items.slice(0, 5).map((item) => ({
+          nome: item.item_name,
+          vendido: item.times_sold,
+          receita: item.total_revenue,
+          image_url: item.image_url,
+        }))
+      );
+    }
+  }, [topItemsData]);
+
+  React.useEffect(() => {
+    if (kitchenStats?.response_times) {
+      setKitchenEfficiency(kitchenStats.response_times);
+    }
+  }, [kitchenStats]);
+
+  // Fetch remaining statistics (not covered by WebSocket yet)
+  React.useEffect(() => {
+    const fetchRemainingStats = async () => {
+      setLoading(true);
+      const token = localStorage.getItem("auth_token");
+
+      if (!token) {
+        console.error("No authentication token found");
+        setLoading(false);
+        return;
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+
       try {
-        const response = await fetch(`${API_BASE_URL}/orders/stats`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setActiveOrders(data.activeOrders || 24);
-          setOccupiedTables(data.occupiedTables || { occupied: 18, total: 25 });
-          setTodayReservations(data.todayReservations || 32);
-          setDailyProfit(data.dailyProfit || 2.8);
-          setOrdersServed(data.ordersServed || 156);
-          setOccupancyRate(data.occupancyRate || 89);
+        const [categories, hourly, revenue, weekly, kitchen] =
+          await Promise.all([
+            fetch(`${API_BASE_URL}/stats/categories/performance`, {
+              headers,
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE_URL}/stats/time/hourly`, { headers }).then((r) =>
+              r.ok ? r.json() : null
+            ),
+            fetch(`${API_BASE_URL}/stats/revenue/overview`, { headers }).then(
+              (r) => (r.ok ? r.json() : null)
+            ),
+            fetch(`${API_BASE_URL}/stats/time/weekly-pattern`, {
+              headers,
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE_URL}/stats/operations/tempo-medio-resposta`, {
+              headers,
+            }).then((r) => (r.ok ? r.json() : null)),
+          ]);
+
+        // Update chart data
+        if (categories?.categories) {
+          setCategoryPerformance(
+            categories.categories.map((cat) => ({
+              name: cat.category,
+              value: cat.total_revenue,
+              percentage: cat.percentage_of_revenue,
+            }))
+          );
+        }
+
+        if (hourly?.hourly_data) {
+          setHourlyRevenue(
+            hourly.hourly_data.map((h) => ({
+              hora: `${h.hour}:00`,
+              receita: h.revenue,
+              pedidos: h.orders_count,
+            }))
+          );
+        }
+
+        if (revenue) {
+          setRevenueOverview(revenue);
+        }
+
+        if (weekly?.days) {
+          setWeeklyPattern(
+            weekly.days.map((d) => ({
+              dia: d.day,
+              diaCompleto: d.day,
+              receita: d.revenue,
+              pedidos: d.orders,
+            }))
+          );
+        }
+
+        if (kitchen?.response_times) {
+          setKitchenEfficiency(kitchen.response_times);
         }
       } catch (error) {
-        console.error("❌ Failed to fetch stats:", error);
+        console.error("❌ Failed to fetch statistics:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchStats();
+    fetchRemainingStats();
+    // Refresh every 5 minutes (WebSocket handles real-time updates)
+    const interval = setInterval(fetchRemainingStats, 300000);
+    return () => clearInterval(interval);
   }, []);
 
-  // WebSocket real-time updates
-  React.useEffect(() => {
-    if (!socket || !connected) return;
+  // Chart colors
+  const COLORS = ["#ff6b35", "#ff6b35", "#ff6b35", "#ff6b35", "#ff6b35"];
 
-    console.log("🔌 ManagerView: Setting up WebSocket listeners");
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="custom-tooltip">
+          <p className="tooltip-label">{label}</p>
+          {payload.map((entry, index) => {
+            const isInteger =
+              entry.name === "Pedidos" || entry.dataKey === "count";
+            return (
+              <p
+                key={index}
+                className="tooltip-item"
+                style={{ color: entry.color }}
+              >
+                {entry.name}:{" "}
+                <strong>
+                  {typeof entry.value === "number" && entry.value !== null
+                    ? isInteger
+                      ? Math.round(entry.value)
+                      : entry.value.toFixed(2)
+                    : entry.value || "0"}
+                </strong>
+              </p>
+            );
+          })}
+        </div>
+      );
+    }
+    return null;
+  };
 
-    const handleOrderCreated = (order) => {
-      console.log("📦 ManagerView: New order received", order);
-      setActiveOrders((prev) => prev + 1);
-      setOrdersServed((prev) => prev + 1);
-    };
+  if (loading) {
+    return (
+      <div className="manager-view">
+        <div className="section-header"></div>
+        <div className="loading-container">
+          <div className="loading-content">
+            <Activity size={48} className="loading-icon animate-pulse" />
+            <p className="loading-text">A carregar estatísticas...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    const handleOrderUpdated = (order) => {
-      console.log("📝 ManagerView: Order updated", order);
-      // Recalculate stats based on order status changes
-      if (order.status === "completo") {
-        setActiveOrders((prev) => Math.max(0, prev - 1));
-      }
-    };
-
-    const handleOrderDeleted = ({ id }) => {
-      console.log("🗑️ ManagerView: Order deleted", id);
-      setActiveOrders((prev) => Math.max(0, prev - 1));
-    };
-
-    const handleTableUpdated = (table) => {
-      console.log("📍 ManagerView: Table updated", table);
-      // Refresh occupancy stats when tables change
-    };
-
-    // Subscribe to events
-    socket.on("order:created", handleOrderCreated);
-    socket.on("order:updated", handleOrderUpdated);
-    socket.on("order:deleted", handleOrderDeleted);
-    socket.on("table:updated", handleTableUpdated);
-
-    // Cleanup
-    return () => {
-      console.log("🔌 ManagerView: Cleaning up WebSocket listeners");
-      socket.off("order:created", handleOrderCreated);
-      socket.off("order:updated", handleOrderUpdated);
-      socket.off("order:deleted", handleOrderDeleted);
-      socket.off("table:updated", handleTableUpdated);
-    };
-  }, [socket, connected]);
   // Profile Image Component with fallback
   const ProfileImage = ({
     src,
@@ -224,119 +373,235 @@ const ManagerView = ({
 
   return (
     <div className="manager-view">
-      {/* Section Header */}
-      <div className="section-header">
-        <h2 className="section-title">Análise de Desempenho</h2>
+      {/* Dashboard Cards */}
+      <DashboardCards
+        showAllMetrics={true}
+        customMetrics={{
+          dailyRevenue: liveStats?.current?.revenue_today || 0,
+          monthlyRevenue: monthlyRevenue,
+          activeOrders: liveStats?.current?.orders_in_progress || 0,
+          todayReservations: liveStats?.current?.orders_today || 0,
+          kitchenEfficiency: kitchenEfficiency,
+        }}
+      />
+
+      {/* Main Charts Grid */}
+      <div className="charts-grid">
+        {/* Top Selling Items - Horizontal Bars */}
+        {topSellingItems.length > 0 && (
+          <div className="card chart-card">
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Utensils size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Itens Mais Vendidos</h3>
+                <p>Top 5 produtos</p>
+              </div>
+            </div>
+
+            <div className="chart-container">
+              {topSellingItems.map((item, index) => (
+                <div key={index} className="top-item-row">
+                  {/* Image and Name */}
+                  <div className="item-info">
+                    <img
+                      src={item.image_url || "/placeholder-food.png"}
+                      alt={item.nome}
+                      onError={(e) => {
+                        e.target.src =
+                          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8h1a4 4 0 0 1 0 8h-1'/%3E%3Cpath d='M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z'/%3E%3Cline x1='6' y1='1' x2='6' y2='4'/%3E%3Cline x1='10' y1='1' x2='10' y2='4'/%3E%3Cline x1='14' y1='1' x2='14' y2='4'/%3E%3C/svg%3E";
+                      }}
+                    />
+                    <span>{item.nome}</span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="item-progress-container">
+                    <div className="progress-bar-wrapper">
+                      <div
+                        className="progress-bar-fill"
+                        style={{
+                          width: `${
+                            (item.vendido / topSellingItems[0].vendido) * 100
+                          }%`,
+                          background: COLORS[index % COLORS.length],
+                        }}
+                      >
+                        <span>{item.vendido}</span>
+                      </div>
+                    </div>
+                    <span className="item-revenue">
+                      {item.receita ? item.receita.toFixed(2) : "0.00"}€
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Staff Performance - Modern Cards */}
+        {staffPerformance.length > 0 && (
+          <div className="card staff-performance-section">
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Users size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Desempenho da Equipa</h3>
+                <p>Top 5 funcionários</p>
+              </div>
+            </div>
+
+            <div className="staff-performance-cards">
+              {staffPerformance.map((staff, index) => (
+                <div
+                  key={index}
+                  className="staff-card"
+                  onClick={() =>
+                    (window.location.href = `/profile?userId=${staff.user_id}`)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  {staff.profile_image ? (
+                    <div className="staff-avatar-wrapper">
+                      <img
+                        src={staff.profile_image}
+                        alt={staff.fullName || staff.name}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="staff-rank-badge"
+                      style={{ background: COLORS[index % COLORS.length] }}
+                    >
+                      #{index + 1}
+                    </div>
+                  )}
+
+                  <div className="staff-info-section">
+                    <div className="staff-name-text">
+                      {staff.fullName || staff.name}
+                    </div>
+                    <div className="staff-stats-text">
+                      {staff.orders} pedidos • {staff.prepared} preparados •{" "}
+                      {staff.delivered} entregues
+                    </div>
+                  </div>
+
+                  <div className="staff-total-count">{staff.orders}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Manager Dashboard Grid */}
-      <div className="manager-dashboard-grid fade-in-delayed">
-        <div className="center-section">
-          <div className="progress-card card">
+      {/* Secondary Charts Grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        {/* Weekly Pattern */}
+        {weeklyPattern.length > 0 && (
+          <div
+            className="card"
+            style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
+          >
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Activity size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Padrão Semanal</h3>
+                <p>Receita média por dia</p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart
+                data={weeklyPattern}
+                margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="dia" stroke="#94a3b8" />
+                <YAxis
+                  stroke="#94a3b8"
+                  label={{
+                    value: "Receita (€)",
+                    angle: -90,
+                    position: "insideLeft",
+                  }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: "12px" }} />
+                <Line
+                  type="monotone"
+                  dataKey="receita"
+                  name="Receita"
+                  stroke="#4facfe"
+                  strokeWidth={3}
+                  dot={{ r: 6, fill: "#4facfe" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Hourly Revenue */}
+        {hourlyRevenue.length > 0 && (
+          <div
+            className="card"
+            style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
+          >
             <div className="card-header-modern">
               <div className="card-icon-wrapper">
                 <BarChart2 size={20} />
               </div>
               <div className="card-header-text">
-                <h3>Receita Semanal</h3>
-                <p>Últimos 7 dias</p>
+                <h3>Receita por Hora</h3>
+                <p>Hoje</p>
               </div>
             </div>
-            <WeeklyRevenueChart data={chartData} />
-          </div>
-        </div>
-        <div className="right-section">
-          <div className="time-tracker-card card">
-            <div className="card-header-modern">
-              <div className="card-icon-wrapper">
-                <Clock size={20} />
-              </div>
-              <div className="card-header-text">
-                <h3>Tempo Médio</h3>
-                <p>Preparação de pedidos</p>
-              </div>
-            </div>
-            <div className="time-circle">
-              <svg viewBox="0 0 200 200" className="circle-svg">
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart
+                data={hourlyRevenue}
+                margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+              >
                 <defs>
-                  <linearGradient
-                    id="orangeGradient"
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="100%"
-                  >
-                    <stop offset="0%" stopColor="#ff6b35" />
-                    <stop offset="100%" stopColor="#ff8c5a" />
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ff6b35" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#ff6b35" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="85"
-                  fill="none"
-                  stroke="#f1f5f9"
-                  strokeWidth="10"
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="hora" stroke="#94a3b8" />
+                <YAxis
+                  stroke="#94a3b8"
+                  label={{
+                    value: "Receita (€)",
+                    angle: -90,
+                    position: "insideLeft",
+                  }}
                 />
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="85"
-                  fill="none"
-                  stroke="url(#orangeGradient)"
-                  strokeWidth="10"
-                  strokeDasharray="534"
-                  strokeDashoffset="150"
-                  strokeLinecap="round"
-                  transform="rotate(-90 100 100)"
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="receita"
+                  name="Receita"
+                  stroke="#ff6b35"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
                 />
-              </svg>
-              <div className="time-display">
-                <div className="time">18min</div>
-                <div className="time-label">Por Pedido</div>
-              </div>
-            </div>
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-
-          <div className="onboarding-card card">
-            <div className="card-header-modern">
-              <div className="card-icon-wrapper">
-                <Package size={20} />
-              </div>
-              <div className="card-header-text">
-                <h3>Estado de Pedidos</h3>
-                <p>
-                  <NumberFlow value={activeOrders} /> ativos
-                </p>
-              </div>
-            </div>
-            <div className="onboarding-bars">
-              <div className="progress-bar">
-                <div className="bar-label">40%</div>
-                <div className="bar-fill task"></div>
-              </div>
-              <div className="progress-bar">
-                <div className="bar-label">35%</div>
-                <div className="bar-fill progress"></div>
-              </div>
-              <div className="progress-bar">
-                <div className="bar-label">25%</div>
-                <div className="bar-fill incomplete"></div>
-              </div>
-            </div>
-            <div className="legend">
-              <span className="legend-item">
-                <span className="dot task"></span> Pronto
-              </span>
-              <span className="legend-item">
-                <span className="dot progress"></span> Preparando
-              </span>
-              <span className="legend-item">
-                <span className="dot incomplete"></span> Pendente
-              </span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

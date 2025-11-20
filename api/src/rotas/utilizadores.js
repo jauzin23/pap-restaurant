@@ -1,7 +1,10 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const pool = require("../../db");
-const { autenticarToken, requerGestor } = require("../intermediarios/autenticacao");
+const {
+  autenticarToken,
+  requerGestor,
+} = require("../intermediarios/autenticacao");
 const tratarErro = require("../intermediarios/tratadorErros");
 
 const router = express.Router();
@@ -189,7 +192,9 @@ router.put("/:id", autenticarToken, async (req, res) => {
     );
 
     if (verificarUtilizador.rows.length === 0) {
-      return res.status(404).json({ error: "Utilizador autenticado não encontrado" });
+      return res
+        .status(404)
+        .json({ error: "Utilizador autenticado não encontrado" });
     }
 
     const labelsUtilizador = verificarUtilizador.rows[0].labels || [];
@@ -199,7 +204,8 @@ router.put("/:id", autenticarToken, async (req, res) => {
     // Verificar permissões: apenas gestores ou o próprio utilizador podem editar
     if (!eGestor && !eProprioUtilizador) {
       return res.status(403).json({
-        error: "Acesso negado. Apenas gestores ou o próprio utilizador podem editar.",
+        error:
+          "Acesso negado. Apenas gestores ou o próprio utilizador podem editar.",
       });
     }
 
@@ -242,7 +248,7 @@ router.put("/:id", autenticarToken, async (req, res) => {
       Object.entries(camposBasicos).forEach(([campo, valor]) => {
         if (valor !== undefined) {
           // Only quote NIF, other fields don't need quotes
-          const campoSQL = campo === 'NIF' ? `"${campo}"` : campo;
+          const campoSQL = campo === "NIF" ? `"${campo}"` : campo;
           camposAtualizar.push(`${campoSQL} = $${indiceParametro}`);
           valoresAtualizar.push(valor);
           indiceParametro++;
@@ -262,7 +268,7 @@ router.put("/:id", autenticarToken, async (req, res) => {
       Object.entries(camposBasicos).forEach(([campo, valor]) => {
         if (valor !== undefined) {
           // Only quote NIF, other fields don't need quotes
-          const campoSQL = campo === 'NIF' ? `"${campo}"` : campo;
+          const campoSQL = campo === "NIF" ? `"${campo}"` : campo;
           camposAtualizar.push(`${campoSQL} = $${indiceParametro}`);
           valoresAtualizar.push(valor);
           indiceParametro++;
@@ -275,7 +281,8 @@ router.put("/:id", autenticarToken, async (req, res) => {
       );
       if (tentouEditarCamposGestor) {
         return res.status(403).json({
-          error: "Acesso negado. Apenas gestores podem editar contrato, hrs, férias e labels.",
+          error:
+            "Acesso negado. Apenas gestores podem editar contrato, hrs, férias e labels.",
         });
       }
     }
@@ -345,6 +352,167 @@ router.get("/:userId/profile-bucket", autenticarToken, async (req, res) => {
       });
     } else {
       res.json({ documents: [] });
+    }
+  } catch (erro) {
+    tratarErro(erro, res);
+  }
+});
+
+// Eliminar utilizador (apenas gestores)
+router.delete("/:id", autenticarToken, requerGestor, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar se o utilizador existe
+    const verificarUtilizador = await pool.query(
+      "SELECT id, email, username FROM users WHERE id = $1",
+      [id]
+    );
+
+    if (verificarUtilizador.rows.length === 0) {
+      return res.status(404).json({ error: "Utilizador não encontrado" });
+    }
+
+    // Impedir que o gestor se elimine a si próprio
+    if (req.utilizador.userId === id) {
+      return res.status(403).json({
+        error: "Não pode eliminar a sua própria conta",
+      });
+    }
+
+    // Usar uma transação para garantir que todas as operações são executadas
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Atualizar referências em vez de eliminar (SET NULL onde permitido)
+      // Payments - processed_by
+      try {
+        await client.query(
+          "UPDATE payments SET processed_by = NULL WHERE processed_by = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Payments update skipped:", e.message);
+      }
+
+      // Order items - aceite_por, preparado_por, entregue_por, a_ser_entregue_por
+      try {
+        await client.query(
+          "UPDATE order_items SET aceite_por = NULL WHERE aceite_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Order items aceite_por update skipped:", e.message);
+      }
+
+      try {
+        await client.query(
+          "UPDATE order_items SET preparado_por = NULL WHERE preparado_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Order items preparado_por update skipped:", e.message);
+      }
+
+      try {
+        await client.query(
+          "UPDATE order_items SET entregue_por = NULL WHERE entregue_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Order items entregue_por update skipped:", e.message);
+      }
+
+      try {
+        await client.query(
+          "UPDATE order_items SET a_ser_entregue_por = NULL WHERE a_ser_entregue_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log(
+          "Order items a_ser_entregue_por update skipped:",
+          e.message
+        );
+      }
+
+      // Paid order items - aceite_por, preparado_por, entregue_por, a_ser_entregue_por
+      try {
+        await client.query(
+          "UPDATE paid_order_items SET aceite_por = NULL WHERE aceite_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Paid order items aceite_por update skipped:", e.message);
+      }
+
+      try {
+        await client.query(
+          "UPDATE paid_order_items SET preparado_por = NULL WHERE preparado_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log(
+          "Paid order items preparado_por update skipped:",
+          e.message
+        );
+      }
+
+      try {
+        await client.query(
+          "UPDATE paid_order_items SET entregue_por = NULL WHERE entregue_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Paid order items entregue_por update skipped:", e.message);
+      }
+
+      try {
+        await client.query(
+          "UPDATE paid_order_items SET a_ser_entregue_por = NULL WHERE a_ser_entregue_por = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log(
+          "Paid order items a_ser_entregue_por update skipped:",
+          e.message
+        );
+      }
+
+      // Points history
+      try {
+        await client.query(
+          "DELETE FROM user_points_history WHERE user_id = $1",
+          [id]
+        );
+      } catch (e) {
+        console.log("Points history delete skipped:", e.message);
+      }
+
+      // Attendance records (se existir)
+      try {
+        await client.query("DELETE FROM attendance WHERE user_id = $1", [id]);
+      } catch (e) {
+        console.log("Attendance delete skipped:", e.message);
+      }
+
+      // Eliminar o utilizador
+      await client.query("DELETE FROM users WHERE id = $1", [id]);
+
+      await client.query("COMMIT");
+      client.release();
+
+      // Emitir evento WebSocket
+      req.app.get("emissoresClientes").utilizadorEliminado(id);
+
+      res.json({
+        message: "Utilizador eliminado com sucesso",
+        userId: id,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      client.release();
+      throw error;
     }
   } catch (erro) {
     tratarErro(erro, res);
