@@ -8,7 +8,7 @@ import {
   Calendar,
   Star,
   ChefHat,
-  DollarSign,
+  Euro,
   Package,
   Clock,
   Activity,

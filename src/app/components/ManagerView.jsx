@@ -15,19 +15,21 @@ import {
   Package,
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  Euro,
   Users,
   ShoppingCart,
   ChefHat,
   Utensils,
   PieChart,
   Activity,
+  Calendar,
 } from "lucide-react";
 import { Avatars } from "appwrite";
 import { useApp } from "@/contexts/AppContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import { useStatsWebSocket } from "@/hooks/useStatsWebSocket";
 import NumberFlow from "@number-flow/react";
+import { Select } from "antd";
 import {
   LineChart,
   Line,
@@ -95,6 +97,10 @@ const ManagerView = ({
   const [staffPerformance, setStaffPerformance] = React.useState([]);
   const [revenueOverview, setRevenueOverview] = React.useState(null);
   const [weeklyPattern, setWeeklyPattern] = React.useState([]);
+  const [monthlyPattern, setMonthlyPattern] = React.useState([]);
+  const [availableMonths, setAvailableMonths] = React.useState([]);
+  const [selectedMonth, setSelectedMonth] = React.useState("");
+  const [avgBillData, setAvgBillData] = React.useState(null);
   const [kitchenEfficiency, setKitchenEfficiency] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -155,7 +161,7 @@ const ManagerView = ({
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
-        const [categories, hourly, revenue, weekly, kitchen] =
+        const [categories, hourly, revenue, weekly, kitchen, months, avgBill] =
           await Promise.all([
             fetch(`${API_BASE_URL}/stats/categories/performance`, {
               headers,
@@ -170,6 +176,12 @@ const ManagerView = ({
               headers,
             }).then((r) => (r.ok ? r.json() : null)),
             fetch(`${API_BASE_URL}/stats/operations/tempo-medio-resposta`, {
+              headers,
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE_URL}/stats/time/available-months`, {
+              headers,
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE_URL}/stats/customers/avg-bill`, {
               headers,
             }).then((r) => (r.ok ? r.json() : null)),
           ]);
@@ -205,6 +217,8 @@ const ManagerView = ({
               dia: d.day,
               diaCompleto: d.day,
               receita: d.revenue,
+              receitaTakeaway: d.takeaway_revenue || 0,
+              receitaPresencial: d.dinein_revenue || 0,
               pedidos: d.orders,
             }))
           );
@@ -212,6 +226,18 @@ const ManagerView = ({
 
         if (kitchen?.response_times) {
           setKitchenEfficiency(kitchen.response_times);
+        }
+
+        if (months?.months) {
+          setAvailableMonths(months.months);
+          // Set current month as default
+          if (months.months.length > 0 && !selectedMonth) {
+            setSelectedMonth(months.months[0].value);
+          }
+        }
+
+        if (avgBill) {
+          setAvgBillData(avgBill);
         }
       } catch (error) {
         console.error("❌ Failed to fetch statistics:", error);
@@ -225,6 +251,45 @@ const ManagerView = ({
     const interval = setInterval(fetchRemainingStats, 300000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch monthly pattern when selected month changes
+  React.useEffect(() => {
+    if (!selectedMonth) return;
+
+    const fetchMonthlyPattern = async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) return;
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/stats/time/monthly-pattern?month=${selectedMonth}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.days) {
+            setMonthlyPattern(
+              data.days.map((d) => ({
+                dia: d.day,
+                receita: d.revenue,
+                receitaTakeaway: d.takeaway_revenue || 0,
+                receitaPresencial: d.dinein_revenue || 0,
+                pedidos: d.orders,
+                ticketMedio: d.avg_order_value,
+              }))
+            );
+          }
+        }
+      } catch (error) {
+        console.error("❌ Failed to fetch monthly pattern:", error);
+      }
+    };
+
+    fetchMonthlyPattern();
+  }, [selectedMonth]);
 
   // Chart colors
   const COLORS = ["#ff6b35", "#ff6b35", "#ff6b35", "#ff6b35", "#ff6b35"];
@@ -266,10 +331,7 @@ const ManagerView = ({
       <div className="manager-view">
         <div className="section-header"></div>
         <div className="loading-container">
-          <div className="loading-content">
-            <Activity size={48} className="loading-icon animate-pulse" />
-            <p className="loading-text">A carregar estatísticas...</p>
-          </div>
+          <div className="loading-content"></div>
         </div>
       </div>
     );
@@ -498,11 +560,11 @@ const ManagerView = ({
         )}
       </div>
 
-      {/* Secondary Charts Grid */}
+      {/* Secondary Charts Grid - Full Width */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
+          display: "flex",
+          flexDirection: "column",
           gap: "1.5rem",
           marginBottom: "2rem",
         }}
@@ -519,7 +581,7 @@ const ManagerView = ({
               </div>
               <div className="card-header-text">
                 <h3>Padrão Semanal</h3>
-                <p>Receita média por dia</p>
+                <p>Vendas Totais, Takeaway e Presenciais</p>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={280}>
@@ -537,15 +599,108 @@ const ManagerView = ({
                     position: "insideLeft",
                   }}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip
+                  formatter={(value, name) => [`${value.toFixed(2)}€`, name]}
+                />
                 <Legend wrapperStyle={{ fontSize: "12px" }} />
                 <Line
                   type="monotone"
                   dataKey="receita"
-                  name="Receita"
+                  name="Total"
                   stroke="#4facfe"
                   strokeWidth={3}
                   dot={{ r: 6, fill: "#4facfe" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="receitaTakeaway"
+                  name="Takeaway"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{ r: 6, fill: "#10b981" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="receitaPresencial"
+                  name="Presencial"
+                  stroke="#ff6b35"
+                  strokeWidth={3}
+                  dot={{ r: 6, fill: "#ff6b35" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Monthly Pattern */}
+        {monthlyPattern.length > 0 && availableMonths.length > 0 && (
+          <div
+            className="card"
+            style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
+          >
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Activity size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Padrão Mensal</h3>
+                <p style={{ margin: 0 }}>
+                  Vendas Totais, Takeaway e Presenciais
+                </p>
+              </div>
+              <Select
+                value={selectedMonth}
+                onChange={(value) => setSelectedMonth(value)}
+                style={{ width: 200 }}
+                className="custom-select"
+                options={availableMonths.map((month) => ({
+                  value: month.value,
+                  label: month.label,
+                }))}
+              />
+            </div>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart
+                data={monthlyPattern}
+                margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="dia" stroke="#94a3b8" />
+                <YAxis
+                  stroke="#94a3b8"
+                  label={{
+                    value: "Receita (€)",
+                    angle: -90,
+                    position: "insideLeft",
+                  }}
+                />
+                <Tooltip
+                  formatter={(value, name) => [`${value.toFixed(2)}€`, name]}
+                />
+                <Legend wrapperStyle={{ fontSize: "12px" }} />
+                <Line
+                  type="monotone"
+                  dataKey="receita"
+                  name="Total"
+                  stroke="#4facfe"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: "#4facfe" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="receitaTakeaway"
+                  name="Takeaway"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: "#10b981" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="receitaPresencial"
+                  name="Presencial"
+                  stroke="#ff6b35"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: "#ff6b35" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -602,6 +757,165 @@ const ManagerView = ({
             </ResponsiveContainer>
           </div>
         )}
+
+        {/* Average Bill Analysis */}
+        {avgBillData &&
+          monthlyPattern.length > 0 &&
+          availableMonths.length > 0 && (
+            <div
+              className="card"
+              style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
+            >
+              <div className="card-header-modern">
+                <div className="card-icon-wrapper">
+                  <Euro size={20} />
+                </div>
+                <div className="card-header-text">
+                  <h3>Valor Médio Diário</h3>
+                  <p style={{ margin: 0 }}>Média paga por pedido</p>
+                </div>
+                <Select
+                  value={selectedMonth}
+                  onChange={(value) => setSelectedMonth(value)}
+                  style={{ width: 200 }}
+                  className="custom-select"
+                  options={availableMonths.map((month) => ({
+                    value: month.value,
+                    label: month.label,
+                  }))}
+                />
+              </div>
+
+              {/* Summary Stats */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: "1rem",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "1rem",
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    Média Geral
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "bold",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {avgBillData.avg_bill?.toFixed(2)}€
+                  </div>
+                </div>
+                <div
+                  style={{
+                    padding: "1rem",
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    Mediana
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "bold",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {avgBillData.median_bill?.toFixed(2)}€
+                  </div>
+                </div>
+                <div
+                  style={{
+                    padding: "1rem",
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    Mínimo
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "bold",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {avgBillData.min_bill?.toFixed(2)}€
+                  </div>
+                </div>
+                <div
+                  style={{
+                    padding: "1rem",
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                    Máximo
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "bold",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {avgBillData.max_bill?.toFixed(2)}€
+                  </div>
+                </div>
+              </div>
+
+              {/* Daily Average Chart */}
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart
+                  data={monthlyPattern}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="dia" stroke="#94a3b8" />
+                  <YAxis
+                    stroke="#667eea"
+                    label={{
+                      value: "Valor Médio (€)",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
+                  />
+                  <Tooltip
+                    formatter={(value) => [
+                      `${value.toFixed(2)}€`,
+                      "Valor Médio",
+                    ]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                  <Line
+                    type="monotone"
+                    dataKey="ticketMedio"
+                    name="Valor Médio"
+                    stroke="#667eea"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "#667eea" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
       </div>
     </div>
   );

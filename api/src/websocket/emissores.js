@@ -204,6 +204,20 @@ const criarEmissores = (io) => {
     estatisticasUserAtualizadas: (userId, userStats) => {
       io.to(`user:${userId}`).emit("stats:user:updated", userStats);
     },
+
+    // Reservations
+    reservaCriada: (reserva) => {
+      io.to("reservas").emit("reservation:created", reserva);
+      io.to("gestores").emit("reservation:created", reserva);
+    },
+    reservaAtualizada: (reserva) => {
+      io.to("reservas").emit("reservation:updated", reserva);
+      io.to("gestores").emit("reservation:updated", reserva);
+    },
+    reservaEliminada: (idReserva) => {
+      io.to("reservas").emit("reservation:deleted", { id: idReserva });
+      io.to("gestores").emit("reservation:deleted", { id: idReserva });
+    },
   };
 };
 

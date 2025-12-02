@@ -59,6 +59,9 @@ function PedidoPageContent({
   const resolvedParams = React.use(params);
   const mesas = resolvedParams.mesas || [];
 
+  // Check if this is a takeaway order
+  const isTakeaway = mesas.length === 1 && mesas[0] === "takeaway";
+
   const [loading, setLoading] = useState(true);
   const [validTables, setValidTables] = useState<number[]>([]);
   const [validTableIds, setValidTableIds] = useState<string[]>([]);
@@ -77,6 +80,13 @@ function PedidoPageContent({
   const menuGridRef = React.useRef<HTMLDivElement>(null);
   const [isOrderSectionVisible, setIsOrderSectionVisible] = useState(false);
   const [isOrderSectionExiting, setIsOrderSectionExiting] = useState(false);
+
+  // Takeaway customer info states
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [pickupTime, setPickupTime] = useState("");
+  const [specialRequests, setSpecialRequests] = useState("");
 
   const getAuthToken = () => {
     return localStorage.getItem("auth_token");
@@ -147,6 +157,14 @@ function PedidoPageContent({
 
       if (cleanMesas.length === 0) {
         router.push("/ ");
+        return;
+      }
+
+      // Handle takeaway mode
+      if (isTakeaway) {
+        setValidTables([]);
+        setValidTableIds([]);
+        await fetchMenuItems();
         return;
       }
 
@@ -339,14 +357,30 @@ function PedidoPageContent({
   const confirmOrder = async () => {
     if (orderItems.length === 0) return;
 
+    // Validate takeaway customer info
+    if (isTakeaway) {
+      if (!customerName.trim() || !customerPhone.trim()) {
+        alert("Por favor, preencha o nome e telefone do cliente");
+        return;
+      }
+    }
+
     try {
       setIsOrderSubmitting(true);
 
       const orders = orderItems.map((item) => ({
-        table_id: validTableIds,
+        table_id: isTakeaway ? [] : validTableIds,
         menu_item_id: item.$id || item.id,
         notas: item.notes || "",
         price: item.preco || 0,
+        order_type: isTakeaway ? "takeaway" : "dine-in",
+        ...(isTakeaway && {
+          customer_name: customerName.trim(),
+          customer_phone: customerPhone.trim(),
+          customer_email: customerEmail.trim() || null,
+          pickup_time: pickupTime || null,
+          special_requests: specialRequests.trim() || null,
+        }),
       }));
 
       await apiRequest("/orders/batch", {
@@ -408,13 +442,62 @@ function PedidoPageContent({
             <ArrowLeft size={20} />
           </button>
           <h1>
-            Mesa{validTables.length > 1 ? "s" : ""} {validTables.join(", ")}
+            {isTakeaway
+              ? "Pedido para Levar"
+              : `Mesa${validTables.length > 1 ? "s" : ""} ${validTables.join(
+                  ", "
+                )}`}
           </h1>
         </div>
 
         <div className="order-content">
           {/* Left: Menu */}
           <div className="menu-section">
+            {/* Customer Info Form for Takeaway */}
+            {isTakeaway && (
+              <div className="customer-info-card">
+                <h3>Informação do Cliente</h3>
+                <div className="customer-form">
+                  <div className="form-row">
+                    <input
+                      type="text"
+                      placeholder="Nome do Cliente *"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      required
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Telefone *"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-row">
+                    <input
+                      type="email"
+                      placeholder="Email (opcional)"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                    />
+                    <input
+                      type="time"
+                      placeholder="Hora de Levantamento"
+                      value={pickupTime}
+                      onChange={(e) => setPickupTime(e.target.value)}
+                    />
+                  </div>
+                  <textarea
+                    placeholder="Observações especiais (opcional)"
+                    value={specialRequests}
+                    onChange={(e) => setSpecialRequests(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="category-bar">
               {categories.map((category) => (
                 <button

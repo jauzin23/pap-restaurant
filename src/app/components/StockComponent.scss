@@ -7,6 +7,10 @@
 .form-select {
   border-radius: 1.5rem !important;
 }
+
+ant-select-selector {
+  border-radius: 1.5rem !important;
+}
 .stock-component {
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
@@ -225,15 +229,13 @@
     background-color: white;
     border-radius: 1.5rem 1.5rem 0 0;
     border: 1px solid #e5e7eb;
-
-    gap: 12px;
   }
 
   .stock-tab {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 12px;
+    padding: 12px 20px;
     background: transparent;
     border: none;
     border-bottom: 3px solid transparent;
@@ -592,6 +594,7 @@
             .action-buttons {
               display: flex;
               gap: 8px;
+              justify-content: center;
 
               .action-btn {
                 display: flex;
@@ -738,11 +741,6 @@
     padding: 1.25rem;
     border: 1px solid #e5e7eb;
     transition: all 0.2s ease;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
 
     .stat-header {
       display: flex;
@@ -1093,6 +1091,7 @@
         .category-select {
           width: 100%;
           padding: 6px 8px;
+          padding-right: 32px;
           border: 1px solid #d1d5db;
           border-radius: 1.5rem;
           font-size: 12px;
@@ -1102,6 +1101,10 @@
           transition: all 0.2s;
           cursor: pointer;
           font-family: inherit;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ff6b35' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
 
           &:focus {
             outline: none;
@@ -1247,6 +1250,7 @@
         .meta-select {
           width: 100%;
           padding: 6px 8px;
+          padding-right: 32px;
           border: 1px solid #d1d5db;
           border-radius: 1.5rem;
           font-size: 12px;
@@ -1256,6 +1260,10 @@
           transition: all 0.2s;
           cursor: pointer;
           font-family: inherit;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
 
           &:focus {
             outline: none;
@@ -1271,7 +1279,7 @@
 
       &.cell-actions {
         gap: 6px;
-        justify-content: flex-end;
+        justify-content: center;
 
         .action-btn {
           display: flex;
@@ -2597,7 +2605,76 @@ body > .modal-overlay {
         resize: vertical;
         line-height: 1.5;
       }
+
+      // Custom Ant Design Select styling
+      .custom-select {
+        .ant-select-selector {
+          height: 44px !important;
+          border-radius: 1.5rem !important;
+          border: 1px solid #d1d5db !important;
+          padding: 0 14px !important;
+          align-items: center;
+          font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, sans-serif;
+
+          &:hover {
+            border-color: #9ca3af !important;
+          }
+        }
+
+        &.ant-select-focused .ant-select-selector {
+          border-color: #ff6b35 !important;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+        }
+
+        .ant-select-selection-search-input {
+          height: 42px !important;
+        }
+
+        .ant-select-selection-placeholder,
+        .ant-select-selection-item {
+          line-height: 42px !important;
+          font-size: 14px;
+        }
+
+        .ant-select-arrow {
+          color: #6b7280;
+        }
+      }
     }
+  }
+}
+
+// Global Ant Design Select dropdown styling
+.ant-select-dropdown {
+  border-radius: 1.5rem !important;
+  padding: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #e5e7eb !important;
+
+  .ant-select-item {
+    border-radius: 1rem !important;
+    margin: 2px 0 !important;
+    padding: 8px 12px !important;
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      sans-serif;
+    font-size: 14px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #f3f4f6 !important;
+    }
+
+    &.ant-select-item-option-active {
+      background: #f3f4f6 !important;
+    }
+  }
+
+  .ant-select-item-empty {
+    padding: 12px !important;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
   }
 }
 
@@ -3416,6 +3493,29 @@ body > .modal-overlay {
         .transfer-select {
           width: 100%;
           height: 44px;
+          padding: 0 14px;
+          padding-right: 40px;
+          background-color: white;
+          border: 1px solid #d1d5db;
+          border-radius: 1.5rem;
+          font-size: 14px;
+          font-family: inherit;
+          transition: all 0.2s;
+          cursor: pointer;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 14px center;
+
+          &:hover {
+            border-color: #9ca3af;
+          }
+
+          &:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          }
         }
 
         .transfer-input {
@@ -3694,6 +3794,7 @@ body > .modal-overlay {
 
   .items-count-badge {
     display: inline-flex;
+    flex-direction: row;
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
@@ -3704,9 +3805,14 @@ body > .modal-overlay {
     font-weight: 700;
     width: fit-content;
     transition: all 0.2s ease;
+    white-space: nowrap;
 
     svg {
       flex-shrink: 0;
+    }
+
+    span {
+      white-space: nowrap;
     }
 
     &.clickable {

@@ -387,112 +387,79 @@ router.delete("/:id", autenticarToken, requerGestor, async (req, res) => {
 
       // Atualizar referências em vez de eliminar (SET NULL onde permitido)
       // Payments - processed_by
-      try {
-        await client.query(
-          "UPDATE payments SET processed_by = NULL WHERE processed_by = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log("Payments update skipped:", e.message);
-      }
+      await client.query(
+        "UPDATE payments SET processed_by = NULL WHERE processed_by = $1",
+        [id]
+      );
+
+      // Payment history - performed_by
+      await client.query(
+        "UPDATE payment_history SET performed_by = NULL WHERE performed_by = $1",
+        [id]
+      );
 
       // Order items - aceite_por, preparado_por, entregue_por, a_ser_entregue_por
-      try {
-        await client.query(
-          "UPDATE order_items SET aceite_por = NULL WHERE aceite_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log("Order items aceite_por update skipped:", e.message);
-      }
+      await client.query(
+        "UPDATE order_items SET aceite_por = NULL WHERE aceite_por = $1",
+        [id]
+      );
 
-      try {
-        await client.query(
-          "UPDATE order_items SET preparado_por = NULL WHERE preparado_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log("Order items preparado_por update skipped:", e.message);
-      }
+      await client.query(
+        "UPDATE order_items SET preparado_por = NULL WHERE preparado_por = $1",
+        [id]
+      );
 
-      try {
-        await client.query(
-          "UPDATE order_items SET entregue_por = NULL WHERE entregue_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log("Order items entregue_por update skipped:", e.message);
-      }
+      await client.query(
+        "UPDATE order_items SET entregue_por = NULL WHERE entregue_por = $1",
+        [id]
+      );
 
-      try {
-        await client.query(
-          "UPDATE order_items SET a_ser_entregue_por = NULL WHERE a_ser_entregue_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log(
-          "Order items a_ser_entregue_por update skipped:",
-          e.message
-        );
-      }
+      await client.query(
+        "UPDATE order_items SET a_ser_entregue_por = NULL WHERE a_ser_entregue_por = $1",
+        [id]
+      );
 
       // Paid order items - aceite_por, preparado_por, entregue_por, a_ser_entregue_por
-      try {
-        await client.query(
-          "UPDATE paid_order_items SET aceite_por = NULL WHERE aceite_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log("Paid order items aceite_por update skipped:", e.message);
-      }
+      await client.query(
+        "UPDATE paid_order_items SET aceite_por = NULL WHERE aceite_por = $1",
+        [id]
+      );
 
-      try {
-        await client.query(
-          "UPDATE paid_order_items SET preparado_por = NULL WHERE preparado_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log(
-          "Paid order items preparado_por update skipped:",
-          e.message
-        );
-      }
+      await client.query(
+        "UPDATE paid_order_items SET preparado_por = NULL WHERE preparado_por = $1",
+        [id]
+      );
 
-      try {
-        await client.query(
-          "UPDATE paid_order_items SET entregue_por = NULL WHERE entregue_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log("Paid order items entregue_por update skipped:", e.message);
-      }
+      await client.query(
+        "UPDATE paid_order_items SET entregue_por = NULL WHERE entregue_por = $1",
+        [id]
+      );
 
-      try {
-        await client.query(
-          "UPDATE paid_order_items SET a_ser_entregue_por = NULL WHERE a_ser_entregue_por = $1",
-          [id]
-        );
-      } catch (e) {
-        console.log(
-          "Paid order items a_ser_entregue_por update skipped:",
-          e.message
-        );
-      }
+      await client.query(
+        "UPDATE paid_order_items SET a_ser_entregue_por = NULL WHERE a_ser_entregue_por = $1",
+        [id]
+      );
 
-      // Points history
+      // Points history (optional table - use savepoint)
       try {
+        await client.query("SAVEPOINT before_points");
         await client.query(
           "DELETE FROM user_points_history WHERE user_id = $1",
           [id]
         );
+        await client.query("RELEASE SAVEPOINT before_points");
       } catch (e) {
+        await client.query("ROLLBACK TO SAVEPOINT before_points");
         console.log("Points history delete skipped:", e.message);
       }
 
-      // Attendance records (se existir)
+      // Attendance records (optional table - use savepoint)
       try {
+        await client.query("SAVEPOINT before_attendance");
         await client.query("DELETE FROM attendance WHERE user_id = $1", [id]);
+        await client.query("RELEASE SAVEPOINT before_attendance");
       } catch (e) {
+        await client.query("ROLLBACK TO SAVEPOINT before_attendance");
         console.log("Attendance delete skipped:", e.message);
       }
 

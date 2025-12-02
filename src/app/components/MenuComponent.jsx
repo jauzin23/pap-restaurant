@@ -893,6 +893,7 @@ export default function MenuComponent() {
                 value={filterCategory || undefined}
                 onChange={(value) => setFilterCategory(value || "")}
                 style={{ width: 200 }}
+                className="custom-select"
                 allowClear
               >
                 {availableCategories.map((cat) => (
@@ -906,6 +907,7 @@ export default function MenuComponent() {
                 value={filterTag || undefined}
                 onChange={(value) => setFilterTag(value || "")}
                 style={{ width: 180 }}
+                className="custom-select"
                 allowClear
               >
                 {availableTags.map((tag) => (
@@ -919,6 +921,7 @@ export default function MenuComponent() {
                 value={filterIngredient || undefined}
                 onChange={(value) => setFilterIngredient(value || "")}
                 style={{ width: 200 }}
+                className="custom-select"
                 allowClear
                 showSearch
                 filterOption={(input, option) =>
@@ -951,7 +954,7 @@ export default function MenuComponent() {
                 pageSize: 10,
                 showSizeChanger: true,
                 showTotal: (total, range) =>
-                  `${range[0]}-${range[1]} de ${total} itens${
+                  `${range[0]}-${range[1]} p/página de ${total} itens${
                     total !== menuItems.length
                       ? ` (${menuItems.length} no total)`
                       : ""
@@ -1305,6 +1308,7 @@ export default function MenuComponent() {
                       onChange={setSelectedCategory}
                       placeholder="Selecionar categoria"
                       style={{ width: "100%" }}
+                      className="custom-select"
                     >
                       <Select.Option value="none">Sem categoria</Select.Option>
                       {availableCategories.map((category) => (

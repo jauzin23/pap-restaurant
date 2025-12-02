@@ -192,11 +192,22 @@ roteador.get("/table/:table_ids", autenticarToken, async (req, res) => {
 // Criar novo pedido (item único)
 roteador.post("/", autenticarToken, async (req, res) => {
   try {
-    const { table_id, menu_item_id, notas, price } = req.body;
+    const {
+      table_id,
+      menu_item_id,
+      notas,
+      price,
+      order_type = "dine-in", // Default to dine-in
+      customer_name,
+      customer_phone,
+      customer_email,
+      pickup_time,
+      special_requests,
+    } = req.body;
 
-    if (!table_id || !menu_item_id) {
+    if (!menu_item_id) {
       return res.status(400).json({
-        error: "table_id e menu_item_id obrigatórios",
+        error: "menu_item_id obrigatório",
       });
     }
 
@@ -206,17 +217,37 @@ roteador.post("/", autenticarToken, async (req, res) => {
       });
     }
 
-    // Validar que o array table_id contém UUIDs válidos
-    if (!Array.isArray(table_id)) {
+    // Validate order type
+    if (!["dine-in", "takeaway", "reservation"].includes(order_type)) {
       return res.status(400).json({
-        error: "table_id deve ser um array de UUIDs de mesa",
+        error:
+          "order_type inválido. Deve ser 'dine-in', 'takeaway' ou 'reservation'",
       });
     }
 
-    for (const idMesa of table_id) {
-      const validacao = validateUUID(idMesa, "table_id");
-      if (!validacao.isValid) {
-        return res.status(400).json(validacao.error);
+    // For dine-in orders, table_id is required
+    if (order_type === "dine-in") {
+      if (!table_id || !Array.isArray(table_id)) {
+        return res.status(400).json({
+          error: "table_id obrigatório para pedidos dine-in",
+        });
+      }
+
+      for (const idMesa of table_id) {
+        const validacao = validateUUID(idMesa, "table_id");
+        if (!validacao.isValid) {
+          return res.status(400).json(validacao.error);
+        }
+      }
+    }
+
+    // For takeaway orders, customer info is required
+    if (order_type === "takeaway") {
+      if (!customer_name || !customer_phone) {
+        return res.status(400).json({
+          error:
+            "customer_name e customer_phone obrigatórios para pedidos takeaway",
+        });
       }
     }
 
@@ -227,10 +258,25 @@ roteador.post("/", autenticarToken, async (req, res) => {
     }
 
     const resultado = await pool.query(
-      `INSERT INTO order_items (table_id, menu_item_id, status, notas, price, created_at)
-       VALUES ($1, $2::uuid, 'pendente', $3, $4, CURRENT_TIMESTAMP)
+      `INSERT INTO order_items (
+        table_id, menu_item_id, status, notas, price, 
+        order_type, customer_name, customer_phone, customer_email, 
+        pickup_time, special_requests, created_at
+      )
+       VALUES ($1, $2::uuid, 'pendente', $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
        RETURNING id`,
-      [table_id, menu_item_id, notas || null, parseFloat(price)]
+      [
+        table_id || null,
+        menu_item_id,
+        notas || null,
+        parseFloat(price),
+        order_type,
+        customer_name || null,
+        customer_phone || null,
+        customer_email || null,
+        pickup_time || null,
+        special_requests || null,
+      ]
     );
 
     const novoPedidoId = resultado.rows[0].id;
@@ -324,7 +370,15 @@ roteador.post("/", autenticarToken, async (req, res) => {
 // Criar múltiplos pedidos (para finalização do carrinho)
 roteador.post("/batch", autenticarToken, async (req, res) => {
   try {
-    const { orders } = req.body;
+    const {
+      orders,
+      order_type = "dine-in",
+      customer_name,
+      customer_phone,
+      customer_email,
+      pickup_time,
+      special_requests,
+    } = req.body;
 
     if (!orders || !Array.isArray(orders) || orders.length === 0) {
       return res.status(400).json({
@@ -332,11 +386,29 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
       });
     }
 
+    // Validate order type
+    if (!["dine-in", "takeaway", "reservation"].includes(order_type)) {
+      return res.status(400).json({
+        error:
+          "order_type inválido. Deve ser 'dine-in', 'takeaway' ou 'reservation'",
+      });
+    }
+
+    // For takeaway orders, validate customer info
+    if (order_type === "takeaway") {
+      if (!customer_name || !customer_phone) {
+        return res.status(400).json({
+          error:
+            "customer_name e customer_phone obrigatórios para pedidos takeaway",
+        });
+      }
+    }
+
     // Validar todos os pedidos primeiro
     for (const pedido of orders) {
-      if (!pedido.table_id || !pedido.menu_item_id) {
+      if (!pedido.menu_item_id) {
         return res.status(400).json({
-          error: "Cada pedido deve ter table_id e menu_item_id",
+          error: "Cada pedido deve ter menu_item_id",
         });
       }
 
@@ -346,16 +418,20 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
         });
       }
 
-      if (!Array.isArray(pedido.table_id)) {
-        return res.status(400).json({
-          error: "table_id deve ser um array de UUIDs de mesa",
-        });
-      }
+      // For dine-in, validate table_id
+      if (order_type === "dine-in") {
+        if (!pedido.table_id || !Array.isArray(pedido.table_id)) {
+          return res.status(400).json({
+            error:
+              "table_id deve ser um array de UUIDs de mesa para pedidos dine-in",
+          });
+        }
 
-      for (const idMesa of pedido.table_id) {
-        const validacao = validateUUID(idMesa, "table_id");
-        if (!validacao.isValid) {
-          return res.status(400).json(validacao.error);
+        for (const idMesa of pedido.table_id) {
+          const validacao = validateUUID(idMesa, "table_id");
+          if (!validacao.isValid) {
+            return res.status(400).json(validacao.error);
+          }
         }
       }
 
@@ -373,14 +449,24 @@ roteador.post("/batch", autenticarToken, async (req, res) => {
 
       for (const pedido of orders) {
         const resultado = await pool.query(
-          `INSERT INTO order_items (table_id, menu_item_id, status, notas, price, created_at)
-           VALUES ($1, $2::uuid, 'pendente', $3, $4, CURRENT_TIMESTAMP)
+          `INSERT INTO order_items (
+            table_id, menu_item_id, status, notas, price, 
+            order_type, customer_name, customer_phone, customer_email,
+            pickup_time, special_requests, created_at
+          )
+           VALUES ($1, $2::uuid, 'pendente', $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
            RETURNING id`,
           [
-            pedido.table_id,
+            pedido.table_id || null,
             pedido.menu_item_id,
             pedido.notas || null,
             parseFloat(pedido.price),
+            order_type,
+            customer_name || null,
+            customer_phone || null,
+            customer_email || null,
+            pickup_time || null,
+            special_requests || null,
           ]
         );
 

@@ -28,6 +28,7 @@ const rotasPagamentos = require("./src/rotas/pagamentos");
 const rotasEstatisticas = require("./src/rotas/estatisticas");
 const rotasEstatisticasUtilizador = require("./src/rotas/estatisticas-utilizador");
 const rotasPontos = require("./src/rotas/pontos");
+const rotasReservas = require("./src/rotas/reservas");
 
 // Inicializar aplicação Express
 const app = express();
@@ -95,6 +96,7 @@ app.get("/", (req, res) => {
       orders: "/orders",
       stock: "/stock",
       payments: "/payments",
+      reservations: "/reservations",
       stats: "/stats",
       points: "/api/points",
     },
@@ -116,6 +118,7 @@ app.use("/tables", rotasMesas);
 app.use("/orders", rotasPedidos);
 app.use("/stock", rotasStock);
 app.use("/payments", rotasPagamentos);
+app.use("/reservations", rotasReservas);
 app.use("/stats", rotasEstatisticas);
 app.use("/stats", rotasEstatisticasUtilizador);
 app.use("/api/points", rotasPontos);

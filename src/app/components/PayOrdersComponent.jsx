@@ -22,11 +22,11 @@ import {
   Coins,
   ShoppingBag,
   RefreshCw,
-  DollarSign,
 } from "lucide-react";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import { getAuthToken } from "../../lib/api";
 import NumberFlow from "@number-flow/react";
+import { Select } from "antd";
 import "./PayOrdersComponent.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -604,7 +604,7 @@ export default function PayOrdersComponent() {
         <div className="stat-card critical-card">
           <div className="stat-header">
             <span className="stat-title">Total a Pagar</span>
-            <DollarSign className="stat-icon" />
+            <Euro className="stat-icon" />
           </div>
           <div className="stat-value critical">
             €
@@ -629,18 +629,21 @@ export default function PayOrdersComponent() {
           />
         </div>
 
-        <select
-          className="filter-select"
+        <Select
+          className="filter-select custom-select"
           value={filterTable}
-          onChange={(e) => setFilterTable(e.target.value)}
-        >
-          <option value="all">Todas as Mesas</option>
-          {tables.map((table) => (
-            <option key={table.id} value={table.id}>
-              Mesa {table.tableNumber || table.number} - {table.layout_name}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setFilterTable(value)}
+          style={{ width: 250 }}
+          options={[
+            { value: "all", label: "Todas as Mesas" },
+            ...tables.map((table) => ({
+              value: table.id,
+              label: `Mesa ${table.tableNumber || table.number} - ${
+                table.layout_name
+              }`,
+            })),
+          ]}
+        />
       </div>
 
       {/* Orders Content */}
@@ -896,16 +899,18 @@ export default function PayOrdersComponent() {
                   <div className="payment-section">
                     <h3>Desconto</h3>
                     <div className="discount-controls">
-                      <select
-                        className="discount-type"
+                      <Select
+                        className="discount-type custom-select"
                         value={discount.type}
-                        onChange={(e) =>
-                          setDiscount({ ...discount, type: e.target.value })
+                        onChange={(value) =>
+                          setDiscount({ ...discount, type: value })
                         }
-                      >
-                        <option value="percentage">Percentagem</option>
-                        <option value="fixed">Valor Fixo</option>
-                      </select>
+                        style={{ width: 150 }}
+                        options={[
+                          { value: "percentage", label: "Percentagem" },
+                          { value: "fixed", label: "Valor Fixo" },
+                        ]}
+                      />
 
                       <div className="input-group">
                         <span>

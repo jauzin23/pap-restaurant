@@ -600,7 +600,7 @@ const ManagerStaffView = () => {
                 pageSize: 10,
                 showSizeChanger: true,
                 showTotal: (total, range) =>
-                  `${range[0]}-${range[1]} de ${total} funcionários`,
+                  `${range[0]}-${range[1]} p/página de ${total} funcionários`,
               }}
               scroll={{ x: "max-content" }}
               tableLayout="auto"

@@ -15,6 +15,7 @@ import TableLayoutManager from "../components/TableLayout";
 import ManagerStaffView from "../components/ManagerStaffView";
 import PayOrdersComponent from "../components/PayOrdersComponent";
 import GamificationView from "../components/GamificationView";
+import ReservationManager from "../components/ReservationManager";
 import {
   WebSocketProvider,
   useWebSocketContext,
@@ -248,9 +249,9 @@ const RestaurantDashboardContent = () => {
             <div
               className="spinner loading-spinner"
               style={{
-                borderTopColor: "#ff6b35",
-                borderRightColor: "#ff6b35",
-                borderBottomColor: "#ff6b35",
+                borderTopColor: "#000000",
+                borderRightColor: "#000000",
+                borderBottomColor: "#000000",
               }}
             />
 
@@ -345,12 +346,14 @@ const RestaurantDashboardContent = () => {
                 <StockComponent />
               ) : activeNavItem === "Mesas" ? (
                 <TableLayoutManager user={user} />
+              ) : activeNavItem === "Reservas" ? (
+                <ReservationManager />
               ) : activeNavItem === "Staff" ? (
                 <ManagerStaffView />
               ) : activeNavItem === "Pagamentos" ? (
                 <PayOrdersComponent />
               ) : activeNavItem === "Gamificação" ? (
-                <GamificationView />
+                <GamificationView user={user} />
               ) : currentView ? (
                 <>
                   {isManager && currentView === "manager" ? (

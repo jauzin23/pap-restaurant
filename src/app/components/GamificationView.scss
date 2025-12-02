@@ -133,6 +133,12 @@
         color: #1e293b;
       }
 
+      .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
       .month-selector {
         .month-dropdown {
           padding: 0.625rem 2.5rem 0.625rem 1rem;
@@ -159,6 +165,30 @@
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
           }
+        }
+      }
+
+      .config-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        color: #667eea;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background: #667eea;
+          color: white;
+          border-color: #667eea;
+        }
+
+        &:active {
+          transform: scale(0.95);
         }
       }
     }
@@ -256,6 +286,34 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+// Points Config Container
+.points-config-container {
+  .back-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 1.5rem;
+
+    &:hover {
+      background: #667eea;
+      color: white;
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
   }
 }
 

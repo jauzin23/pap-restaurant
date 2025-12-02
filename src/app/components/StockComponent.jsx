@@ -10,6 +10,7 @@ import {
   Input as AntInput,
   message,
   Modal,
+  Select,
 } from "antd";
 import {
   Plus,
@@ -206,8 +207,7 @@ export default function StockComponent() {
 
   // WebSocket connection state
   const [wsConnected, setWsConnected] = useState(false);
-
-  const ITEMS_PER_PAGE = 50;
+  const [pageSize, setPageSize] = useState(50);
 
   // Image handling functions
   const getImageUrl = useCallback((imageId) => {
@@ -1856,11 +1856,13 @@ export default function StockComponent() {
                   columns={columns}
                   loading={loading}
                   pagination={{
-                    pageSize: ITEMS_PER_PAGE,
+                    pageSize: pageSize,
                     showSizeChanger: true,
                     showTotal: (total, range) =>
-                      `${range[0]}-${range[1]} de ${total} items`,
+                      `${range[0]}-${range[1]} p/página`,
                     pageSizeOptions: ["10", "25", "50", "100"],
+                    onShowSizeChange: (current, size) => setPageSize(size),
+                    locale: { items_per_page: "p/página" },
                   }}
                   scroll={{ x: "max-content" }}
                   tableLayout="auto"
@@ -2266,26 +2268,34 @@ export default function StockComponent() {
 
                     <div className="form-group">
                       <label>Fornecedor</label>
-                      <select
-                        value={newItem.supplier_id || ""}
-                        onChange={(e) =>
+                      <Select
+                        value={newItem.supplier_id || undefined}
+                        onChange={(value) =>
                           setNewItem((prev) => ({
                             ...prev,
-                            supplier_id: e.target.value || null,
+                            supplier_id: value || null,
                           }))
                         }
-                        className="form-select"
+                        placeholder="Sem fornecedor"
                         disabled={dropdownsLoading || addItemLoading}
-                      >
-                        <option value="">Sem fornecedor</option>
-                        {suppliers.map((supplier) => (
-                          <option key={supplier.$id} value={supplier.$id}>
-                            {supplier.name ||
-                              supplier.supplier ||
-                              "Fornecedor sem nome"}
-                          </option>
-                        ))}
-                      </select>
+                        allowClear
+                        showSearch
+                        optionFilterProp="children"
+                        filterOption={(input, option) =>
+                          (option?.label ?? "")
+                            .toLowerCase()
+                            .includes(input.toLowerCase())
+                        }
+                        style={{ width: "100%", height: "44px" }}
+                        className="custom-select"
+                        options={suppliers.map((supplier) => ({
+                          value: supplier.$id,
+                          label:
+                            supplier.name ||
+                            supplier.supplier ||
+                            "Fornecedor sem nome",
+                        }))}
+                      />
                     </div>
 
                     <div className="form-group">
@@ -3756,32 +3766,28 @@ export default function StockComponent() {
 
                   <div className="transfer-form-group">
                     <label htmlFor="add-item-select">Selecionar Item *</label>
-                    <select
+                    <Select
                       id="add-item-select"
-                      value={addToWarehouseForm.item_id || ""}
-                      onChange={(e) => {
-                        console.log("Selected item:", e.target.value);
+                      value={addToWarehouseForm.item_id || undefined}
+                      onChange={(value) => {
+                        console.log("Selected item:", value);
                         setAddToWarehouseForm({
                           ...addToWarehouseForm,
-                          item_id: e.target.value || null,
+                          item_id: value || null,
                         });
                       }}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        fontSize: "14px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "6px",
-                        backgroundColor: "white",
-                        color: "#374151",
-                        cursor: "pointer",
-                        outline: "none",
-                      }}
-                    >
-                      <option value="">
-                        Escolha um item para adicionar...
-                      </option>
-                      {stockItems
+                      placeholder="Escolha um item para adicionar..."
+                      showSearch
+                      allowClear
+                      optionFilterProp="children"
+                      filterOption={(input, option) =>
+                        (option?.label ?? "")
+                          .toLowerCase()
+                          .includes(input.toLowerCase())
+                      }
+                      style={{ width: "100%", height: "44px" }}
+                      className="custom-select"
+                      options={stockItems
                         .filter((item) => {
                           const alreadyInWarehouse = warehouseInventory.some(
                             (invItem) =>
@@ -3789,16 +3795,17 @@ export default function StockComponent() {
                           );
                           return !alreadyInWarehouse;
                         })
-                        .map((item) => (
-                          <option key={item.$id} value={item.$id}>
-                            {item.name}
-                            {item.category ? ` - ${item.category}` : ""}
-                            {item.cost_price
+                        .map((item) => ({
+                          value: item.$id,
+                          label: `${item.name}${
+                            item.category ? ` - ${item.category}` : ""
+                          }${
+                            item.cost_price
                               ? ` - €${item.cost_price.toFixed(2)}`
-                              : ""}
-                          </option>
-                        ))}
-                    </select>
+                              : ""
+                          }`,
+                        }))}
+                    />
                     {stockItems.filter((item) => {
                       const alreadyInWarehouse = warehouseInventory.some(
                         (invItem) => String(invItem.$id) === String(item.$id)
@@ -4287,42 +4294,37 @@ export default function StockComponent() {
 
                       <div className="transfer-form-group">
                         <label htmlFor="transfer-to">Para (Armazém) *</label>
-                        <select
+                        <Select
                           id="transfer-to"
-                          value={transferForm.to_warehouse_id || ""}
-                          onChange={(e) =>
+                          value={transferForm.to_warehouse_id || undefined}
+                          onChange={(value) =>
                             setTransferForm({
                               ...transferForm,
-                              to_warehouse_id: e.target.value || null,
+                              to_warehouse_id: value || null,
                             })
                           }
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            fontSize: "14px",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "1.5rem",
-                            backgroundColor: "white",
-                            color: "#374151",
-                            cursor: "pointer",
-                            outline: "none",
-                          }}
-                        >
-                          <option value="">
-                            Selecione o armazém de destino
-                          </option>
-                          {warehouses
+                          placeholder="Selecione o armazém de destino"
+                          showSearch
+                          allowClear
+                          optionFilterProp="children"
+                          filterOption={(input, option) =>
+                            (option?.label ?? "")
+                              .toLowerCase()
+                              .includes(input.toLowerCase())
+                          }
+                          style={{ width: "100%", height: "44px" }}
+                          className="custom-select"
+                          options={warehouses
                             .filter(
                               (w) =>
                                 String(w.$id) !==
                                 String(transferForm.from_warehouse_id)
                             )
-                            .map((warehouse) => (
-                              <option key={warehouse.$id} value={warehouse.$id}>
-                                {warehouse.name}
-                              </option>
-                            ))}
-                        </select>
+                            .map((warehouse) => ({
+                              value: warehouse.$id,
+                              label: warehouse.name,
+                            }))}
+                        />
                       </div>
 
                       <div className="transfer-form-group">
@@ -5255,35 +5257,31 @@ export default function StockComponent() {
                     >
                       Fornecedor
                     </label>
-                    <select
+                    <Select
                       id="edit-item-supplier"
-                      value={editingItem.supplier_id || ""}
-                      onChange={(e) =>
+                      value={editingItem.supplier_id || undefined}
+                      onChange={(value) =>
                         setEditingItem({
                           ...editingItem,
-                          supplier_id: e.target.value || null,
+                          supplier_id: value || null,
                         })
                       }
-                      className="form-select"
-                      style={{
-                        width: "100%",
-                        height: "44px",
-                        padding: "0 14px",
-                        fontSize: "14px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        backgroundColor: "white",
-                        color: "#1f2937",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="">Selecione um fornecedor</option>
-                      {suppliers.map((supplier) => (
-                        <option key={supplier.$id} value={supplier.$id}>
-                          {supplier.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Sem fornecedor"
+                      showSearch
+                      allowClear
+                      optionFilterProp="children"
+                      filterOption={(input, option) =>
+                        (option?.label ?? "")
+                          .toLowerCase()
+                          .includes(input.toLowerCase())
+                      }
+                      style={{ width: "100%", height: "44px" }}
+                      className="custom-select"
+                      options={suppliers.map((supplier) => ({
+                        value: supplier.$id,
+                        label: supplier.name,
+                      }))}
+                    />
                   </div>
 
                   {/* Cost Price Field */}

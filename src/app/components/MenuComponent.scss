@@ -1943,3 +1943,41 @@ body:has(.menu-component .modal-overlay) {
 .ant-select-dropdown {
   z-index: 999999 !important;
 }
+
+// Custom Ant Design Select styling
+.custom-select {
+  .ant-select-selector {
+    height: 36px !important;
+    border-radius: 1.5rem !important;
+    border: 1px solid #d1d5db !important;
+    padding: 0 40px 0 14px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .ant-select-selection-item {
+    line-height: 36px !important;
+  }
+
+  .ant-select-arrow {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    right: 14px !important;
+    margin: 0 !important;
+  }
+
+  &.ant-select-focused .ant-select-selector {
+    border-color: #ff6b35 !important;
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+  }
+}
+
+// Global Ant Design Select dropdown styling
+.ant-select-dropdown {
+  border-radius: 1.5rem !important;
+  padding: 8px !important;
+
+  .ant-select-item {
+    border-radius: 1rem !important;
+  }
+}
