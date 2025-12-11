@@ -267,7 +267,12 @@ const ManagerStaffView = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.email || !formData.username || !formData.password || !formData.name) {
+    if (
+      !formData.email ||
+      !formData.username ||
+      !formData.password ||
+      !formData.name
+    ) {
       message.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
@@ -371,7 +376,8 @@ const ManagerStaffView = () => {
             <div className="stock-header-card__left">
               <h1 className="stock-header-card__title">Gestão de Equipa</h1>
               <p className="stock-header-card__description">
-                Análise completa de performance, atividade e estatísticas da equipa
+                Análise completa de performance, atividade e estatísticas da
+                equipa
               </p>
               <div className="stock-header-card__actions">
                 <Select
@@ -393,7 +399,10 @@ const ManagerStaffView = () => {
                   disabled={refreshing}
                   className="stock-header-card__btn stock-header-card__btn--secondary"
                 >
-                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+                  <RefreshCw
+                    size={16}
+                    className={refreshing ? "animate-spin" : ""}
+                  />
                   Atualizar
                 </button>
                 {isManager && (
@@ -487,7 +496,12 @@ const ManagerStaffView = () => {
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" fill="#ff6b35" radius={[8, 8, 0, 0]} name="Pedidos" />
+                    <Bar
+                      dataKey="value"
+                      fill="#ff6b35"
+                      radius={[8, 8, 0, 0]}
+                      name="Pedidos"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -511,7 +525,12 @@ const ManagerStaffView = () => {
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" fill="#4ecdc4" radius={[8, 8, 0, 0]} name="Receita (€)" />
+                    <Bar
+                      dataKey="value"
+                      fill="#4ecdc4"
+                      radius={[8, 8, 0, 0]}
+                      name="Receita (€)"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -535,7 +554,12 @@ const ManagerStaffView = () => {
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" fill="#45b7d1" radius={[8, 8, 0, 0]} name="Tempo (min)" />
+                    <Bar
+                      dataKey="value"
+                      fill="#45b7d1"
+                      radius={[8, 8, 0, 0]}
+                      name="Tempo (min)"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -560,14 +584,19 @@ const ManagerStaffView = () => {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry) => `${entry.role}: ${entry.orders_handled}`}
+                      label={(entry) =>
+                        `${entry.role}: ${entry.orders_handled}`
+                      }
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="orders_handled"
                       nameKey="role"
                     >
                       {teamStats.role_breakdown.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -591,17 +620,53 @@ const ManagerStaffView = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={teamStats.hourly_activity}>
                     <defs>
-                      <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ff6b35" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#ff6b35" stopOpacity={0} />
+                      <linearGradient
+                        id="colorOrders"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#ff6b35"
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#ff6b35"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
-                      <linearGradient id="colorStaff" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4ecdc4" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#4ecdc4" stopOpacity={0} />
+                      <linearGradient
+                        id="colorStaff"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#4ecdc4"
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#4ecdc4"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="hour" tick={{ fontSize: 12 }} label={{ value: "Hora", position: "insideBottom", offset: -5 }} />
+                    <XAxis
+                      dataKey="hour"
+                      tick={{ fontSize: 12 }}
+                      label={{
+                        value: "Hora",
+                        position: "insideBottom",
+                        offset: -5,
+                      }}
+                    />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
@@ -644,13 +709,24 @@ const ManagerStaffView = () => {
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 11 }}
-                      tickFormatter={(date) => new Date(date).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" })}
+                      tickFormatter={(date) =>
+                        new Date(date).toLocaleDateString("pt-PT", {
+                          day: "2-digit",
+                          month: "2-digit",
+                        })
+                      }
                     />
                     <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 12 }}
+                    />
                     <Tooltip
                       content={<CustomTooltip />}
-                      labelFormatter={(date) => new Date(date).toLocaleDateString("pt-PT")}
+                      labelFormatter={(date) =>
+                        new Date(date).toLocaleDateString("pt-PT")
+                      }
                     />
                     <Legend />
                     <Line
@@ -698,18 +774,35 @@ const ManagerStaffView = () => {
                 dataIndex: "name",
                 key: "name",
                 render: (text, record) => (
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
                     <Avatar
                       size={48}
                       src={record.profileImg}
                       icon={<UserCircle />}
-                      style={{ backgroundColor: "#f0f0f0", border: "2px solid #e5e7eb" }}
+                      style={{
+                        backgroundColor: "#f0f0f0",
+                        border: "2px solid #e5e7eb",
+                      }}
                     />
                     <div>
-                      <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px" }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: "#1a1a1a",
+                          fontSize: "14px",
+                        }}
+                      >
                         {text}
                       </div>
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>{record.email}</div>
+                      <div style={{ fontSize: "12px", color: "#64748b" }}>
+                        {record.email}
+                      </div>
                     </div>
                   </div>
                 ),
@@ -719,7 +812,14 @@ const ManagerStaffView = () => {
                 dataIndex: "role",
                 key: "role",
                 render: (role) => (
-                  <Tag style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}>
+                  <Tag
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                    }}
+                  >
                     {role}
                   </Tag>
                 ),
@@ -774,9 +874,16 @@ const ManagerStaffView = () => {
                   const staffStats = teamStats?.staff_details?.find(
                     (s) => s.user_id === record.id
                   );
-                  if (!staffStats) return <span style={{ color: "#9ca3af" }}>-</span>;
+                  if (!staffStats)
+                    return <span style={{ color: "#9ca3af" }}>-</span>;
                   return (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
                       <div
                         style={{
                           width: "40px",
@@ -818,7 +925,11 @@ const ManagerStaffView = () => {
                         e.stopPropagation();
                         window.location.href = `/profile/${record.id}`;
                       }}
-                      style={{ display: "flex", alignItems: "center", gap: "4px" }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
                     >
                       Ver
                     </Button>
@@ -848,16 +959,26 @@ const ManagerStaffView = () => {
           typeof document !== "undefined" &&
           createPortal(
             <div className="modal-overlay" onClick={closeCreateModal}>
-              <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="modal-container"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="modal-header">
                   <div className="header-text">
                     <h2>
-                      <UserCircle size={20} style={{ display: "inline", marginRight: "8px" }} />
+                      <UserCircle
+                        size={20}
+                        style={{ display: "inline", marginRight: "8px" }}
+                      />
                       Adicionar Novo Funcionário
                     </h2>
                     <p>Preencha os dados do novo funcionário</p>
                   </div>
-                  <button onClick={closeCreateModal} className="close-button" disabled={creatingUser}>
+                  <button
+                    onClick={closeCreateModal}
+                    className="close-button"
+                    disabled={creatingUser}
+                  >
                     <X size={20} />
                   </button>
                 </div>
@@ -871,7 +992,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="Ex: João Silva"
                         value={formData.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -883,7 +1006,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="email@exemplo.com"
                         value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -895,7 +1020,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="username"
                         value={formData.username}
-                        onChange={(e) => handleInputChange("username", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("username", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -907,7 +1034,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="Mínimo 6 caracteres"
                         value={formData.password}
-                        onChange={(e) => handleInputChange("password", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("password", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -919,7 +1048,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="+351 XXX XXX XXX"
                         value={formData.telefone}
-                        onChange={(e) => handleInputChange("telefone", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("telefone", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -931,7 +1062,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="123456789"
                         value={formData.nif}
-                        onChange={(e) => handleInputChange("nif", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("nif", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -941,7 +1074,9 @@ const ManagerStaffView = () => {
                       <select
                         className="form-select"
                         value={formData.contrato}
-                        onChange={(e) => handleInputChange("contrato", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("contrato", e.target.value)
+                        }
                         disabled={creatingUser}
                       >
                         <option value="">Selecione o tipo</option>
@@ -959,7 +1094,9 @@ const ManagerStaffView = () => {
                         className="form-input"
                         placeholder="40"
                         value={formData.hrs}
-                        onChange={(e) => handleInputChange("hrs", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("hrs", e.target.value)
+                        }
                         disabled={creatingUser}
                       />
                     </div>
@@ -969,7 +1106,10 @@ const ManagerStaffView = () => {
                       <div className="labels-checkboxes">
                         {[
                           { value: "manager", label: "Manager" },
-                          { value: "Empregado de Mesa", label: "Empregado de Mesa" },
+                          {
+                            value: "Empregado de Mesa",
+                            label: "Empregado de Mesa",
+                          },
                           { value: "chef", label: "Chef" },
                           { value: "Limpeza", label: "Limpeza" },
                           { value: "Rececionista", label: "Rececionista" },
@@ -982,12 +1122,16 @@ const ManagerStaffView = () => {
                               onChange={(e) => {
                                 const newLabels = e.target.checked
                                   ? [...formData.labels, role.value]
-                                  : formData.labels.filter((l) => l !== role.value);
+                                  : formData.labels.filter(
+                                      (l) => l !== role.value
+                                    );
                                 handleInputChange("labels", newLabels);
                               }}
                               disabled={creatingUser}
                             />
-                            <label htmlFor={`role-${role.value}`}>{role.label}</label>
+                            <label htmlFor={`role-${role.value}`}>
+                              {role.label}
+                            </label>
                           </div>
                         ))}
                       </div>
@@ -998,7 +1142,9 @@ const ManagerStaffView = () => {
                         <input
                           type="checkbox"
                           checked={formData.ferias}
-                          onChange={(e) => handleInputChange("ferias", e.target.checked)}
+                          onChange={(e) =>
+                            handleInputChange("ferias", e.target.checked)
+                          }
                           disabled={creatingUser}
                         />
                         <span>De férias</span>
@@ -1008,10 +1154,18 @@ const ManagerStaffView = () => {
                 </div>
 
                 <div className="modal-footer">
-                  <button onClick={closeCreateModal} className="footer-button cancel" disabled={creatingUser}>
+                  <button
+                    onClick={closeCreateModal}
+                    className="footer-button cancel"
+                    disabled={creatingUser}
+                  >
                     Cancelar
                   </button>
-                  <button onClick={handleCreateUser} className="footer-button primary" disabled={creatingUser}>
+                  <button
+                    onClick={handleCreateUser}
+                    className="footer-button primary"
+                    disabled={creatingUser}
+                  >
                     {creatingUser ? "A criar..." : "Criar"}
                   </button>
                 </div>
