@@ -23,6 +23,11 @@ import {
   PieChart,
   Activity,
   Calendar,
+  Receipt,
+  ShoppingBag,
+  Coffee,
+  X,
+  ImageIcon,
 } from "lucide-react";
 import { Avatars } from "appwrite";
 import { useApp } from "@/contexts/AppContext";
@@ -30,6 +35,7 @@ import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import { useStatsWebSocket } from "@/hooks/useStatsWebSocket";
 import NumberFlow from "@number-flow/react";
 import { Select } from "antd";
+import { createPortal } from "react-dom";
 import {
   LineChart,
   Line,
@@ -100,9 +106,58 @@ const ManagerView = ({
   const [monthlyPattern, setMonthlyPattern] = React.useState([]);
   const [availableMonths, setAvailableMonths] = React.useState([]);
   const [selectedMonth, setSelectedMonth] = React.useState("");
+  const [availableWeeks, setAvailableWeeks] = React.useState([]);
+  const [selectedWeek, setSelectedWeek] = React.useState(0);
   const [avgBillData, setAvgBillData] = React.useState(null);
   const [kitchenEfficiency, setKitchenEfficiency] = React.useState(null);
+  const [latestOrders, setLatestOrders] = React.useState([]);
+  const [selectedOrder, setSelectedOrder] = React.useState(null);
+  const [orderModalVisible, setOrderModalVisible] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+
+  // Fetch latest orders function
+  const fetchLatestOrders = React.useCallback(async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/stats/latest-orders?limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.orders) {
+          setLatestOrders(data.orders);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch latest orders:", error);
+    }
+  }, []);
+
+  // WebSocket listeners for real-time updates
+  React.useEffect(() => {
+    if (!socket || !connected) return;
+
+    const handleTakeawayCompleted = () => {
+      console.log("🛍️✅ Takeaway completed - refreshing latest orders");
+      fetchLatestOrders();
+    };
+
+    const handleStatsUpdated = () => {
+      console.log("📊 Stats updated - refreshing latest orders");
+      fetchLatestOrders();
+    };
+
+    socket.on("takeaway:completed", handleTakeawayCompleted);
+    socket.on("stats:updated", handleStatsUpdated);
+
+    return () => {
+      socket.off("takeaway:completed", handleTakeawayCompleted);
+      socket.off("stats:updated", handleStatsUpdated);
+    };
+  }, [socket, connected, fetchLatestOrders]);
 
   // Update states when WebSocket data arrives
   React.useEffect(() => {
@@ -161,30 +216,44 @@ const ManagerView = ({
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
-        const [categories, hourly, revenue, weekly, kitchen, months, avgBill] =
-          await Promise.all([
-            fetch(`${API_BASE_URL}/stats/categories/performance`, {
+        const [
+          categories,
+          hourly,
+          revenue,
+          weekly,
+          kitchen,
+          months,
+          weeks,
+          avgBill,
+        ] = await Promise.all([
+          fetch(`${API_BASE_URL}/stats/categories/performance`, {
+            headers,
+          }).then((r) => (r.ok ? r.json() : null)),
+          fetch(`${API_BASE_URL}/stats/time/hourly`, { headers }).then((r) =>
+            r.ok ? r.json() : null
+          ),
+          fetch(`${API_BASE_URL}/stats/revenue/overview`, { headers }).then(
+            (r) => (r.ok ? r.json() : null)
+          ),
+          fetch(
+            `${API_BASE_URL}/stats/time/weekly-pattern?week=${selectedWeek}`,
+            {
               headers,
-            }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE_URL}/stats/time/hourly`, { headers }).then((r) =>
-              r.ok ? r.json() : null
-            ),
-            fetch(`${API_BASE_URL}/stats/revenue/overview`, { headers }).then(
-              (r) => (r.ok ? r.json() : null)
-            ),
-            fetch(`${API_BASE_URL}/stats/time/weekly-pattern`, {
-              headers,
-            }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE_URL}/stats/operations/tempo-medio-resposta`, {
-              headers,
-            }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE_URL}/stats/time/available-months`, {
-              headers,
-            }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE_URL}/stats/customers/avg-bill`, {
-              headers,
-            }).then((r) => (r.ok ? r.json() : null)),
-          ]);
+            }
+          ).then((r) => (r.ok ? r.json() : null)),
+          fetch(`${API_BASE_URL}/stats/operations/tempo-medio-resposta`, {
+            headers,
+          }).then((r) => (r.ok ? r.json() : null)),
+          fetch(`${API_BASE_URL}/stats/time/available-months`, {
+            headers,
+          }).then((r) => (r.ok ? r.json() : null)),
+          fetch(`${API_BASE_URL}/stats/time/available-weeks`, {
+            headers,
+          }).then((r) => (r.ok ? r.json() : null)),
+          fetch(`${API_BASE_URL}/stats/customers/avg-bill`, {
+            headers,
+          }).then((r) => (r.ok ? r.json() : null)),
+        ]);
 
         // Update chart data
         if (categories?.categories) {
@@ -212,14 +281,24 @@ const ManagerView = ({
         }
 
         if (weekly?.days) {
+          const dayMap = {
+            Seg: "Segunda-feira",
+            Ter: "Terça-feira",
+            Qua: "Quarta-feira",
+            Qui: "Quinta-feira",
+            Sex: "Sexta-feira",
+            Sáb: "Sábado",
+            Dom: "Domingo",
+          };
           setWeeklyPattern(
             weekly.days.map((d) => ({
               dia: d.day,
-              diaCompleto: d.day,
+              diaCompleto: dayMap[d.day] || d.day,
               receita: d.revenue,
               receitaTakeaway: d.takeaway_revenue || 0,
               receitaPresencial: d.dinein_revenue || 0,
               pedidos: d.orders,
+              itemsVendidos: d.items_sold || 0,
             }))
           );
         }
@@ -236,9 +315,16 @@ const ManagerView = ({
           }
         }
 
+        if (weeks?.weeks) {
+          setAvailableWeeks(weeks.weeks);
+        }
+
         if (avgBill) {
           setAvgBillData(avgBill);
         }
+
+        // Fetch latest orders
+        await fetchLatestOrders();
       } catch (error) {
         console.error("❌ Failed to fetch statistics:", error);
       } finally {
@@ -250,7 +336,49 @@ const ManagerView = ({
     // Refresh every 5 minutes (WebSocket handles real-time updates)
     const interval = setInterval(fetchRemainingStats, 300000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchLatestOrders]);
+
+  // Fetch weekly pattern when selected week changes
+  React.useEffect(() => {
+    const fetchWeeklyPattern = async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) return;
+
+      try {
+        const weekly = await fetch(
+          `${API_BASE_URL}/stats/time/weekly-pattern?week=${selectedWeek}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).then((r) => (r.ok ? r.json() : null));
+
+        if (weekly?.days) {
+          const dayMap = {
+            Seg: "Segunda-feira",
+            Ter: "Terça-feira",
+            Qua: "Quarta-feira",
+            Qui: "Quinta-feira",
+            Sex: "Sexta-feira",
+            Sáb: "Sábado",
+            Dom: "Domingo",
+          };
+          setWeeklyPattern(
+            weekly.days.map((d) => ({
+              dia: d.day,
+              diaCompleto: dayMap[d.day] || d.day,
+              receita: d.revenue,
+              receitaTakeaway: d.takeaway_revenue || 0,
+              receitaPresencial: d.dinein_revenue || 0,
+              pedidos: d.orders,
+              itemsVendidos: d.items_sold || 0,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch weekly pattern:", error);
+      }
+    };
+
+    fetchWeeklyPattern();
+  }, [selectedWeek]);
 
   // Fetch monthly pattern when selected month changes
   React.useEffect(() => {
@@ -435,17 +563,16 @@ const ManagerView = ({
 
   return (
     <div className="manager-view">
+      {/* Section Header */}
+      <div className="manager-section-header">
+        <div className="header-title-group">
+          <h1>Painel de Gestão</h1>
+          <p>Análise de desempenho e estatísticas do restaurante</p>
+        </div>
+      </div>
+
       {/* Dashboard Cards */}
-      <DashboardCards
-        showAllMetrics={true}
-        customMetrics={{
-          dailyRevenue: liveStats?.current?.revenue_today || 0,
-          monthlyRevenue: monthlyRevenue,
-          activeOrders: liveStats?.current?.orders_in_progress || 0,
-          todayReservations: liveStats?.current?.orders_today || 0,
-          kitchenEfficiency: kitchenEfficiency,
-        }}
-      />
+      <DashboardCards showAllMetrics={true} />
 
       {/* Main Charts Grid */}
       <div className="charts-grid">
@@ -558,6 +685,114 @@ const ManagerView = ({
             </div>
           </div>
         )}
+
+        {/* Latest Orders Card */}
+        {latestOrders.length > 0 && (
+          <div className="card chart-card">
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Receipt size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Últimos Pedidos</h3>
+                <p>Pedidos de hoje (presenciais e takeaway)</p>
+              </div>
+            </div>
+            <div>
+              {latestOrders.map((order) => (
+                <div
+                  key={order.id}
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    setOrderModalVisible(true);
+                  }}
+                  style={{
+                    padding: "1rem",
+                    marginBottom: "0.75rem",
+                    background: "rgba(0, 0, 0, 0.02)",
+                    borderRadius: "12px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    border: "1px solid rgba(0, 0, 0, 0.05)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.02)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        {order.type === "takeaway" ? (
+                          <ShoppingBag size={16} color="#10b981" />
+                        ) : (
+                          <Coffee size={16} color="#4facfe" />
+                        )}
+                        <span style={{ fontWeight: 600, fontSize: "14px" }}>
+                          {order.type === "takeaway"
+                            ? order.customer_name
+                            : `Mesa ${order.table_number}`}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#64748b",
+                          marginLeft: "24px",
+                        }}
+                      >
+                        {order.items_count} items • {order.staff.name}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        textAlign: "right",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.25rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: "16px",
+                          color: "#1e293b",
+                        }}
+                      >
+                        {order.total_price.toFixed(2)}€
+                      </span>
+                      <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                        {new Date(order.completed_at).toLocaleString("pt-PT", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Secondary Charts Grid - Full Width */}
@@ -565,16 +800,13 @@ const ManagerView = ({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "1.5rem",
-          marginBottom: "2rem",
+          gap: "0.5rem",
+          marginBottom: "0.5rem",
         }}
       >
         {/* Weekly Pattern */}
         {weeklyPattern.length > 0 && (
-          <div
-            className="card"
-            style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
-          >
+          <div className="card chart-card">
             <div className="card-header-modern">
               <div className="card-icon-wrapper">
                 <Activity size={20} />
@@ -583,8 +815,19 @@ const ManagerView = ({
                 <h3>Padrão Semanal</h3>
                 <p>Vendas Totais, Takeaway e Presenciais</p>
               </div>
+              {availableWeeks.length > 0 && (
+                <Select
+                  value={selectedWeek}
+                  onChange={setSelectedWeek}
+                  style={{ width: 200 }}
+                  options={availableWeeks.map((week) => ({
+                    value: week.offset,
+                    label: week.display,
+                  }))}
+                />
+              )}
             </div>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={300}>
               <LineChart
                 data={weeklyPattern}
                 margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
@@ -592,40 +835,112 @@ const ManagerView = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="dia" stroke="#94a3b8" />
                 <YAxis
+                  yAxisId="left"
                   stroke="#94a3b8"
                   label={{
                     value: "Receita (€)",
                     angle: -90,
                     position: "insideLeft",
                   }}
+                  domain={[0, "auto"]}
+                  tickFormatter={(value) => `${Math.round(value)}€`}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="#a855f7"
+                  tick={false}
+                  axisLine={false}
+                  domain={[0, "auto"]}
                 />
                 <Tooltip
-                  formatter={(value, name) => [`${value.toFixed(2)}€`, name]}
+                  labelFormatter={(label) => {
+                    const entry = weeklyPattern.find((d) => d.dia === label);
+                    return entry?.diaCompleto || label;
+                  }}
+                  formatter={(value, name) => {
+                    if (name === "Items Vendidos") {
+                      return [Math.round(value), name];
+                    }
+                    return [`${value.toFixed(2)}€`, name];
+                  }}
+                  contentStyle={{
+                    borderRadius: "1.5rem",
+                    border: "1px solid rgba(0, 0, 0, 0.1)",
+                    background: "rgba(255, 255, 255, 0.98)",
+                    padding: "12px 16px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                  }}
+                  labelStyle={{
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    color: "#2d3748",
+                    marginBottom: "6px",
+                  }}
+                  itemStyle={{
+                    fontSize: "12px",
+                  }}
                 />
                 <Legend wrapperStyle={{ fontSize: "12px" }} />
                 <Line
+                  yAxisId="left"
                   type="monotone"
                   dataKey="receita"
                   name="Total"
                   stroke="#4facfe"
                   strokeWidth={3}
-                  dot={{ r: 6, fill: "#4facfe" }}
+                  dot={{
+                    r: 5,
+                    fill: "#4facfe",
+                    strokeWidth: 2,
+                    stroke: "#fff",
+                  }}
+                  activeDot={{ r: 8, strokeWidth: 0 }}
                 />
                 <Line
+                  yAxisId="left"
                   type="monotone"
                   dataKey="receitaTakeaway"
                   name="Takeaway"
                   stroke="#10b981"
                   strokeWidth={3}
-                  dot={{ r: 6, fill: "#10b981" }}
+                  dot={{
+                    r: 5,
+                    fill: "#10b981",
+                    strokeWidth: 2,
+                    stroke: "#fff",
+                  }}
+                  activeDot={{ r: 8, strokeWidth: 0 }}
                 />
                 <Line
+                  yAxisId="left"
                   type="monotone"
                   dataKey="receitaPresencial"
                   name="Presencial"
                   stroke="#ff6b35"
                   strokeWidth={3}
-                  dot={{ r: 6, fill: "#ff6b35" }}
+                  dot={{
+                    r: 5,
+                    fill: "#ff6b35",
+                    strokeWidth: 2,
+                    stroke: "#fff",
+                  }}
+                  activeDot={{ r: 8, strokeWidth: 0 }}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="itemsVendidos"
+                  name="Items Vendidos"
+                  stroke="#a855f7"
+                  strokeWidth={3}
+                  dot={{
+                    r: 5,
+                    fill: "#a855f7",
+                    strokeWidth: 2,
+                    stroke: "#fff",
+                  }}
+                  activeDot={{ r: 8, strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -634,10 +949,7 @@ const ManagerView = ({
 
         {/* Monthly Pattern */}
         {monthlyPattern.length > 0 && availableMonths.length > 0 && (
-          <div
-            className="card"
-            style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
-          >
+          <div className="card chart-card">
             <div className="card-header-modern">
               <div className="card-icon-wrapper">
                 <Activity size={20} />
@@ -709,10 +1021,7 @@ const ManagerView = ({
 
         {/* Hourly Revenue */}
         {hourlyRevenue.length > 0 && (
-          <div
-            className="card"
-            style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
-          >
+          <div className="card chart-card">
             <div className="card-header-modern">
               <div className="card-icon-wrapper">
                 <BarChart2 size={20} />
@@ -762,10 +1071,7 @@ const ManagerView = ({
         {avgBillData &&
           monthlyPattern.length > 0 &&
           availableMonths.length > 0 && (
-            <div
-              className="card"
-              style={{ padding: "1.5rem", borderRadius: "1.5rem" }}
-            >
+            <div className="card chart-card">
               <div className="card-header-modern">
                 <div className="card-icon-wrapper">
                   <Euro size={20} />
@@ -917,6 +1223,201 @@ const ManagerView = ({
             </div>
           )}
       </div>
+
+      {/* Order Detail Modal */}
+      {orderModalVisible &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="modal-overlay">
+            <div className="modal-container" style={{ maxWidth: "600px" }}>
+              {/* Modal Header */}
+              <div className="modal-header">
+                <div className="header-text">
+                  <h2>
+                    {selectedOrder?.type === "takeaway" ? (
+                      <>
+                        <ShoppingBag
+                          size={20}
+                          style={{ display: "inline", marginRight: "8px" }}
+                        />
+                        Pedido Takeaway
+                      </>
+                    ) : (
+                      <>
+                        <Coffee
+                          size={20}
+                          style={{ display: "inline", marginRight: "8px" }}
+                        />
+                        Pedido Presencial
+                      </>
+                    )}
+                  </h2>
+                  <p>
+                    {selectedOrder &&
+                      new Date(selectedOrder.completed_at).toLocaleString(
+                        "pt-PT",
+                        {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setOrderModalVisible(false)}
+                  className="close-button"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="modal-content">
+                {selectedOrder && (
+                  <>
+                    {/* Order Info Card */}
+                    <div className="order-info-card">
+                      {selectedOrder.type === "takeaway" ? (
+                        <div className="info-grid">
+                          <div className="info-row">
+                            <span className="info-label">Cliente</span>
+                            <span className="info-value">
+                              {selectedOrder.customer_name}
+                            </span>
+                          </div>
+                          <div className="info-row">
+                            <span className="info-label">Telefone</span>
+                            <span className="info-value">
+                              {selectedOrder.customer_phone}
+                            </span>
+                          </div>
+                          {selectedOrder.customer_email && (
+                            <div className="info-row">
+                              <span className="info-label">Email</span>
+                              <span className="info-value">
+                                {selectedOrder.customer_email}
+                              </span>
+                            </div>
+                          )}
+                          <div className="info-row info-divider">
+                            <span className="info-label">Atendido</span>
+                            <div className="staff-info">
+                              {selectedOrder.staff.profile_image && (
+                                <img
+                                  src={`https://pap-imagens.s3.amazonaws.com/imagens-perfil/${selectedOrder.staff.profile_image}`}
+                                  alt={selectedOrder.staff.name}
+                                  className="staff-avatar"
+                                />
+                              )}
+                              <span className="info-value">
+                                {selectedOrder.staff.name}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="info-grid">
+                          <div className="info-row">
+                            <span className="info-label">Mesa</span>
+                            <span className="info-value table-number">
+                              {selectedOrder.table_number}
+                            </span>
+                          </div>
+                          <div className="info-row info-divider">
+                            <span className="info-label">Processado</span>
+                            <div className="staff-info">
+                              {selectedOrder.staff.profile_image && (
+                                <img
+                                  src={`https://pap-imagens.s3.amazonaws.com/imagens-perfil/${selectedOrder.staff.profile_image}`}
+                                  alt={selectedOrder.staff.name}
+                                  className="staff-avatar"
+                                />
+                              )}
+                              <span className="info-value">
+                                {selectedOrder.staff.name}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Items Section */}
+                    {selectedOrder.items && selectedOrder.items.length > 0 && (
+                      <div className="items-section">
+                        <h4 className="items-title">
+                          Items ({selectedOrder.items_count})
+                        </h4>
+                        <div className="items-list">
+                          {selectedOrder.items.map((item, index) => {
+                            const imageUrl =
+                              item.image_id &&
+                              item.image_id !== "undefined" &&
+                              item.image_id !== "null"
+                                ? `https://pap-imagens.s3.amazonaws.com/imagens-menu/${item.image_id}`
+                                : null;
+
+                            return (
+                              <div key={item.id || index} className="item-card">
+                                <div className="item-image-wrapper">
+                                  {imageUrl ? (
+                                    <img src={imageUrl} alt={item.item_name} />
+                                  ) : (
+                                    <Utensils
+                                      className="placeholder-icon"
+                                      size={24}
+                                    />
+                                  )}
+                                </div>
+                                <div className="item-details">
+                                  <div className="item-name">
+                                    {item.item_name}
+                                  </div>
+                                  <div className="item-meta">
+                                    <span>{item.item_category}</span>
+                                    {item.quantity && (
+                                      <>
+                                        <span>•</span>
+                                        <span>Qty: {item.quantity}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {item.notas && (
+                                    <div className="item-note">
+                                      📝 {item.notas}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="item-price">
+                                  {item.quantity
+                                    ? (item.price * item.quantity).toFixed(2)
+                                    : parseFloat(item.price).toFixed(2)}
+                                  €
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Total Card */}
+                    <div className="total-card">
+                      <span className="total-label">Total</span>
+                      <span className="total-amount">
+                        {selectedOrder.total_price.toFixed(2)}€
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

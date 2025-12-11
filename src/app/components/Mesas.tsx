@@ -21,6 +21,7 @@ import {
   ShieldX,
   AlertTriangle,
   Copy,
+  ShoppingBag,
 } from "lucide-react";
 import { databases, client } from "@/lib/appwrite";
 import { ID, Query } from "appwrite";
@@ -1564,17 +1565,27 @@ const RestaurantFloorPlan = React.memo(function RestaurantFloorPlan({
               )}
 
               {isManager && (
-                <button
-                  onClick={handleEditModeToggle}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 border ${
-                    editMode
-                      ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
-                      : "bg-green-600 hover:bg-green-700 text-white border-green-600"
-                  }`}
-                >
-                  <Edit size={16} />
-                  {editMode ? "Sair do Editor" : "Editar Layout"}
-                </button>
+                <>
+                  <button
+                    onClick={handleEditModeToggle}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 border ${
+                      editMode
+                        ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                        : "bg-green-600 hover:bg-green-700 text-white border-green-600"
+                    }`}
+                  >
+                    <Edit size={16} />
+                    {editMode ? "Sair do Editor" : "Editar Layout"}
+                  </button>
+
+                  <button
+                    onClick={() => (window.location.href = "/order/takeaway")}
+                    className="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 border bg-orange-600 hover:bg-orange-700 text-white border-orange-600"
+                  >
+                    <ShoppingBag size={16} />
+                    Takeaway
+                  </button>
+                </>
               )}
 
               {editMode && isManager && (

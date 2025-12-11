@@ -1,9 +1,0 @@
-const PORTA = process.env.PORT || 3001;
-const SEGREDO_JWT =
-  process.env.JWT_SECRET ||
-  "Falam-mal-de-mim-porque-eu-tenho-sauce-Tão-tão-atrás-que-eu-nem-os-ouço-Tantos-cães-atrás-do-mesmo-osso-Boy-eu-só-quero-ouro-no-pescoço-Ouro-no-pescoço-Ouro-no-pescoço-Ouro-no-pescoço-Falam-sem-saber-metade-Tentam-dar-a-missa-ao-padre-Merdas-feitas-noutra-idade-Boy-eu-'tou-mais-avançado-'Tás-no-banco-eu-a-avançado-'Tás-no-banco-eu-a-avançado-Queres-ser-o-purpp-'tás-atrasado-O-que-fazes-agora-eu-já-fiz-no-passado-Bitch-há-uns-anos-olhavas-de-lado-Com-uma-boa-pose-e-um-olhar-enjoado-Agora-tens-visto-que-tenho-acumulado-Agora-queres-pertencer-ao-meu-gado-És-só-mais-uma-a-querer-o-que-é-meu-Batendo-á-minha-porta-para-ir-ao-céu-Há-espaço-para-todas-bem-vinda-ao-rodeo-Há-espaço-para-todas-bem-vinda-ao-rodeo-Há-espaço-para-todas-bem-vinda-ao-rodeo-Falam-mal-de-mim-porque-eu-tenho-sauce-Tão-tão-atrás-que-eu-nem-os-ouço-Tantos-cães-atrás-do-mesmo-osso-Boy-eu-só-quero-ouro-no-pescoço-Ouro-no-pescoço-Ouro-no-pescoço-Ouro-no-pescoço-Tantos-filmes-e-tu-na-toca-No-ativo-e-ninguém-topa-Sem-estrilho-eu-só-quero-a-nota-Tanta-cana-acho-que-é-moda-Aqui-o-peixe-morre-pela-boca-Sei-que-o-meu-sucesso-te-incomoda-Aqui-o-peixe-morre-pela-boca-Sei-que-o-meu-sucesso-te-incomoda-Eu-disse-ala-que-anda-a-rimar-bala-Tipo-bala-no-crânio-Encho-a-mala-com-money-O-que-eu-faço-é-espontâneo-Trap-money-eu-tenho-Trap-game-eu-domino-Demónios-na-minha-cabeça-Para-mim-são-um-fascinio-A-tua-carreira-em-declínio-Boy-só-quero-um-patrocínio-E-se-quiseres-problemas-É-só-dar-o-toque-ao-meu-primo-Vou-só-dar-o-toque-ao-meu-primo-Falam-mal-de-mim-porque-eu-tenho-sauce-Tão-tão-atrás-que-eu-nem-os-ouço-Tantos-cães-atrás-do-mesmo-osso-Boy-eu-só-quero-ouro-no-pescoço-Ouro-no-pescoço-Ouro-no-pescoço-Ouro-no-pescoço";
-
-module.exports = {
-  PORTA,
-  SEGREDO_JWT,
-};

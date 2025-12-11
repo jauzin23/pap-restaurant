@@ -11,7 +11,7 @@ $active-bg: #eaecf4;
 $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 
 .sidebar {
-  width: 14rem; // SB Admin 2 uses 14rem
+  width: fit-content;
   min-height: 100vh;
   background: $sidebar-bg;
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -30,55 +30,12 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
   transform: translateX(-20px);
   animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 
-  &.collapsed {
-    width: fit-content;
-    .sidebar-brand {
-      justify-content: center;
-      padding: 1.5rem 0.5rem;
-
-      .brand-icon {
-        margin-right: 0;
-      }
-
-      .brand-text {
-        display: none;
-      }
-    }
-
-    .nav-heading {
-      display: none;
-    }
-
-    .nav-item {
-      justify-content: center;
-      padding: 1rem 0.5rem;
-
-      .nav-text {
-        display: none;
-      }
-    }
-
-    .sidebar-topbar {
-      padding: 0.5rem;
-
-      .user-menu-container {
-        .user-profile-btn {
-          justify-content: center;
-
-          .user-info {
-            display: none;
-          }
-        }
-      }
-    }
-  }
-
   // Sidebar Brand (Logo)
   .sidebar-brand {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0rem 0rem;
+    padding: 1.5rem 0.5rem;
     text-decoration: none;
     color: $text-dark;
     font-size: 1rem;
@@ -96,21 +53,11 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
       border-radius: 50%;
       font-weight: 800;
       font-size: 1rem;
-      margin-right: 0.5rem;
+      margin-right: 0;
       transition: transform 0.3s ease;
 
       span {
         color: white;
-      }
-    }
-
-    .brand-text {
-      white-space: nowrap;
-      font-size: 1.1rem;
-      color: $text-dark;
-
-      sup {
-        font-size: 0.6em;
       }
     }
   }
@@ -128,21 +75,13 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
     flex: 1;
     padding: 1rem 0;
     overflow-y: auto;
-
-    .nav-heading {
-      padding: 0.5rem 1rem;
-      font-size: 0.65rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.05rem;
-      color: $text-muted;
-    }
   }
 
   .nav-item {
     display: flex;
     align-items: center;
-    padding: 1rem 1rem;
+    justify-content: center;
+    padding: 1rem 0.5rem;
     color: $text-muted;
     text-decoration: none;
     font-size: 0.85rem;
@@ -166,11 +105,6 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
       height: 18px;
     }
 
-    .nav-text {
-      white-space: nowrap;
-      margin-left: 0.75rem;
-    }
-
     &:hover {
       color: $primary-color;
       background: $hover-bg;
@@ -186,14 +120,13 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 
   // User Profile section in sidebar
   .sidebar-topbar {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+    padding: 0.5rem;
     background: white;
 
     .user-profile-btn {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      justify-content: center;
       background: transparent;
       color: $text-dark;
       cursor: pointer;
@@ -201,36 +134,6 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
       border-radius: 0.35rem;
       transition: all 0.15s ease;
       width: 100%;
-
-      .user-info {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        flex: 1;
-        min-width: 0;
-
-        .user-name {
-          font-size: 0.875rem;
-          font-weight: 700;
-          color: $text-dark;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          width: 100%;
-          text-align: left;
-        }
-
-        .user-role {
-          font-size: 0.75rem;
-          color: $text-muted;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          width: 100%;
-          text-align: left;
-          text-transform: capitalize;
-        }
-      }
     }
   }
 
@@ -263,25 +166,6 @@ $shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
     background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
     color: $primary-color;
     border-color: $primary-color;
-  }
-
-  // Sidebar Toggle
-  .sidebar-toggle {
-    padding: 0.75rem;
-    background: white;
-    border: none;
-    color: $text-muted;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    border-top: 1px solid $border-color;
-
-    &:hover {
-      background: $hover-bg;
-      color: $primary-color;
-    }
   }
 }
 

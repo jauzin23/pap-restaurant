@@ -136,7 +136,6 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
 
   return (
     <div className="dashboard-cards-wrapper">
-      <h2 className="dashboard-cards__title">Estatística</h2>
       <div
         className="dashboard-cards"
         style={{

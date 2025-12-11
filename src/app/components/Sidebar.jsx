@@ -11,8 +11,6 @@ import {
   LayoutGrid,
   Users,
   Settings,
-  ChevronLeft,
-  ChevronRight,
   UserCircle,
   User,
   LogOut,
@@ -43,15 +41,12 @@ const RestLayoutIcon = ({ size = 18 }) => (
 const Sidebar = ({
   activeNavItem,
   onNavClick,
-  isCollapsed: externalCollapsed,
-  onToggle,
   user,
   username: propUsername,
   userLabels: propUserLabels,
   profileImg: propProfileImg,
 }) => {
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(externalCollapsed || false);
 
   const menuItems = [
     { id: "Painel", label: "Painel", icon: House },
@@ -101,15 +96,6 @@ const Sidebar = ({
     );
   };
 
-  // Toggle sidebar
-  const toggleSidebar = () => {
-    const newCollapsed = !isCollapsed;
-    setIsCollapsed(newCollapsed);
-    if (onToggle) {
-      onToggle();
-    }
-  };
-
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -136,20 +122,18 @@ const Sidebar = ({
     propProfileImg || user?.profileImage || user?.profile_image || "";
 
   return (
-    <aside className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
+    <aside className="sidebar collapsed">
       {/* Sidebar Brand */}
       <div className="sidebar-brand">
         <div className="brand-icon">
           <span>M+</span>
         </div>
-        {!isCollapsed && <div className="brand-text">Mesa Plus</div>}
       </div>
 
       <hr className="sidebar-divider" />
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        <div className="nav-heading">{!isCollapsed && "NAVEGAÇÃO"}</div>
         {menuItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = activeNavItem === item.id;
@@ -159,11 +143,10 @@ const Sidebar = ({
               key={item.id}
               className={`nav-item ${isActive ? "active" : ""}`}
               onClick={() => onNavClick(item.id)}
-              title={isCollapsed ? item.label : ""}
+              title={item.label}
               style={{ animationDelay: `${0.1 + index * 0.05}s` }}
             >
               <Icon size={18} />
-              {!isCollapsed && <span className="nav-text">{item.label}</span>}
             </button>
           );
         })}
@@ -182,14 +165,6 @@ const Sidebar = ({
                 size={40}
                 isCircular={true}
               />
-              {!isCollapsed && (
-                <div className="user-info">
-                  <span className="user-name">{username}</span>
-                  {userLabels && userLabels.length > 0 && (
-                    <span className="user-role">{userLabels[0]}</span>
-                  )}
-                </div>
-              )}
             </button>
           </DropdownMenu.Trigger>
 
@@ -229,11 +204,6 @@ const Sidebar = ({
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
       </div>
-
-      {/* Sidebar Toggle */}
-      <button className="sidebar-toggle" onClick={toggleSidebar}>
-        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-      </button>
     </aside>
   );
 };

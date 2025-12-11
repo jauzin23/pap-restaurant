@@ -13,7 +13,15 @@ import {
   Wand2,
   Check,
 } from "lucide-react";
-import { Input, Button, Select, Table, Tag, Image as AntdImage } from "antd";
+import {
+  Input,
+  Button,
+  Select,
+  Table,
+  Tag,
+  Image as AntdImage,
+  notification,
+} from "antd";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 import NumberFlow from "@number-flow/react";
@@ -107,16 +115,22 @@ export default function MenuComponent() {
   const [originalImageBeforeRemoval, setOriginalImageBeforeRemoval] =
     useState(null);
 
-  // Toast notification state
-  const [toast, setToast] = useState(null);
-
   const fileInputRef = useRef(null);
   const cropperRef = useRef(null);
 
-  // Toast notification function
+  // Toast notification function using Ant Design
   const showToast = (message, type = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    notification[type]({
+      message:
+        type === "success"
+          ? "Sucesso"
+          : type === "error"
+          ? "Erro"
+          : "Informação",
+      description: message,
+      placement: "topRight",
+      duration: 3,
+    });
   };
 
   // Fetch tags and categories
@@ -2005,21 +2019,6 @@ export default function MenuComponent() {
                   Aplicar Corte
                 </button>
               </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Toast Notification - Rendered via Portal to bypass stacking context */}
-      {toast &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div className={`toast-notification toast-${toast.type}`}>
-            <div className="toast-content">
-              {toast.type === "success" && <Check size={20} />}
-              {toast.type === "error" && <X size={20} />}
-              {toast.type === "info" && <RefreshCw size={20} />}
-              <span>{toast.message}</span>
             </div>
           </div>,
           document.body

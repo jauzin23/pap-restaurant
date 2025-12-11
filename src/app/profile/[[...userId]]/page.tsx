@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { notification } from "antd";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -24,6 +25,7 @@ import {
   Check,
   Tag,
   Building2,
+  Lock,
 } from "lucide-react";
 import { Cropper } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
@@ -75,6 +77,15 @@ function ProfilePageContent({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Password change states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -105,22 +116,25 @@ function ProfilePageContent({
     blob: Blob | null;
   } | null>(null);
 
-  // Toast notification state
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropperRef = useRef<any>(null);
 
-  // Toast notification function
+  // Toast notification function using Ant Design
   const showToast = (
     message: string,
     type: "success" | "error" | "info" = "success"
   ) => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    notification[type]({
+      message:
+        type === "success"
+          ? "Sucesso"
+          : type === "error"
+          ? "Erro"
+          : "Informação",
+      description: message,
+      placement: "topRight",
+      duration: 3,
+    });
   };
 
   // Profile Image Component
@@ -389,6 +403,75 @@ function ProfilePageContent({
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  // Handle password change
+  const handlePasswordChange = async () => {
+    if (!profileUser) return;
+
+    // Validation
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      showToast("As passwords não coincidem", "error");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      showToast("A password deve ter pelo menos 6 caracteres", "error");
+      return;
+    }
+
+    // If changing own password (not manager), current password is required
+    const isOwnProfile = currentUser?.id === profileUser.id;
+    const isManager = currentUser?.labels?.includes("manager");
+
+    if (isOwnProfile && !isManager && !passwordData.currentPassword) {
+      showToast("Password atual é obrigatória", "error");
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      const token = getAuthToken();
+
+      const requestBody: any = {
+        newPassword: passwordData.newPassword,
+      };
+
+      // Only send current password if it's the user's own profile and they're not a manager
+      if (isOwnProfile && !isManager) {
+        requestBody.currentPassword = passwordData.currentPassword;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/users/${profileUser.id}/password`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (response.ok) {
+        showToast("Password alterada com sucesso", "success");
+        setShowPasswordModal(false);
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      } else {
+        const error = await response.json();
+        showToast(error.error || "Erro ao alterar password", "error");
+      }
+    } catch (error) {
+      console.error("Error changing password:", error);
+      showToast("Erro ao alterar password", "error");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -936,14 +1019,25 @@ function ProfilePageContent({
                     <User size={20} />
                     Informação Pessoal
                   </h3>
-                  {!isEditing && canEdit && (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="edit-button fade-in-edit"
-                    >
-                      Editar
-                    </button>
-                  )}
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {!isEditing && canEdit && (
+                      <button
+                        onClick={() => setShowPasswordModal(true)}
+                        className="edit-button fade-in-edit"
+                        style={{ background: "#10b981" }}
+                      >
+                        Alterar Password
+                      </button>
+                    )}
+                    {!isEditing && canEdit && (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="edit-button fade-in-edit"
+                      >
+                        Editar
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="card-content">
                   {/* Name */}
@@ -1844,38 +1938,233 @@ function ProfilePageContent({
           document.body
         )}
 
-      {/* Toast Notification */}
-      {toast &&
+      {/* Password Change Modal */}
+      {showPasswordModal &&
         typeof document !== "undefined" &&
         createPortal(
           <div
             style={{
               position: "fixed",
-              top: "24px",
-              right: "24px",
-              backgroundColor:
-                toast.type === "success"
-                  ? "#10b981"
-                  : toast.type === "error"
-                  ? "#ef4444"
-                  : "#3b82f6",
-              color: "white",
-              padding: "16px 24px",
-              borderRadius: "8px",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-              zIndex: 999999,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.75)",
               display: "flex",
               alignItems: "center",
-              gap: "12px",
-              fontSize: "14px",
-              fontWeight: "500",
-              animation: "slideInRight 0.3s ease-out",
+              justifyContent: "center",
+              zIndex: 999999,
+              backdropFilter: "blur(4px)",
             }}
+            onClick={() => !changingPassword && setShowPasswordModal(false)}
           >
-            {toast.type === "success" && <Check size={20} />}
-            {toast.type === "error" && <X size={20} />}
-            {toast.type === "info" && <RefreshCw size={20} />}
-            <span>{toast.message}</span>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "32px",
+                borderRadius: "16px",
+                maxWidth: "450px",
+                width: "90%",
+                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                style={{
+                  margin: "0 0 8px 0",
+                  fontSize: "20px",
+                  fontWeight: "700",
+                  color: "#1e293b",
+                }}
+              >
+                Alterar Password
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 24px 0",
+                  color: "#64748b",
+                  fontSize: "14px",
+                }}
+              >
+                {currentUser?.id === profileUser?.id &&
+                !currentUser?.labels?.includes("manager")
+                  ? "Insira a sua password atual e a nova password"
+                  : `Alterando password de ${profileUser?.name}`}
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
+                {/* Current Password - only if own profile and not manager */}
+                {currentUser?.id === profileUser?.id &&
+                  !currentUser?.labels?.includes("manager") && (
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#1e293b",
+                        }}
+                      >
+                        Password Atual
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) =>
+                          setPasswordData({
+                            ...passwordData,
+                            currentPassword: e.target.value,
+                          })
+                        }
+                        placeholder="Digite a password atual"
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          borderRadius: "8px",
+                          border: "1px solid #e5e7eb",
+                          fontSize: "14px",
+                        }}
+                        disabled={changingPassword}
+                      />
+                    </div>
+                  )}
+
+                {/* New Password */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "6px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#1e293b",
+                    }}
+                  >
+                    Nova Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        newPassword: e.target.value,
+                      })
+                    }
+                    placeholder="Digite a nova password"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      fontSize: "14px",
+                    }}
+                    disabled={changingPassword}
+                  />
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "6px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#1e293b",
+                    }}
+                  >
+                    Confirmar Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    placeholder="Confirme a nova password"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #e5e7eb",
+                      fontSize: "14px",
+                    }}
+                    disabled={changingPassword}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "24px",
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({
+                      currentPassword: "",
+                      newPassword: "",
+                      confirmPassword: "",
+                    });
+                  }}
+                  disabled={changingPassword}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    border: "1px solid #e5e7eb",
+                    backgroundColor: "white",
+                    color: "#64748b",
+                    cursor: changingPassword ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    opacity: changingPassword ? 0.5 : 1,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handlePasswordChange}
+                  disabled={changingPassword}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#10b981",
+                    color: "white",
+                    cursor: changingPassword ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: changingPassword ? 0.7 : 1,
+                  }}
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 size={16} className="spinner" />A alterar...
+                    </>
+                  ) : (
+                    "Alterar Password"
+                  )}
+                </button>
+              </div>
+            </div>
           </div>,
           document.body
         )}

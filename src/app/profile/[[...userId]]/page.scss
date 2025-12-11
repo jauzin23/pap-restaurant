@@ -1,6 +1,9 @@
 // Import Nunito font
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
 
+// Import shared toast styles
+@import "../../components/toast-styles.scss";
+
 // Animation classes for edit mode transitions
 .fade-in-edit {
   animation: fadeInEdit 0.35s cubic-bezier(0.4, 0, 0.2, 1);

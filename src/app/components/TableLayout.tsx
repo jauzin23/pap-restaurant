@@ -27,11 +27,15 @@ import {
   CheckCircle,
   MessageSquare,
   ChevronRight,
+  ShoppingBag,
+  Clock,
+  Check,
 } from "lucide-react";
 import {
   tableLayouts,
   tables,
   orders as ordersApi,
+  takeawayApi,
   getAuthToken,
   auth,
 } from "../../lib/api";
@@ -39,6 +43,26 @@ import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import { throttle } from "../../lib/throttle";
 import NumberFlow from "@number-flow/react";
 import "./TableLayout.scss";
+
+/**
+ * KEY OPTIMIZATIONS FOR TABLE DRAGGING PERFORMANCE
+ *
+ * 1. USE REFS INSTEAD OF STATE FOR DRAG POSITION
+ *    - Avoid React re-renders during drag
+ *    - Update DOM directly via transform
+ *
+ * 2. USE RAF (requestAnimationFrame) FOR SMOOTH UPDATES
+ *    - Batch DOM updates to next frame
+ *    - Prevent multiple updates per frame
+ *
+ * 3. MEMOIZE EXPENSIVE CALCULATIONS
+ *    - useMemo for table statuses
+ *    - React.memo for TableComponent
+ *
+ * 4. DEBOUNCE STATE UPDATES
+ *    - Only update React state on mouseup
+ *    - Keep visual updates via DOM manipulation
+ */
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -85,6 +109,177 @@ interface TableLayoutManagerProps {
 
 // Hardcoded layouts for demo
 const INITIAL_LAYOUTS: Layout[] = [];
+
+// ============================================================================
+// OPTIMIZED DRAG HANDLERS
+// ============================================================================
+
+const useOptimizedDrag = (
+  currentLayout: Layout | undefined,
+  updateTable: (tableId: string, updates: Partial<Table>) => void,
+  setSelectedTable: (id: string | null) => void,
+  setHasUnsavedChanges: (value: boolean) => void
+) => {
+  const dragStateRef = useRef({
+    isDragging: false,
+    tableId: null as string | null,
+    element: null as HTMLElement | null,
+    offset: { x: 0, y: 0 },
+    rafId: null as number | null,
+    lastPosition: { x: 0, y: 0 },
+  });
+
+  const startDrag = useCallback(
+    (
+      e: React.MouseEvent | React.TouchEvent,
+      tableId: string,
+      canvasRef: React.RefObject<HTMLDivElement>
+    ) => {
+      if (!currentLayout) return;
+      const table = currentLayout.tables.find((t) => t.id === tableId);
+      if (!table || !canvasRef.current) return;
+
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = currentLayout.width / rect.width;
+      const scaleY = currentLayout.height / rect.height;
+
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+      dragStateRef.current = {
+        isDragging: true,
+        tableId,
+        element: e.currentTarget as HTMLElement,
+        offset: {
+          x: (clientX - rect.left) * scaleX - table.x,
+          y: (clientY - rect.top) * scaleY - table.y,
+        },
+        rafId: null,
+        lastPosition: { x: table.x, y: table.y },
+      };
+
+      // Add dragging class for cursor
+      (e.currentTarget as HTMLElement).classList.add("is-dragging");
+      setSelectedTable(tableId);
+    },
+    [currentLayout, setSelectedTable]
+  );
+
+  const handleMove = useCallback(
+    (
+      e: MouseEvent | TouchEvent,
+      canvasRef: React.RefObject<HTMLDivElement>
+    ) => {
+      const dragState = dragStateRef.current;
+      if (
+        !dragState.isDragging ||
+        !dragState.element ||
+        !canvasRef.current ||
+        !currentLayout
+      )
+        return;
+
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const table = currentLayout.tables.find(
+        (t) => t.id === dragState.tableId
+      );
+      if (!table) return;
+
+      const scaleX = currentLayout.width / rect.width;
+      const scaleY = currentLayout.height / rect.height;
+
+      const clientX =
+        "touches" in e
+          ? (e as TouchEvent).touches[0].clientX
+          : (e as MouseEvent).clientX;
+      const clientY =
+        "touches" in e
+          ? (e as TouchEvent).touches[0].clientY
+          : (e as MouseEvent).clientY;
+
+      // Calculate new position
+      const x = Math.max(
+        0,
+        Math.min(
+          (clientX - rect.left) * scaleX - dragState.offset.x,
+          currentLayout.width - table.width
+        )
+      );
+      const y = Math.max(
+        0,
+        Math.min(
+          (clientY - rect.top) * scaleY - dragState.offset.y,
+          currentLayout.height - table.height
+        )
+      );
+
+      // Cancel previous RAF if exists
+      if (dragState.rafId !== null) {
+        cancelAnimationFrame(dragState.rafId);
+      }
+
+      // Schedule DOM update for next frame
+      dragState.rafId = requestAnimationFrame(() => {
+        if (dragState.element) {
+          // Direct DOM manipulation - use left/top for absolute positioning
+          // This gives pixel-perfect mouse following (no offset issues)
+          dragState.element.style.left = `${x}px`;
+          dragState.element.style.top = `${y}px`;
+          dragState.element.style.transition = "none";
+        }
+        dragState.rafId = null;
+      });
+
+      // Store position for final state update
+      dragState.lastPosition = { x, y };
+    },
+    [currentLayout]
+  );
+
+  const endDrag = useCallback(() => {
+    const dragState = dragStateRef.current;
+    if (!dragState.isDragging) return;
+
+    // Cancel pending RAF
+    if (dragState.rafId !== null) {
+      cancelAnimationFrame(dragState.rafId);
+    }
+
+    // Remove dragging class (React will handle final position via re-render)
+    if (dragState.element) {
+      dragState.element.classList.remove("is-dragging");
+      // Don't reset left/top - React will override with final state values
+    }
+
+    // NOW update React state (only once at end)
+    if (dragState.tableId && dragState.lastPosition) {
+      updateTable(dragState.tableId, {
+        x: dragState.lastPosition.x,
+        y: dragState.lastPosition.y,
+      });
+      setHasUnsavedChanges(true);
+    }
+
+    // Reset drag state
+    dragStateRef.current = {
+      isDragging: false,
+      tableId: null,
+      element: null,
+      offset: { x: 0, y: 0 },
+      rafId: null,
+      lastPosition: { x: 0, y: 0 },
+    };
+  }, [updateTable, setHasUnsavedChanges]);
+
+  return {
+    startDrag,
+    handleMove,
+    endDrag,
+    isDragging: dragStateRef.current.isDragging,
+  };
+};
 
 // Helper function to generate chairs from database data
 const generateChairsFromData = (tableData: any): Chair[] => {
@@ -212,6 +407,14 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     onConfirm: () => void;
   } | null>(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
+  const [showTakeawayModal, setShowTakeawayModal] = useState(false);
+  const [tableAnimations, setTableAnimations] = useState<
+    Record<string, "entering" | "moving" | "exiting" | null>
+  >({});
+  const [previousTablePositions, setPreviousTablePositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -287,10 +490,23 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       const allTablesData = allTablesResponse.documents || [];
       setAllTables(allTablesData);
 
-      // Get all orders
+      // Get all orders (dine-in only now)
       const ordersResponse = await ordersApi.list();
       const ordersData = ordersResponse.documents || [];
       setOrdersData(ordersData);
+
+      // Get takeaway orders from dedicated endpoint
+      try {
+        const takeawayResponse = await takeawayApi.list();
+        const takeawayData = (takeawayResponse.documents || []).filter(
+          (order: any) =>
+            order.status !== "entregue" && order.status !== "cancelado"
+        );
+        setTakeawayOrders(takeawayData);
+      } catch (takeawayError) {
+        console.log("Takeaway API not available yet:", takeawayError);
+        setTakeawayOrders([]);
+      }
 
       console.log("=== LOADING TABLES AND ORDERS ===");
       const layout = layouts[currentLayoutIndex];
@@ -475,6 +691,16 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     });
   };
 
+  // Handle takeaway order creation
+  const handleTakeawayOrder = () => {
+    if (takeawayOrders.length > 0) {
+      setShowTakeawayModal(true);
+    } else {
+      setIsCreatingOrder(true);
+      router.push("/order/takeaway");
+    }
+  };
+
   // Create order with selected tables
   const handleCreateOrder = () => {
     if (selectedTables.length === 0) {
@@ -578,46 +804,157 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     // Table events - refresh layouts
     const handleTableCreated = (table: any) => {
       console.log("🪑 Table created via WebSocket:", table);
-      // Only refresh if it belongs to current layout
+
+      // Ignore updates in edit mode
+      if (mode === "edit") {
+        console.log("⚠️ Ignoring table creation in edit mode");
+        return;
+      }
+
+      // Only update if it belongs to current layout
       if (layout && table.layout_id === layout.id) {
-        loadLayouts();
-        loadAllTablesAndOrders();
+        const convertedTable = convertDbTableToComponent(table);
+
+        // Check if table already exists to prevent duplicates
+        const tableExists = layouts.some((l) =>
+          l.tables.some((t) => t.id === table.id)
+        );
+
+        if (tableExists) {
+          console.log(`⚠️ Table ${table.id} already exists, skipping creation`);
+          return;
+        }
+
+        // Mark table as entering for animation
+        setTableAnimations((prev) => ({ ...prev, [table.id]: "entering" }));
+
+        // Add table to layout
+        setLayouts((prev) =>
+          prev.map((l) =>
+            l.id === table.layout_id
+              ? { ...l, tables: [...l.tables, convertedTable] }
+              : l
+          )
+        );
+
+        // Add to allTables (check for duplicates here too)
+        setAllTables((prev) => {
+          const exists = prev.some(
+            (t) => t.id === table.id || t.$id === table.id
+          );
+          if (exists) return prev;
+          return [...prev, table];
+        });
+
+        // Remove animation state after animation completes
+        setTimeout(() => {
+          setTableAnimations((prev) => {
+            const updated = { ...prev };
+            delete updated[table.id];
+            return updated;
+          });
+        }, 500);
       }
     };
 
     const handleTableUpdated = (table: any) => {
       console.log("✏️ Table updated via WebSocket:", table);
-      // Update allTables state directly
+
+      // Ignore updates in edit mode to prevent conflicts with local dragging
+      if (mode === "edit") {
+        console.log("⚠️ Ignoring table update in edit mode");
+        return;
+      }
+
+      // Check if position changed for movement animation
+      const previousPos = previousTablePositions[table.id];
+      const hasPositionChanged =
+        previousPos && (previousPos.x !== table.x || previousPos.y !== table.y);
+
+      if (hasPositionChanged) {
+        setTableAnimations((prev) => ({ ...prev, [table.id]: "moving" }));
+        setTimeout(() => {
+          setTableAnimations((prev) => {
+            const updated = { ...prev };
+            delete updated[table.id];
+            return updated;
+          });
+        }, 300);
+      }
+
+      // Convert table data
+      const convertedTable = convertDbTableToComponent(table);
+
+      // Batch state updates to reduce re-renders
       setAllTables((prev) =>
         prev.map((t) =>
           t.id === table.id || t.$id === table.id ? { ...t, ...table } : t
         )
       );
-      // Optionally update layouts if table properties affect layout
+
       setLayouts((prev) =>
         prev.map((layout) =>
           layout.id === table.layout_id
             ? {
                 ...layout,
                 tables: layout.tables.map((t) =>
-                  t.id === table.id ? { ...t, ...table } : t
+                  t.id === table.id ? convertedTable : t
                 ),
               }
             : layout
         )
       );
-      // Optionally recalculate statuses if needed
-      calculateTableStatuses(
-        allTables.map((t) => (t.id === table.id ? { ...t, ...table } : t)),
-        ordersData,
-        layouts[currentLayoutIndex]?.id
-      );
+
+      // Store new position for future comparisons
+      if (hasPositionChanged) {
+        setPreviousTablePositions((prev) => ({
+          ...prev,
+          [table.id]: { x: table.x, y: table.y },
+        }));
+      }
     };
 
     const handleTableDeleted = (data: any) => {
       console.log("🗑️ Table deleted via WebSocket:", data);
-      loadLayouts();
-      loadAllTablesAndOrders();
+
+      // Ignore updates in edit mode
+      if (mode === "edit") {
+        console.log("⚠️ Ignoring table deletion in edit mode");
+        return;
+      }
+
+      const tableId = data.id || data.tableId;
+
+      // Mark table as exiting for animation
+      setTableAnimations((prev) => ({ ...prev, [tableId]: "exiting" }));
+
+      // Remove table after animation completes
+      setTimeout(() => {
+        setLayouts((prev) =>
+          prev.map((l) => ({
+            ...l,
+            tables: l.tables.filter((t) => t.id !== tableId),
+          }))
+        );
+
+        setAllTables((prev) =>
+          prev.filter((t) => t.id !== tableId && t.$id !== tableId)
+        );
+
+        // Clean up animation state
+        setTableAnimations((prev) => {
+          const updated = { ...prev };
+          delete updated[tableId];
+          return updated;
+        });
+
+        // Clean up position tracking
+        setPreviousTablePositions((prev) => {
+          const updated = { ...prev };
+          delete updated[tableId];
+          return updated;
+        });
+      }, 300);
     };
 
     // Layout events
@@ -638,6 +975,37 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       loadLayouts();
     };
 
+    // Takeaway events
+    const handleTakeawayCreated = (order: any) => {
+      console.log("🛍️ Takeaway created via WebSocket:", order);
+      setTakeawayOrders((prev) => [order, ...prev]);
+    };
+
+    const handleTakeawayUpdated = (order: any) => {
+      console.log("✏️ Takeaway updated via WebSocket:", order);
+      setTakeawayOrders((prev) =>
+        prev.map((o) =>
+          (o.id || o.$id) === (order.id || order.$id) ? { ...o, ...order } : o
+        )
+      );
+    };
+
+    const handleTakeawayDeleted = (data: any) => {
+      console.log("🗑️ Takeaway deleted via WebSocket:", data);
+      const deletedId = data.id || data.$id;
+      setTakeawayOrders((prev) =>
+        prev.filter((o) => (o.id || o.$id) !== deletedId)
+      );
+    };
+
+    const handleTakeawayCompleted = (data: any) => {
+      console.log("✅ Takeaway completed via WebSocket:", data);
+      const completedId = data.id || data.$id;
+      setTakeawayOrders((prev) =>
+        prev.filter((o) => (o.id || o.$id) !== completedId)
+      );
+    };
+
     // Register all event listeners
     (socket as Socket).on("order:created", handleOrderCreated);
     (socket as Socket).on("order:updated", handleOrderUpdated);
@@ -648,6 +1016,10 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     (socket as Socket).on("layout:created", handleLayoutCreated);
     (socket as Socket).on("layout:updated", handleLayoutUpdated);
     (socket as Socket).on("layout:deleted", handleLayoutDeleted);
+    (socket as Socket).on("takeaway:created", handleTakeawayCreated);
+    (socket as Socket).on("takeaway:updated", handleTakeawayUpdated);
+    (socket as Socket).on("takeaway:deleted", handleTakeawayDeleted);
+    (socket as Socket).on("takeaway:completed", handleTakeawayCompleted);
 
     // Cleanup function
     return () => {
@@ -669,6 +1041,10 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       (socket as Socket).off("layout:created", handleLayoutCreated);
       (socket as Socket).off("layout:updated", handleLayoutUpdated);
       (socket as Socket).off("layout:deleted", handleLayoutDeleted);
+      (socket as Socket).off("takeaway:created", handleTakeawayCreated);
+      (socket as Socket).off("takeaway:updated", handleTakeawayUpdated);
+      (socket as Socket).off("takeaway:deleted", handleTakeawayDeleted);
+      (socket as Socket).off("takeaway:completed", handleTakeawayCompleted);
     };
   }, [socket, connected, currentLayoutIndex, layouts, mode]);
 
@@ -771,6 +1147,19 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       setHasUnsavedChanges(true);
     },
     [currentLayoutIndex]
+  );
+
+  // Initialize optimized drag hook (after all dependencies are defined)
+  const {
+    startDrag,
+    handleMove,
+    endDrag,
+    isDragging: isDraggingOptimized,
+  } = useOptimizedDrag(
+    currentLayout,
+    updateTable,
+    setSelectedTable,
+    setHasUnsavedChanges
   );
 
   const addTable = (shape: "round" | "square") => {
@@ -880,23 +1269,9 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     if (mode !== "edit" || !currentLayout) return;
     e.stopPropagation();
 
-    const table = currentLayout.tables.find((t) => t.id === tableId);
-    if (!table) return;
-
-    setSelectedTable(tableId);
+    // Use optimized drag start
+    startDrag(e, tableId, canvasRef);
     setIsDragging(true);
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = currentLayout.width / rect.width;
-    const scaleY = currentLayout.height / rect.height;
-
-    setDragOffset({
-      x: (e.clientX - rect.left) * scaleX - table.x,
-      y: (e.clientY - rect.top) * scaleY - table.y,
-    });
   };
 
   const handleTableClick = (tableId: string) => {
@@ -928,98 +1303,42 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     if (mode !== "edit" || !currentLayout) return;
     e.stopPropagation();
 
-    const table = currentLayout.tables.find((t) => t.id === tableId);
-    if (!table) return;
-
-    setSelectedTable(tableId);
+    // Use optimized drag start
+    startDrag(e, tableId, canvasRef);
     setIsDragging(true);
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const scaleX = currentLayout.width / rect.width;
-    const scaleY = currentLayout.height / rect.height;
-
-    setDragOffset({
-      x: (touch.clientX - rect.left) * scaleX - table.x,
-      y: (touch.clientY - rect.top) * scaleY - table.y,
-    });
   };
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!isDragging || !selectedTable || !canvasRef.current || !currentLayout)
-        return;
-
-      const rect = canvasRef.current.getBoundingClientRect();
-      const table = currentLayout.tables.find((t) => t.id === selectedTable);
-      if (!table) return;
-
-      const scaleX = currentLayout.width / rect.width;
-      const scaleY = currentLayout.height / rect.height;
-
-      const x = Math.max(
-        0,
-        Math.min(
-          (e.clientX - rect.left) * scaleX - dragOffset.x,
-          currentLayout.width - table.width
-        )
-      );
-      const y = Math.max(
-        0,
-        Math.min(
-          (e.clientY - rect.top) * scaleY - dragOffset.y,
-          currentLayout.height - table.height
-        )
-      );
-
-      updateTable(selectedTable, { x, y });
+      if (!isDragging) return;
+      // Use optimized move handler
+      handleMove(e, canvasRef);
     },
-    [isDragging, selectedTable, dragOffset, currentLayout, updateTable]
+    [isDragging, handleMove]
   );
 
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
-      if (!isDragging || !selectedTable || !canvasRef.current || !currentLayout)
-        return;
-
-      const rect = canvasRef.current.getBoundingClientRect();
-      const table = currentLayout.tables.find((t) => t.id === selectedTable);
-      if (!table) return;
-
-      const touch = e.touches[0];
-      const scaleX = currentLayout.width / rect.width;
-      const scaleY = currentLayout.height / rect.height;
-
-      const x = Math.max(
-        0,
-        Math.min(
-          (touch.clientX - rect.left) * scaleX - dragOffset.x,
-          currentLayout.width - table.width
-        )
-      );
-      const y = Math.max(
-        0,
-        Math.min(
-          (touch.clientY - rect.top) * scaleY - dragOffset.y,
-          currentLayout.height - table.height
-        )
-      );
-
-      updateTable(selectedTable, { x, y });
+      if (!isDragging) return;
+      // Use optimized move handler
+      handleMove(e, canvasRef);
     },
-    [isDragging, selectedTable, dragOffset, currentLayout, updateTable]
+    [isDragging, handleMove]
   );
 
   const handleMouseUp = useCallback(() => {
+    if (!isDragging) return;
+    // Use optimized end drag
+    endDrag();
     setIsDragging(false);
-  }, []);
+  }, [isDragging, endDrag]);
 
   const handleTouchEnd = useCallback(() => {
+    if (!isDragging) return;
+    // Use optimized end drag
+    endDrag();
     setIsDragging(false);
-  }, []);
+  }, [isDragging, endDrag]);
 
   useEffect(() => {
     if (isDragging) {
@@ -1072,27 +1391,24 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       );
       const currentTableIds = currentLayout.tables.map((t) => t.id);
 
-      // Handle new tables (with temporary IDs)
+      // STEP 1: Delete tables that no longer exist in the layout FIRST
+      // This prevents "table number already exists" errors when recreating tables
+      for (const existingTableId of existingTableIds) {
+        if (!currentTableIds.includes(existingTableId)) {
+          console.log(`Deleting removed table: ${existingTableId}`);
+          await tables.delete(existingTableId);
+        }
+      }
+
+      // STEP 2: Update existing tables
       for (const table of currentLayout.tables) {
-        if (table.id.startsWith("temp_")) {
-          // Create new table
-          const tableData = {
-            layout_id: currentLayout.id, // Keep as string/UUID
-            table_number: table.number,
-            x: table.x,
-            y: table.y,
-            width: table.width,
-            height: table.height,
-            shape: table.shape,
-            chairs_top: table.chairsConfig.top,
-            chairs_bottom: table.chairsConfig.bottom,
-            chairs_left: table.chairsConfig.left,
-            chairs_right: table.chairsConfig.right,
-            chairs_count: table.chairs.length,
-          };
-          await tables.create(tableData);
-        } else if (existingTableIds.includes(table.id)) {
-          // Update existing table
+        if (
+          !table.id.startsWith("temp_") &&
+          existingTableIds.includes(table.id)
+        ) {
+          console.log(
+            `Updating existing table: ${table.id} (number ${table.number})`
+          );
           const tableData = {
             table_number: table.number,
             x: table.x,
@@ -1110,10 +1426,25 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         }
       }
 
-      // Delete tables that no longer exist in the layout
-      for (const existingTableId of existingTableIds) {
-        if (!currentTableIds.includes(existingTableId)) {
-          await tables.delete(existingTableId);
+      // STEP 3: Create new tables (with temporary IDs) LAST
+      for (const table of currentLayout.tables) {
+        if (table.id.startsWith("temp_")) {
+          console.log(`Creating new table: number ${table.number}`);
+          const tableData = {
+            layout_id: currentLayout.id,
+            table_number: table.number,
+            x: table.x,
+            y: table.y,
+            width: table.width,
+            height: table.height,
+            shape: table.shape,
+            chairs_top: table.chairsConfig.top,
+            chairs_bottom: table.chairsConfig.bottom,
+            chairs_left: table.chairsConfig.left,
+            chairs_right: table.chairsConfig.right,
+            chairs_count: table.chairs.length,
+          };
+          await tables.create(tableData);
         }
       }
 
@@ -1123,6 +1454,11 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       await loadLayouts();
 
       setHasUnsavedChanges(false);
+
+      // Clear selections and exit edit mode
+      setSelectedTable(null);
+      setSelectedTables([]);
+      setMode("view");
     } catch (error) {
       console.error("Error saving layout:", error);
       setError("Erro ao guardar layout");
@@ -1326,13 +1662,27 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
               )}
 
               {mode === "view" && selectedTables.length === 0 && (
-                <button
-                  className="mode-toggle edit-btn"
-                  onClick={() => setMode("edit")}
-                >
-                  <Edit size={16} />
-                  Editar
-                </button>
+                <>
+                  <button
+                    className="create-order-btn takeaway-btn"
+                    onClick={handleTakeawayOrder}
+                  >
+                    <ShoppingBag size={16} />
+                    Takeaway
+                    {takeawayOrders.length > 0 && (
+                      <span className="takeaway-badge">
+                        {takeawayOrders.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    className="mode-toggle edit-btn"
+                    onClick={() => setMode("edit")}
+                  >
+                    <Edit size={16} />
+                    Editar
+                  </button>
+                </>
               )}
 
               {mode === "edit" && (
@@ -1776,6 +2126,10 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                     }, 0);
                   }
 
+                  const animationClass = tableAnimations[table.id]
+                    ? `table-${tableAnimations[table.id]}`
+                    : "";
+
                   return (
                     <TableComponent
                       key={table.id}
@@ -1791,12 +2145,223 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                       onTouchStart={(e) => handleTableTouchStart(e, table.id)}
                       onClick={() => handleTableClick(table.id)}
                       orderTotal={orderTotal}
+                      className={animationClass}
                     />
                   );
                 })}
               </div>
             </div>
           </div>
+          {/* Takeaway Orders Modal */}
+          {showTakeawayModal &&
+          typeof window !== "undefined" &&
+          typeof document !== "undefined" &&
+          document.body
+            ? createPortal(
+                <div
+                  className="table-layout-manager-modals modal-overlay takeaway-modal-overlay"
+                  onClick={() => setShowTakeawayModal(false)}
+                >
+                  <div
+                    className="modal-content takeaway-orders-modal"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="modal-header">
+                      <h3>
+                        <ShoppingBag size={20} />
+                        Pedidos Takeaway ({takeawayOrders.length})
+                      </h3>
+                      <button
+                        className="modal-close"
+                        onClick={() => setShowTakeawayModal(false)}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="modal-body takeaway-orders-list">
+                      {takeawayOrders.length === 0 ? (
+                        <div className="takeaway-empty-state">
+                          <ShoppingBag size={48} strokeWidth={1.5} />
+                          <h4>Sem pedidos takeaway</h4>
+                          <p>Crie um novo pedido para começar</p>
+                        </div>
+                      ) : (
+                        takeawayOrders.map((order) => {
+                          const orderTotal = parseFloat(order.total_price) || 0;
+                          const statusClass = (order.status || "pendente")
+                            .toLowerCase()
+                            .replace(/\s+/g, "-");
+                          const items = order.items || [];
+
+                          return (
+                            <div
+                              key={order.id || order.$id}
+                              className="takeaway-order-card"
+                            >
+                              <div className="order-card-header">
+                                <div className="order-info">
+                                  <h4>{order.customer_name || "Cliente"}</h4>
+                                  <span className="order-phone">
+                                    {order.customer_phone || "Sem telefone"}
+                                  </span>
+                                  {order.customer_email && (
+                                    <span className="order-email">
+                                      {order.customer_email}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="order-header-right">
+                                  <span
+                                    className={`status-badge status-${statusClass}`}
+                                  >
+                                    {order.status || "pendente"}
+                                  </span>
+                                  <div className="order-total">
+                                    €{orderTotal.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="order-card-body">
+                                <div className="order-items-list">
+                                  {items.map((item: any, idx: number) => (
+                                    <div
+                                      key={item.id || idx}
+                                      className="order-item-row"
+                                    >
+                                      <span className="item-qty">
+                                        {item.quantity}x
+                                      </span>
+                                      <span className="item-name">
+                                        {item.item_name || "Item"}
+                                      </span>
+                                      <span className="item-price">
+                                        €
+                                        {(
+                                          parseFloat(item.price) *
+                                          (item.quantity || 1)
+                                        ).toFixed(2)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {order.special_requests && (
+                                  <div className="order-notes">
+                                    <MessageSquare size={12} />
+                                    {order.special_requests}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="order-card-actions">
+                                <button
+                                  className="action-btn delete-btn"
+                                  onClick={async () => {
+                                    if (
+                                      !confirm(
+                                        "Tem certeza que deseja eliminar este pedido?"
+                                      )
+                                    )
+                                      return;
+                                    try {
+                                      await takeawayApi.delete(
+                                        order.id || order.$id
+                                      );
+                                      setTakeawayOrders((prev) =>
+                                        prev.filter(
+                                          (o) =>
+                                            (o.id || o.$id) !==
+                                            (order.id || order.$id)
+                                        )
+                                      );
+                                    } catch (error) {
+                                      console.error(
+                                        "Failed to delete takeaway order:",
+                                        error
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                  Eliminar
+                                </button>
+                                {order.status !== "pronto" ? (
+                                  <button
+                                    className="action-btn ready-btn"
+                                    onClick={async () => {
+                                      try {
+                                        await takeawayApi.update(
+                                          order.id || order.$id,
+                                          { status: "pronto" }
+                                        );
+                                        setTakeawayOrders((prev) =>
+                                          prev.map((o) =>
+                                            (o.id || o.$id) ===
+                                            (order.id || order.$id)
+                                              ? { ...o, status: "pronto" }
+                                              : o
+                                          )
+                                        );
+                                      } catch (error) {
+                                        console.error(
+                                          "Failed to mark as ready:",
+                                          error
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <Check size={14} />
+                                    Marcar como Pronto
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="action-btn complete-btn"
+                                    onClick={async () => {
+                                      try {
+                                        await takeawayApi.complete(
+                                          order.id || order.$id
+                                        );
+                                        setTakeawayOrders((prev) =>
+                                          prev.filter(
+                                            (o) =>
+                                              (o.id || o.$id) !==
+                                              (order.id || order.$id)
+                                          )
+                                        );
+                                      } catch (error) {
+                                        console.error(
+                                          "Failed to complete takeaway order:",
+                                          error
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <Check size={14} />
+                                    Marcar como Entregue
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                    <div className="modal-footer">
+                      <button
+                        className="footer-button primary"
+                        onClick={() => {
+                          setShowTakeawayModal(false);
+                          setIsCreatingOrder(true);
+                          router.push("/order/takeaway");
+                        }}
+                      >
+                        <Plus size={16} />
+                        Novo Pedido Takeaway
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )
+            : null}
           {/* Order Details Modal - Rendered via Portal to bypass stacking context */}
           {showOrderModal &&
           typeof window !== "undefined" &&
@@ -2049,14 +2614,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error("Update error:", errorData);
-        alert(
-          "Erro ao atualizar pedido: " +
-            (errorData.error || "Erro desconhecido")
-        );
       }
     } catch (error) {
       console.error("Error updating order:", error);
-      alert("Erro ao atualizar pedido");
     } finally {
       setIsSaving(false);
     }
@@ -2087,7 +2647,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           }
         } catch (error) {
           console.error("Error deleting order:", error);
-          alert("Erro ao eliminar pedido");
         }
       },
     });
@@ -2217,14 +2776,9 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error("Update error:", errorData);
-        alert(
-          "Erro ao atualizar estado: " +
-            (errorData.error || "Erro desconhecido")
-        );
       }
     } catch (error) {
       console.error("Error updating order status:", error);
-      alert("Erro ao atualizar estado");
     } finally {
       console.log("🔄 Clearing loading state for order:", orderId);
       setIsSaving(false);
@@ -2720,143 +3274,170 @@ interface TableComponentProps {
   onTouchStart: (e: React.TouchEvent) => void;
   onClick: () => void;
   orderTotal?: number; // Add order total prop
+  className?: string; // Add className for animations
 }
 
-const TableComponent: React.FC<TableComponentProps> = ({
-  table,
-  isSelected,
-  isSelectedForOrder,
-  mode,
-  onMouseDown,
-  onTouchStart,
-  onClick,
-  orderTotal = 0,
-}) => {
-  const chairsByPosition = {
-    top: table.chairs.filter((c) => c.position === "top"),
-    bottom: table.chairs.filter((c) => c.position === "bottom"),
-    left: table.chairs.filter((c) => c.position === "left"),
-    right: table.chairs.filter((c) => c.position === "right"),
-  };
+const TableComponent = React.memo<TableComponentProps>(
+  ({
+    table,
+    isSelected,
+    isSelectedForOrder,
+    mode,
+    onMouseDown,
+    onTouchStart,
+    onClick,
+    orderTotal = 0,
+    className = "",
+  }) => {
+    const chairsByPosition = {
+      top: table.chairs.filter((c) => c.position === "top"),
+      bottom: table.chairs.filter((c) => c.position === "bottom"),
+      left: table.chairs.filter((c) => c.position === "left"),
+      right: table.chairs.filter((c) => c.position === "right"),
+    };
 
-  const renderChairs = (position: "top" | "bottom" | "left" | "right") => {
-    const chairs = chairsByPosition[position];
-    if (chairs.length === 0) return null;
+    const renderChairs = (position: "top" | "bottom" | "left" | "right") => {
+      const chairs = chairsByPosition[position];
+      if (chairs.length === 0) return null;
 
-    const isVertical = position === "left" || position === "right";
-    const spacing = isVertical
-      ? table.height / (chairs.length + 1)
-      : table.width / (chairs.length + 1);
+      const isVertical = position === "left" || position === "right";
+      const spacing = isVertical
+        ? table.height / (chairs.length + 1)
+        : table.width / (chairs.length + 1);
 
-    return chairs.map((chair, index) => {
-      let style: React.CSSProperties = {};
+      return chairs.map((chair, index) => {
+        let style: React.CSSProperties = {};
 
-      if (position === "top") {
-        style = {
-          left: `${spacing * (index + 1)}px`,
-          top: "-16px",
-        };
-      } else if (position === "bottom") {
-        style = {
-          left: `${spacing * (index + 1)}px`,
-          bottom: "-16px",
-        };
-      } else if (position === "left") {
-        style = {
-          top: `${spacing * (index + 1)}px`,
-          left: "-16px",
-        };
-      } else if (position === "right") {
-        style = {
-          top: `${spacing * (index + 1)}px`,
-          right: "-16px",
-        };
+        if (position === "top") {
+          style = {
+            left: `${spacing * (index + 1)}px`,
+            top: "-16px",
+          };
+        } else if (position === "bottom") {
+          style = {
+            left: `${spacing * (index + 1)}px`,
+            bottom: "-16px",
+          };
+        } else if (position === "left") {
+          style = {
+            top: `${spacing * (index + 1)}px`,
+            left: "-16px",
+          };
+        } else if (position === "right") {
+          style = {
+            top: `${spacing * (index + 1)}px`,
+            right: "-16px",
+          };
+        }
+
+        return (
+          <div
+            key={chair.id}
+            className={`chair ${position} chair-appear`}
+            style={style}
+          />
+        );
+      });
+    };
+
+    const getTableClasses = () => {
+      let classes = `table-wrapper`;
+
+      if (mode === "edit") {
+        classes += " editable";
+        if (isSelected) classes += " selected";
+      } else {
+        // View mode - show status and selection
+        if (table.status) classes += ` status-${table.status}`;
+        if (table.groupColor) classes += " has-group-color";
+        if (isSelectedForOrder) classes += " selected-for-order";
+        classes += " clickable";
       }
 
-      return (
-        <div
-          key={chair.id}
-          className={`chair ${position} chair-appear`}
-          style={style}
-        />
-      );
-    });
-  };
+      // Add animation class if provided
+      if (className) classes += ` ${className}`;
 
-  const getTableClasses = () => {
-    let classes = `table-wrapper`;
-
-    if (mode === "edit") {
-      classes += " editable";
-      if (isSelected) classes += " selected";
-    } else {
-      // View mode - show status and selection
-      if (table.status) classes += ` status-${table.status}`;
-      if (table.groupColor) classes += " has-group-color";
-      if (isSelectedForOrder) classes += " selected-for-order";
-      classes += " clickable";
-    }
-
-    return classes;
-  };
-
-  const getTableStyle = (): React.CSSProperties => {
-    return {
-      left: table.x,
-      top: table.y,
-      width: table.width,
-      height: table.height,
+      return classes;
     };
-  };
 
-  return (
-    <div
-      className={getTableClasses()}
-      style={getTableStyle()}
-      onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
-      onClick={onClick}
-    >
+    const getTableStyle = (): React.CSSProperties => {
+      return {
+        left: table.x,
+        top: table.y,
+        width: table.width,
+        height: table.height,
+      };
+    };
+
+    return (
       <div
-        className={`table ${table.shape}`}
-        style={
-          mode === "view"
-            ? {
-                background:
-                  table.status === "occupied" && table.groupColor
-                    ? `linear-gradient(135deg, ${table.groupColor}15 0%, ${table.groupColor}25 100%)`
-                    : table.status === "occupied"
-                    ? "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)"
-                    : "linear-gradient(135deg, #ffffff 0%, #f7fafc 100%)",
-                borderColor:
-                  table.status === "occupied" && table.groupColor
-                    ? table.groupColor
-                    : table.status === "occupied"
-                    ? "#ef4444"
-                    : "#cbd5e0",
-              }
-            : undefined
-        }
+        className={getTableClasses()}
+        style={getTableStyle()}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        onClick={onClick}
       >
-        <div className="table-content">
-          <span className="table-number">{table.number}</span>
-          {mode === "view" && orderTotal > 0 && (
-            <span className="table-order-total">
-              €
-              <NumberFlow
-                value={orderTotal}
-                format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
-              />
-            </span>
-          )}
+        <div
+          className={`table ${table.shape}`}
+          style={
+            mode === "view"
+              ? {
+                  background:
+                    table.status === "occupied" && table.groupColor
+                      ? `linear-gradient(135deg, ${table.groupColor}15 0%, ${table.groupColor}25 100%)`
+                      : table.status === "occupied"
+                      ? "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)"
+                      : "linear-gradient(135deg, #ffffff 0%, #f7fafc 100%)",
+                  borderColor:
+                    table.status === "occupied" && table.groupColor
+                      ? table.groupColor
+                      : table.status === "occupied"
+                      ? "#ef4444"
+                      : "#cbd5e0",
+                }
+              : undefined
+          }
+        >
+          <div className="table-content">
+            <span className="table-number">{table.number}</span>
+            {mode === "view" && orderTotal > 0 && (
+              <span className="table-order-total">
+                €
+                <NumberFlow
+                  value={orderTotal}
+                  format={{
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }}
+                />
+              </span>
+            )}
+          </div>
         </div>
+        {renderChairs("top")}
+        {renderChairs("bottom")}
+        {renderChairs("left")}
+        {renderChairs("right")}
       </div>
-      {renderChairs("top")}
-      {renderChairs("bottom")}
-      {renderChairs("left")}
-      {renderChairs("right")}
-    </div>
-  );
-};
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison - only re-render if these specific props change
+    return (
+      prevProps.table.x === nextProps.table.x &&
+      prevProps.table.y === nextProps.table.y &&
+      prevProps.table.width === nextProps.table.width &&
+      prevProps.table.height === nextProps.table.height &&
+      prevProps.table.number === nextProps.table.number &&
+      prevProps.table.shape === nextProps.table.shape &&
+      prevProps.table.chairs.length === nextProps.table.chairs.length &&
+      prevProps.isSelected === nextProps.isSelected &&
+      prevProps.isSelectedForOrder === nextProps.isSelectedForOrder &&
+      prevProps.orderTotal === nextProps.orderTotal &&
+      prevProps.className === nextProps.className &&
+      prevProps.mode === nextProps.mode
+    );
+  }
+);
 
 export default TableLayoutManager;

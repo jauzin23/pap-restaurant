@@ -219,12 +219,31 @@ const TableEditor = ({ databases, DATABASE_ID, COLLECTION_ID }) => {
     setEditMode(true);
   };
 
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const dragPreviewRef = useRef(null);
+
   const handleDragStart = (e, table) => {
     setDraggedTable(table);
+
+    // Calculate offset from cursor to table top-left corner
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+
+    // Create a transparent drag image to avoid the default ghost
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 1, 1);
+    e.dataTransfer.setDragImage(canvas, 0, 0);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleDrop = (e) => {
@@ -236,14 +255,14 @@ const TableEditor = ({ databases, DATABASE_ID, COLLECTION_ID }) => {
       0,
       Math.min(
         canvasSize.width - draggedTable.width,
-        e.clientX - rect.left - draggedTable.width / 2
+        e.clientX - rect.left - dragOffsetRef.current.x
       )
     );
     const y = Math.max(
       0,
       Math.min(
         canvasSize.height - draggedTable.height,
-        e.clientY - rect.top - draggedTable.height / 2
+        e.clientY - rect.top - dragOffsetRef.current.y
       )
     );
 
@@ -695,13 +714,13 @@ const TableEditor = ({ databases, DATABASE_ID, COLLECTION_ID }) => {
                 draggable
                 onDragStart={(e) => handleDragStart(e, table)}
                 onClick={() => handleTableClick(table)}
-                className={`absolute cursor-move group transition-all ${
+                className={`absolute cursor-move group ${
                   selectedTable?.id === table.id
                     ? "ring-4 ring-blue-500 shadow-2xl z-10"
                     : isModified || isNew
                     ? "ring-2 ring-amber-400 shadow-lg"
                     : "shadow-md hover:shadow-xl"
-                }`}
+                } ${draggedTable?.id === table.id ? "opacity-50" : ""}`}
                 style={{
                   left: table.x,
                   top: table.y,
@@ -709,6 +728,8 @@ const TableEditor = ({ databases, DATABASE_ID, COLLECTION_ID }) => {
                   height: table.height,
                   transform: `rotate(${table.rotation}deg)`,
                   transformOrigin: "center",
+                  transition:
+                    draggedTable?.id === table.id ? "none" : "box-shadow 0.2s",
                 }}
               >
                 {/* Table */}

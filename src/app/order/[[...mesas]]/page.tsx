@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
-import { auth } from "../../../lib/api";
+import { auth, takeawayApi } from "../../../lib/api";
 import { isAuthenticated } from "../../../lib/auth";
 import {
   WebSocketProvider,
@@ -85,8 +85,8 @@ function PedidoPageContent({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
-  const [pickupTime, setPickupTime] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   const getAuthToken = () => {
     return localStorage.getItem("auth_token");
@@ -368,25 +368,36 @@ function PedidoPageContent({
     try {
       setIsOrderSubmitting(true);
 
-      const orders = orderItems.map((item) => ({
-        table_id: isTakeaway ? [] : validTableIds,
-        menu_item_id: item.$id || item.id,
-        notas: item.notes || "",
-        price: item.preco || 0,
-        order_type: isTakeaway ? "takeaway" : "dine-in",
-        ...(isTakeaway && {
+      if (isTakeaway) {
+        // Use the new takeaway API
+        const takeawayOrder = {
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
           customer_email: customerEmail.trim() || null,
-          pickup_time: pickupTime || null,
           special_requests: specialRequests.trim() || null,
-        }),
-      }));
+          items: orderItems.map((item) => ({
+            menu_item_id: item.$id || item.id,
+            quantity: 1,
+            price: item.preco || 0,
+            notas: item.notes || null,
+          })),
+        };
 
-      await apiRequest("/orders/batch", {
-        method: "POST",
-        body: JSON.stringify({ orders }),
-      });
+        await takeawayApi.create(takeawayOrder);
+      } else {
+        // Use regular orders API for dine-in
+        const orders = orderItems.map((item) => ({
+          table_id: validTableIds,
+          menu_item_id: item.$id || item.id,
+          notas: item.notes || "",
+          price: item.preco || 0,
+        }));
+
+        await apiRequest("/orders/batch", {
+          method: "POST",
+          body: JSON.stringify({ orders }),
+        });
+      }
 
       setOrderSuccess(true);
       setTimeout(() => {
@@ -453,51 +464,6 @@ function PedidoPageContent({
         <div className="order-content">
           {/* Left: Menu */}
           <div className="menu-section">
-            {/* Customer Info Form for Takeaway */}
-            {isTakeaway && (
-              <div className="customer-info-card">
-                <h3>Informação do Cliente</h3>
-                <div className="customer-form">
-                  <div className="form-row">
-                    <input
-                      type="text"
-                      placeholder="Nome do Cliente *"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      required
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Telefone *"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="form-row">
-                    <input
-                      type="email"
-                      placeholder="Email (opcional)"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                    />
-                    <input
-                      type="time"
-                      placeholder="Hora de Levantamento"
-                      value={pickupTime}
-                      onChange={(e) => setPickupTime(e.target.value)}
-                    />
-                  </div>
-                  <textarea
-                    placeholder="Observações especiais (opcional)"
-                    value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value)}
-                    rows={2}
-                  />
-                </div>
-              </div>
-            )}
-
             <div className="category-bar">
               {categories.map((category) => (
                 <button
@@ -698,6 +664,17 @@ function PedidoPageContent({
                     />
                   </strong>
                 </div>
+                {isTakeaway && (
+                  <button
+                    onClick={() => setShowCustomerModal(true)}
+                    className="btn-customer-info"
+                  >
+                    <MessageSquare size={16} />
+                    {customerName
+                      ? `Cliente: ${customerName}`
+                      : "Informação do Cliente"}
+                  </button>
+                )}
                 <div className="order-actions">
                   <button onClick={cancelOrder} className="btn-cancel">
                     <X size={18} />
@@ -744,6 +721,88 @@ function PedidoPageContent({
                 Cancelar
               </button>
               <button onClick={saveNote} className="btn-primary">
+                <Check size={16} />
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Info Modal for Takeaway */}
+      {showCustomerModal && isTakeaway && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowCustomerModal(false)}
+        >
+          <div
+            className="modal-content customer-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Informação do Cliente</h3>
+            </div>
+            <div className="customer-form-modal">
+              <div className="form-group">
+                <label>Nome do Cliente *</label>
+                <input
+                  type="text"
+                  placeholder="Nome completo"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  autoComplete="off"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Telefone *</label>
+                <input
+                  type="tel"
+                  placeholder="+351 912 345 678"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  autoComplete="off"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email (opcional)</label>
+                <input
+                  type="email"
+                  placeholder="exemplo@email.com"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="form-group">
+                <label>Observações Especiais</label>
+                <textarea
+                  placeholder="Alergias, preferências, etc..."
+                  value={specialRequests}
+                  onChange={(e) => setSpecialRequests(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                onClick={() => setShowCustomerModal(false)}
+                className="btn-secondary"
+              >
+                <X size={16} />
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (!customerName || !customerPhone) {
+                    alert("Por favor preencha o nome e telefone do cliente");
+                    return;
+                  }
+                  setShowCustomerModal(false);
+                }}
+                className="btn-primary"
+              >
                 <Check size={16} />
                 Guardar
               </button>

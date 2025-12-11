@@ -1,14 +1,34 @@
 .welcome-card {
   border-radius: 1.5rem;
-  background: linear-gradient(to right, #7c3aed 0%, #6366f1 50%, #3b82f6 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem;
   color: white;
   margin-bottom: 0 !important;
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+    0 2px 0 0 rgba(255, 255, 255, 0.2) inset;
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   min-height: 200px;
   margin-top: 2rem !important;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    );
+  }
 
   // Animation
   opacity: 0;
@@ -33,19 +53,23 @@
   &__badge {
     display: inline-flex;
     align-items: center;
-    border: 1px solid transparent;
+    border: 1px solid rgba(255, 255, 255, 0.4);
     padding: 0.125rem 0.625rem;
     font-size: 0.75rem;
     font-weight: 600;
     border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.25);
     color: white;
-    transition: background 150ms ease;
+    transition: all 150ms ease;
     align-self: flex-start;
     backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
   }
 
@@ -54,14 +78,17 @@
     font-weight: 700;
     line-height: 1.2;
     margin: 0;
+    color: white;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   }
 
   &__description {
     max-width: 600px;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.95);
     font-size: 1rem;
     line-height: 1.5;
     margin: 0;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
 
   &__actions {
@@ -77,7 +104,7 @@
     gap: 0.5rem;
     white-space: nowrap;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
     height: 2.5rem;
     padding: 0.5rem 1rem;
     border-radius: 1rem;
@@ -87,28 +114,34 @@
 
     &--primary {
       background: white;
-      color: #4f46e5;
+      color: #667eea;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
       &:hover {
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
       }
 
       &:active {
-        transform: scale(0.98);
+        transform: scale(0.98) translateY(0);
       }
     }
 
     &--secondary {
-      background: transparent;
-      border: 1px solid white;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.4);
       color: white;
+      backdrop-filter: blur(10px);
 
       &:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: translateY(-2px);
       }
 
       &:active {
-        transform: scale(0.98);
+        transform: scale(0.98) translateY(0);
       }
     }
   }

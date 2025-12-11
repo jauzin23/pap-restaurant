@@ -1142,15 +1142,21 @@ app.post("/tables", authenticateToken, requireManager, async (req, res) => {
     // Verificar se o número da mesa é único dentro do layout
     const existingTable = await pool.query(
       `
-      SELECT id FROM tables WHERE layout_id = $1::uuid AND table_number = $2
+      SELECT id, table_number FROM tables 
+      WHERE layout_id = $1::uuid 
+      AND table_number = $2
     `,
       [layout_id, table_number]
     );
 
     if (existingTable.rows.length > 0) {
-      return res
-        .status(400)
-        .json({ error: "Número de mesa já existe neste layout" });
+      console.log(
+        `[TABLE CREATE] Duplicate table found: layout_id=${layout_id}, table_number=${table_number}, existing_id=${existingTable.rows[0].id}`
+      );
+      return res.status(400).json({
+        error: "Número de mesa já existe neste layout",
+        existing_table_id: existingTable.rows[0].id,
+      });
     }
 
     const result = await pool.query(
@@ -1312,6 +1318,9 @@ app.delete(
       }
 
       const deletedTable = result.rows[0];
+      console.log(
+        `[TABLE DELETE] Successfully deleted table: id=${deletedTable.id}, table_number=${deletedTable.table_number}, layout_id=${deletedTable.layout_id}`
+      );
 
       // Emitir evento WebSocket
       app
@@ -1350,7 +1359,7 @@ app.get("/orders", authenticateToken, async (req, res) => {
       notas: order.notas,
       price: order.price,
       created_at: order.created_at,
-      // Informação do item de menu para exibição
+      item_name: order.menu_nome,
       menu_info: {
         nome: order.menu_nome,
         preco: order.menu_preco,
@@ -1430,7 +1439,7 @@ app.post("/orders", authenticateToken, async (req, res) => {
   }
 });
 
-// Criar múltiplos pedidos (para finalização do carrinho)
+// Criar múltiplos pedidos (para finalização do carrinho) - Dine-in only
 app.post("/orders/batch", authenticateToken, async (req, res) => {
   try {
     const { orders } = req.body;
@@ -1443,21 +1452,25 @@ app.post("/orders/batch", authenticateToken, async (req, res) => {
 
     // Validar todos os pedidos primeiro
     for (const order of orders) {
-      if (!order.table_id || !order.menu_item_id) {
+      if (!order.menu_item_id) {
         return res.status(400).json({
-          error: "Cada pedido deve ter table_id e menu_item_id",
+          error: "Cada pedido deve ter menu_item_id",
+        });
+      }
+
+      if (
+        !order.table_id ||
+        !Array.isArray(order.table_id) ||
+        order.table_id.length === 0
+      ) {
+        return res.status(400).json({
+          error: "Cada pedido deve ter table_id com pelo menos uma mesa",
         });
       }
 
       if (!order.price || isNaN(parseFloat(order.price))) {
         return res.status(400).json({
           error: "Cada pedido deve ter um price válido",
-        });
-      }
-
-      if (!Array.isArray(order.table_id)) {
-        return res.status(400).json({
-          error: "table_id deve ser um array de UUIDs de mesa",
         });
       }
 

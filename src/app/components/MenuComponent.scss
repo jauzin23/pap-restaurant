@@ -1,5 +1,6 @@
 // MenuComponent.scss - Professional restaurant menu management styles
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
+@import "./toast-styles.scss";
 
 .menu-component {
   min-height: 100%;
@@ -73,74 +74,57 @@
     }
   }
 
-  // New Header Card (WelcomeCard style)
+  // Header Card (ManagerView style)
   .menu-header-card {
+    margin-bottom: 1rem;
+    padding: 1.5rem;
+    background: #fafafa;
+    border: 1.5px solid #d1d5db;
     border-radius: 1.5rem;
-
-    background: linear-gradient(
-      to right,
-      #7c3aed 0%,
-      #6366f1 50%,
-      #3b82f6 100%
-    );
-    padding: 2rem;
-    color: white;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      "Helvetica Neue", Arial, sans-serif;
-    min-height: 200px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+      inset 0 2px 4px rgba(255, 255, 255, 0.95),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
 
     &__content {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    &__left {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
 
+    &__left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
     &__badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border: 1px solid transparent;
-      padding: 0.25rem 0.75rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border-radius: 1.5rem;
-
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-      transition: background 150ms ease;
-      align-self: flex-start;
-      backdrop-filter: blur(8px);
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.3);
-      }
+      display: none;
     }
 
     &__title {
-      font-size: 1.875rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      line-height: 1.2;
+      color: #1e293b;
       margin: 0;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
     }
 
     &__description {
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 1rem;
+      color: #64748b;
+      font-size: 0.875rem;
       line-height: 1.5;
       margin: 0;
+      font-weight: 500;
     }
 
     &__actions {
       display: flex;
       flex-wrap: wrap;
       gap: 0.75rem;
+      margin-top: 8px;
     }
 
     &__btn {
@@ -154,7 +138,6 @@
       height: 2.5rem;
       padding: 0.5rem 1rem;
       border-radius: 1.5rem;
-
       border: none;
       cursor: pointer;
       transition: all 150ms ease;
@@ -162,11 +145,11 @@
         Roboto, "Helvetica Neue", Arial, sans-serif;
 
       &--primary {
-        background: white;
-        color: #4f46e5;
+        background: #4f46e5;
+        color: white;
 
         &:hover {
-          background: rgba(255, 255, 255, 0.9);
+          background: #4338ca;
         }
 
         &:active {
@@ -175,12 +158,13 @@
       }
 
       &--secondary {
-        background: transparent;
-        border: 1px solid white;
-        color: white;
+        background: white;
+        border: 1px solid #d1d5db;
+        color: #1e293b;
 
         &:hover:not(:disabled) {
-          background: rgba(255, 255, 255, 0.1);
+          background: #f9fafb;
+          border-color: #9ca3af;
         }
 
         &:disabled {
@@ -203,20 +187,26 @@
     }
 
     &__circles {
-      position: relative;
-      height: 10rem;
-      width: 10rem;
-      animation: rotate 20s linear infinite;
+      display: none;
+    }
 
+    @media (max-width: 640px) {
+      padding: 1.25rem;
+
+      &__title {
+        font-size: 1.25rem;
+      }
+
+      &__description {
+        font-size: 0.8125rem;
+      }
+    }
+
+    // Old circles styles (keeping for compatibility)
+    .old-circles {
       .circle {
-        position: absolute;
-        border-radius: 1.5rem;
-
-        backdrop-filter: blur(12px);
-
         &-1 {
-          inset: 0;
-          background: rgba(255, 255, 255, 0.1);
+          display: none;
         }
 
         &-2 {
@@ -337,10 +327,11 @@
   .menu-content {
     margin-top: 24px;
     background-color: white;
+    padding: 1.5rem;
     border-radius: 1.5rem;
-
-    border: 1px solid #e5e7eb;
-    padding: 24px;
+    border: 1.5px solid #d1d5db;
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
 
     .loading-state {
       display: flex;

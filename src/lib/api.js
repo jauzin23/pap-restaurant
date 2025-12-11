@@ -506,6 +506,61 @@ export const payments = {
   },
 };
 
+// Takeaway orders API
+export const takeawayApi = {
+  // List all takeaway orders
+  list: async (status = null) => {
+    const queryString = status ? `?status=${status}` : "";
+    return await apiRequest(`/takeaway${queryString}`, {
+      method: "GET",
+    });
+  },
+
+  // Get count of pending takeaway orders (for badge)
+  getCount: async () => {
+    return await apiRequest("/takeaway/count", {
+      method: "GET",
+    });
+  },
+
+  // Get a single takeaway order
+  get: async (id) => {
+    return await apiRequest(`/takeaway/${id}`, {
+      method: "GET",
+    });
+  },
+
+  // Create a new takeaway order
+  create: async (orderData) => {
+    return await apiRequest("/takeaway", {
+      method: "POST",
+      body: JSON.stringify(orderData),
+    });
+  },
+
+  // Update a takeaway order
+  update: async (id, updates) => {
+    return await apiRequest(`/takeaway/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  },
+
+  // Delete a takeaway order
+  delete: async (id) => {
+    return await apiRequest(`/takeaway/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Mark takeaway order as complete
+  complete: async (id) => {
+    return await apiRequest(`/takeaway/${id}/complete`, {
+      method: "PUT",
+    });
+  },
+};
+
 // Export a general API object for compatibility
 export const api = {
   getCurrentUser: auth.get,

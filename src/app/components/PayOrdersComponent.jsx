@@ -534,7 +534,7 @@ export default function PayOrdersComponent() {
 
   return (
     <div className="pay-orders-container">
-      {/* Header Card - Stock Style */}
+      {/* Header Card */}
       <div className="stock-header-card">
         <div className="stock-header-card__content">
           <div className="stock-header-card__left">
@@ -563,15 +563,6 @@ export default function PayOrdersComponent() {
                 <CreditCard size={16} />
                 Processar Pagamento ({selectedOrders.length})
               </button>
-            </div>
-          </div>
-          <div className="stock-header-card__right">
-            <div className="stock-header-card__circles">
-              <div className="circle circle-1"></div>
-              <div className="circle circle-2"></div>
-              <div className="circle circle-3"></div>
-              <div className="circle circle-4"></div>
-              <div className="circle circle-5"></div>
             </div>
           </div>
         </div>

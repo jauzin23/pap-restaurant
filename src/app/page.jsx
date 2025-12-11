@@ -40,7 +40,6 @@ const RestaurantDashboardContent = () => {
   const [userLabels, setUserLabels] = useState([]);
   const [currentView, setCurrentView] = useState(null); // null initially, set after user loads
   const [activeNavItem, setActiveNavItem] = useState("Painel"); // Track active navigation item
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Random color for username - refreshed on every load
   const [usernameColor, setUsernameColor] = useState("");
@@ -310,19 +309,13 @@ const RestaurantDashboardContent = () => {
       <Sidebar
         activeNavItem={activeNavItem}
         onNavClick={handleNavClick}
-        isCollapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         user={user}
         username={username}
         userLabels={userLabels}
         profileImg={profileImg}
       />
 
-      <div
-        className={`dashboard-content ${
-          sidebarCollapsed ? "sidebar-collapsed" : ""
-        }`}
-      >
+      <div className="dashboard-content sidebar-collapsed">
         <main className="main-content fade-in-delayed">
           {/* Only render views when user data is loaded */}
           {user && currentView && (

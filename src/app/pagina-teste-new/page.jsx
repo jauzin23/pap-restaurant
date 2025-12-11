@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import WelcomeCard from "../components/WelcomeCard";
 import { BackgroundBeams } from "../components/BackgroundBeams";
 import "./page.scss";
 import { auth, users, profileImages, API_FILES_URL } from "../../lib/api";
@@ -16,6 +15,7 @@ import ManagerStaffView from "../components/ManagerStaffView";
 import PayOrdersComponent from "../components/PayOrdersComponent";
 import GamificationView from "../components/GamificationView";
 import ReservationManager from "../components/ReservationManager";
+import DashboardCards from "../components/DashboardCards";
 import {
   WebSocketProvider,
   useWebSocketContext,
@@ -357,31 +357,29 @@ const RestaurantDashboardContent = () => {
               ) : currentView ? (
                 <>
                   {isManager && currentView === "manager" ? (
-                    <>
-                      {/* Welcome Card */}
-                      <WelcomeCard />
-
-                      <ManagerView
-                        expandedSections={expandedSections}
-                        toggleSection={toggleSection}
-                        staffUsers={staffUsers}
-                        username={username}
-                        userLabels={userLabels}
-                        profileImg={profileImg}
-                        chartData={chartData}
-                        chartConfig={chartConfig}
-                        user={user}
-                      />
-                    </>
-                  ) : (
-                    <StaffView
+                    <ManagerView
                       expandedSections={expandedSections}
                       toggleSection={toggleSection}
                       staffUsers={staffUsers}
                       username={username}
                       userLabels={userLabels}
                       profileImg={profileImg}
+                      chartData={chartData}
+                      chartConfig={chartConfig}
+                      user={user}
                     />
+                  ) : (
+                    <>
+                      <DashboardCards showAllMetrics={false} />
+                      <StaffView
+                        expandedSections={expandedSections}
+                        toggleSection={toggleSection}
+                        staffUsers={staffUsers}
+                        username={username}
+                        userLabels={userLabels}
+                        profileImg={profileImg}
+                      />
+                    </>
                   )}
                 </>
               ) : null}
