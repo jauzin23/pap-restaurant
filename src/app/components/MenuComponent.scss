@@ -4,8 +4,12 @@
 
 .menu-component {
   min-height: 100%;
-  padding-top: 32px;
-  padding-bottom: 32px;
+  padding: 32px 0px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -76,7 +80,6 @@
 
   // Header Card (ManagerView style)
   .menu-header-card {
-    margin-bottom: 1rem;
     padding: 1.5rem;
     background: #fafafa;
     border: 1.5px solid #d1d5db;
@@ -328,7 +331,9 @@
     margin-top: 24px;
     background-color: white;
     padding: 1.5rem;
-    border-radius: 1.5rem;
+    border-radius: 0rem;
+    border-bottom-left-radius: 1.5rem;
+    border-bottom-right-radius: 1.5rem;
     border: 1.5px solid #d1d5db;
     box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95),
       inset 0 -2px 4px rgba(0, 0, 0, 0.08);
@@ -640,7 +645,7 @@
   }
 
   // Modal styles - Centered modal with overlay
-  .modal-overlay {
+  .menu-modal-overlay {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -649,7 +654,7 @@
     width: 100vw !important;
     height: 100vh !important;
     background-color: rgba(0, 0, 0, 0.5) !important;
-    z-index: 100 !important;
+    z-index: 99999 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -662,21 +667,21 @@
     pointer-events: auto !important;
   }
 
-  .modal-container {
+  .menu-modal-container {
     background-color: white !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 1.5rem;
 
     width: 100% !important;
-    max-width: 600px !important;
-    max-height: 85vh !important;
+    max-width: 1200px !important;
+    max-height: 90vh !important;
     height: auto !important;
     overflow: hidden !important;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
       0 10px 10px -5px rgba(0, 0, 0, 0.08) !important;
     display: flex !important;
     flex-direction: column !important;
-    z-index: 101 !important;
+    z-index: 100000 !important;
     position: relative !important;
     margin: auto !important;
     transform: none !important;
@@ -685,7 +690,7 @@
     pointer-events: auto !important;
   }
 
-  .modal-header {
+  .menu-modal-header {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
@@ -730,7 +735,7 @@
     }
   }
 
-  .modal-content {
+  .menu-modal-content {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     flex: 1 !important;
@@ -739,6 +744,115 @@
     flex-direction: column !important;
     gap: 24px !important;
     max-height: none !important;
+
+    // Form grid styling inside modal
+    .form-grid {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 16px !important;
+
+      .form-group {
+        display: flex !important;
+        flex-direction: column !important;
+
+        &.full-width {
+          grid-column: 1 / -1 !important;
+        }
+
+        label {
+          display: block !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          color: #374151 !important;
+          margin-bottom: 8px !important;
+        }
+
+        // Input styling with maximum specificity
+        input.custom-input {
+          width: 100% !important;
+          height: 40px !important;
+          padding: 0 12px !important;
+          background-color: white !important;
+          border: 1px solid #d1d5db !important;
+          border-radius: 1.5rem !important;
+          font-size: 14px !important;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif !important;
+          color: #374151 !important;
+          transition: all 0.2s ease !important;
+          box-sizing: border-box !important;
+
+          &:focus {
+            outline: none !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+          }
+
+          &::placeholder {
+            color: #9ca3af !important;
+            opacity: 1 !important;
+          }
+        }
+
+        select.custom-input {
+          width: 100% !important;
+          height: 40px !important;
+          padding: 0 12px !important;
+          padding-right: 40px !important;
+          background-color: white !important;
+          border: 1px solid #d1d5db !important;
+          border-radius: 1.5rem !important;
+          font-size: 14px !important;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif !important;
+          color: #374151 !important;
+          cursor: pointer !important;
+          appearance: none !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23374151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 12px center !important;
+          background-size: 16px !important;
+          transition: all 0.2s ease !important;
+          box-sizing: border-box !important;
+
+          &:focus {
+            outline: none !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+          }
+        }
+
+        textarea.custom-input {
+          width: 100% !important;
+          padding: 12px !important;
+          min-height: 100px !important;
+          background-color: white !important;
+          border: 1px solid #d1d5db !important;
+          border-radius: 1.5rem !important;
+          font-size: 14px !important;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif !important;
+          color: #374151 !important;
+          resize: vertical !important;
+          line-height: 1.5 !important;
+          transition: all 0.2s ease !important;
+          box-sizing: border-box !important;
+
+          &:focus {
+            outline: none !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+          }
+
+          &::placeholder {
+            color: #9ca3af !important;
+            opacity: 1 !important;
+          }
+        }
+      }
+    }
 
     // Custom scrollbar for modal content
     &::-webkit-scrollbar {
@@ -762,59 +876,6 @@
     // Firefox scrollbar
     scrollbar-width: thin;
     scrollbar-color: rgba(59, 130, 246, 0.3) rgba(0, 0, 0, 0.05);
-  }
-
-  // Form styles
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-
-    .form-group {
-      &.full-width {
-        grid-column: 1 / -1;
-      }
-
-      label {
-        display: block;
-        font-size: 14px;
-        font-weight: 500;
-        color: #4a5568;
-        margin-bottom: 8px;
-      }
-
-      input,
-      textarea,
-      select {
-        width: 100%;
-        padding: 0 12px;
-        background-color: white;
-        border: 1px solid #d1d5db;
-        border-radius: 1.5rem;
-
-        font-size: 14px;
-        transition: all 0.2s;
-        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05),
-          0 1px 1px rgba(0, 0, 0, 0.05);
-
-        &:focus {
-          outline: none;
-          border-color: #3b82f6;
-          box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05),
-            0 0 0 3px rgba(59, 130, 246, 0.1), 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-      }
-
-      input {
-        height: 40px;
-      }
-
-      textarea {
-        padding: 12px;
-        min-height: 80px;
-        resize: none;
-      }
-    }
   }
 
   // Image upload section
@@ -1195,7 +1256,7 @@
   }
 
   // Modal footer
-  .modal-footer {
+  .menu-modal-footer {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -1787,7 +1848,7 @@
       grid-template-columns: 1fr;
     }
 
-    .modal-container {
+    .menu-modal-container {
       margin: 8px;
       max-height: calc(100vh - 16px);
     }
@@ -1830,12 +1891,12 @@
       }
     }
 
-    .modal-content {
+    .menu-modal-content {
       padding: 16px;
     }
 
-    .modal-header,
-    .modal-footer {
+    .menu-modal-header,
+    .menu-modal-footer {
       padding: 16px;
     }
 
@@ -1922,11 +1983,11 @@
 }
 
 // Disable scroll on body when modal is open (global)
-body:has(.menu-component .modal-overlay) {
+body:has(.menu-modal-overlay) {
   overflow: hidden !important;
 }
 
-.main-content:has(.menu-component .modal-overlay) {
+.main-content:has(.menu-modal-overlay) {
   overflow: hidden !important;
 }
 
@@ -1937,6 +1998,8 @@ body:has(.menu-component .modal-overlay) {
 
 // Custom Ant Design Select styling
 .custom-select {
+  position: relative !important;
+
   .ant-select-selector {
     height: 36px !important;
     border-radius: 1.5rem !important;
@@ -1944,6 +2007,7 @@ body:has(.menu-component .modal-overlay) {
     padding: 0 40px 0 14px !important;
     display: flex !important;
     align-items: center !important;
+    position: relative !important;
   }
 
   .ant-select-selection-item {
@@ -1951,15 +2015,33 @@ body:has(.menu-component .modal-overlay) {
   }
 
   .ant-select-arrow {
-    top: 50% !important;
+    position: absolute !important;
+    top: 18px !important;
     transform: translateY(-50%) !important;
     right: 14px !important;
     margin: 0 !important;
+    inset-inline-end: 14px !important;
+    margin-top: 0 !important;
+    height: auto !important;
   }
 
   &.ant-select-focused .ant-select-selector {
     border-color: #ff6b35 !important;
     box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+  }
+}
+
+// Fix Select arrow positioning inside modals
+.modal-content .custom-select,
+.modal-container .custom-select {
+  .ant-select-arrow {
+    position: absolute !important;
+    top: 18px !important;
+    transform: translateY(-50%) !important;
+    right: 14px !important;
+    inset-inline-end: 14px !important;
+    margin-top: 0 !important;
+    height: auto !important;
   }
 }
 
@@ -1970,5 +2052,223 @@ body:has(.menu-component .modal-overlay) {
 
   .ant-select-item {
     border-radius: 1rem !important;
+  }
+}
+
+// Menu Modal Styles - GLOBAL (outside .menu-component to avoid nesting issues)
+.menu-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  margin: 0 !important;
+  transform: none !important;
+  clip: unset !important;
+  clip-path: none !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
+  inset: 0 !important;
+}
+
+.menu-modal-container {
+  background-color: white !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 1.5rem !important;
+  width: 100% !important;
+  max-width: 1200px !important;
+  max-height: 90vh !important;
+  height: auto !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.08) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 100000 !important;
+  position: relative !important;
+  margin: auto !important;
+  transform: none !important;
+  clip: unset !important;
+  clip-path: none !important;
+  pointer-events: auto !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+}
+
+.menu-modal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 24px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  border-top-left-radius: 1.5rem !important;
+  border-top-right-radius: 1.5rem !important;
+  flex-shrink: 0 !important;
+  background-color: white !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1 !important;
+
+  .header-text {
+    h2 {
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      color: #1e293b !important;
+      margin: 0 !important;
+    }
+
+    p {
+      font-size: 14px !important;
+      color: #64748b !important;
+      margin: 4px 0 0 0 !important;
+    }
+  }
+
+  .close-button {
+    padding: 8px !important;
+    color: #64748b !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 1.5rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+
+    &:hover {
+      background-color: #f1f5f9 !important;
+    }
+  }
+}
+
+.menu-modal-content {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  flex: 1 !important;
+  padding: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+  max-height: none !important;
+
+  .form-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+
+    .form-group {
+      display: flex !important;
+      flex-direction: column !important;
+
+      &.full-width {
+        grid-column: 1 / -1 !important;
+      }
+
+      label {
+        display: block !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        color: #374151 !important;
+        margin-bottom: 8px !important;
+      }
+
+      input.custom-input,
+      input[type="text"],
+      input[type="number"],
+      input[type="email"],
+      input[type="password"] {
+        width: 100% !important;
+        height: 40px !important;
+        padding: 0 12px !important;
+        background-color: white !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        color: #374151 !important;
+        transition: all 0.2s ease !important;
+        box-sizing: border-box !important;
+
+        &:focus {
+          outline: none !important;
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        &::placeholder {
+          color: #9ca3af !important;
+          opacity: 1 !important;
+        }
+      }
+
+      select.custom-input,
+      select {
+        width: 100% !important;
+        height: 40px !important;
+        padding: 0 12px !important;
+        padding-right: 40px !important;
+        background-color: white !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        color: #374151 !important;
+        cursor: pointer !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23374151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 12px center !important;
+        background-size: 16px !important;
+        transition: all 0.2s ease !important;
+        box-sizing: border-box !important;
+
+        &:focus {
+          outline: none !important;
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+      }
+
+      textarea.custom-input,
+      textarea {
+        width: 100% !important;
+        padding: 12px !important;
+        min-height: 100px !important;
+        background-color: white !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        color: #374151 !important;
+        resize: vertical !important;
+        line-height: 1.5 !important;
+        transition: all 0.2s ease !important;
+        box-sizing: border-box !important;
+
+        &:focus {
+          outline: none !important;
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        &::placeholder {
+          color: #9ca3af !important;
+          opacity: 1 !important;
+        }
+      }
+    }
   }
 }

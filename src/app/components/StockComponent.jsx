@@ -2739,7 +2739,10 @@ export default function StockComponent() {
                       >
                         <div
                           className="search-input-wrapper"
-                          style={{ position: "relative", maxWidth: "400px" }}
+                          style={{
+                            position: "relative",
+                            maxWidth: "400px",
+                          }}
                         >
                           <Search
                             size={18}
@@ -2749,6 +2752,7 @@ export default function StockComponent() {
                               top: "50%",
                               transform: "translateY(-50%)",
                               color: "#64748b",
+                              borderRadius: "1.5rem",
                             }}
                           />
                           <input

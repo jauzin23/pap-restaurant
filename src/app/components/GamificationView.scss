@@ -1,7 +1,7 @@
 .gamification-view {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 2rem 0rem;
+  width: 100%;
+  background: transparent;
 
   .loading-container {
     display: flex;
@@ -30,7 +30,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 
     .global-stat-card {
       background: white;
@@ -391,6 +391,750 @@
           text-align: left;
           margin-top: 0.5rem;
         }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// ENHANCED ANALYTICS STYLES
+// ============================================================================
+
+.gamification-view {
+  // Stock-style Header Card (Clean version like ManagerStaffView)
+  .stock-header-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    padding: 2rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+
+    &__content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    &__left {
+      flex: 1;
+    }
+
+    &__title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 0 0 0.5rem 0;
+    }
+
+    &__description {
+      color: #64748b;
+      font-size: 1rem;
+      margin: 0 0 1.5rem 0;
+    }
+
+    &__actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    &__btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      font-family: inherit;
+
+      &--primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+      }
+
+      &--secondary {
+        background: white;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+
+        &:hover {
+          border-color: #cbd5e1;
+          color: #1e293b;
+        }
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      svg {
+        animation: spin 1s linear infinite;
+      }
+    }
+
+    &__right {
+      position: relative;
+      width: 200px;
+      height: 150px;
+    }
+
+    &__circles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+
+      .circle {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0.1;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+        &.circle-1 {
+          width: 80px;
+          height: 80px;
+          top: 10%;
+          right: 20%;
+          animation: float 6s ease-in-out infinite;
+        }
+
+        &.circle-2 {
+          width: 60px;
+          height: 60px;
+          top: 50%;
+          right: 10%;
+          animation: float 8s ease-in-out infinite;
+        }
+
+        &.circle-3 {
+          width: 40px;
+          height: 40px;
+          bottom: 20%;
+          right: 40%;
+          animation: float 7s ease-in-out infinite;
+        }
+
+        &.circle-4 {
+          width: 30px;
+          height: 30px;
+          top: 30%;
+          right: 60%;
+          animation: float 5s ease-in-out infinite;
+        }
+
+        &.circle-5 {
+          width: 50px;
+          height: 50px;
+          bottom: 10%;
+          right: 70%;
+          animation: float 9s ease-in-out infinite;
+        }
+      }
+    }
+  }
+
+  // Enhanced Tab Navigation
+  .leaderboard-tabs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+
+    .month-selector {
+      margin-left: auto;
+
+      .month-dropdown {
+        padding: 0.625rem 2.5rem 0.625rem 1rem;
+        border-radius: 1.5rem;
+        border: 1px solid #e2e8f0;
+        background: white;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #1e293b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px;
+
+        &:hover {
+          border-color: #3b82f6;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+      }
+    }
+
+    .config-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+  }
+
+  // Analytics Grid Layout
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+  }
+
+  // Chart Card
+  .chart-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .chart-header {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f1f5f9;
+
+      .chart-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+
+        svg {
+          color: #667eea;
+        }
+      }
+    }
+
+    .chart-content {
+      min-height: 250px;
+    }
+  }
+
+  // Custom Tooltip
+  .custom-tooltip {
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+    .label {
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    p {
+      font-size: 0.85rem;
+      margin: 0.25rem 0;
+      font-weight: 500;
+    }
+  }
+
+  // Velocity List
+  .velocity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    .velocity-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 50px 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        transform: translateX(4px);
+      }
+
+      .velocity-rank {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #64748b;
+        text-align: center;
+      }
+
+      .velocity-user {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        .velocity-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #e2e8f0;
+        }
+
+        .velocity-avatar-placeholder {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1rem;
+          font-weight: 700;
+          color: white;
+          border: 2px solid #e2e8f0;
+        }
+
+        .velocity-name {
+          font-weight: 600;
+          color: #1e293b;
+          font-size: 0.95rem;
+        }
+      }
+
+      .velocity-stats {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        .velocity-points {
+          font-weight: 600;
+          color: #64748b;
+          font-size: 0.9rem;
+        }
+
+        .velocity-change {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.375rem 0.75rem;
+          border-radius: 0.75rem;
+          font-weight: 700;
+          font-size: 0.9rem;
+
+          &.positive {
+            background: #dcfce7;
+            color: #16a34a;
+          }
+
+          &.negative {
+            background: #fee2e2;
+            color: #dc2626;
+          }
+        }
+      }
+    }
+  }
+
+  // Milestones Timeline
+  .milestones-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+
+      &:hover {
+        background: #94a3b8;
+      }
+    }
+
+    .milestone-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        transform: translateX(4px);
+      }
+
+      .milestone-badge {
+        width: 50px;
+        height: 50px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #e2e8f0;
+        flex-shrink: 0;
+      }
+
+      .milestone-content {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+
+        .milestone-user {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+
+          .milestone-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e2e8f0;
+          }
+
+          .milestone-avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            border: 2px solid #e2e8f0;
+          }
+
+          .milestone-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.95rem;
+          }
+        }
+
+        .milestone-info {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.25rem;
+
+          .milestone-points {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1rem;
+          }
+
+          .milestone-date {
+            font-size: 0.8rem;
+            color: #64748b;
+          }
+        }
+      }
+    }
+  }
+
+  // Enhanced Leaderboard Card
+  .leaderboard-card {
+    .chart-content {
+      padding: 0;
+    }
+
+    .leaderboard-list {
+      max-height: 600px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 3px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+
+        &:hover {
+          background: #94a3b8;
+        }
+      }
+
+      .leaderboard-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 1.5rem;
+        padding: 1rem;
+        display: grid;
+        grid-template-columns: 60px 1fr auto;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+
+        &:hover {
+          border-color: #cbd5e1;
+          background: #f1f5f9;
+          transform: translateX(4px);
+        }
+
+        .rank {
+          font-size: 1.5rem;
+          font-weight: 700;
+          text-align: center;
+          width: fit-content;
+        }
+
+        .player-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+
+          .player-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e2e8f0;
+          }
+
+          .player-avatar-placeholder {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+            border: 2px solid #e2e8f0;
+          }
+
+          .player-details {
+            .player-name {
+              font-size: 1rem;
+              font-weight: 600;
+              color: #1e293b;
+              margin-bottom: 0.25rem;
+            }
+
+            .player-stats {
+              font-size: 0.85rem;
+              color: #64748b;
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+
+              .velocity-badge {
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.5rem;
+                font-size: 0.75rem;
+                font-weight: 700;
+
+                &.positive {
+                  background: #dcfce7;
+                  color: #16a34a;
+                }
+
+                &.negative {
+                  background: #fee2e2;
+                  color: #dc2626;
+                }
+              }
+            }
+          }
+        }
+
+        .player-points {
+          text-align: right;
+
+          .points-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+          }
+
+          .points-label {
+            font-size: 0.8rem;
+            color: #64748b;
+          }
+        }
+      }
+    }
+  }
+
+  // Empty Chart State
+  .empty-chart-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 2rem;
+    text-align: center;
+    color: #94a3b8;
+
+    svg {
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    p {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #64748b;
+      margin: 0 0 0.5rem 0;
+    }
+
+    span {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+// Responsive for Analytics
+@media (max-width: 1280px) {
+  .gamification-view {
+    .analytics-grid {
+      grid-template-columns: 1fr;
+
+      .full-width {
+        grid-column: 1;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .gamification-view {
+    .stock-header-card {
+      padding: 1.5rem;
+
+      &__title {
+        font-size: 1.5rem;
+      }
+
+      &__description {
+        font-size: 0.9rem;
+      }
+
+      &__right {
+        display: none;
+      }
+    }
+
+    .global-stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .chart-card {
+      padding: 1rem;
+
+      .chart-content {
+        min-height: 200px;
+      }
+    }
+
+    .velocity-list .velocity-item {
+      grid-template-columns: 40px 1fr;
+
+      .velocity-stats {
+        grid-column: 2;
+        margin-top: 0.5rem;
+        justify-content: flex-start;
       }
     }
   }

@@ -10,8 +10,8 @@ import {
   RefreshCw,
   Upload,
   ClipboardList,
-  Wand2,
   Check,
+  Wand2,
 } from "lucide-react";
 import {
   Input,
@@ -110,10 +110,8 @@ export default function MenuComponent() {
 
   // Background removal states
   const [removingBackground, setRemovingBackground] = useState(false);
-  const [backgroundRemovalPreview, setBackgroundRemovalPreview] =
-    useState(null);
-  const [originalImageBeforeRemoval, setOriginalImageBeforeRemoval] =
-    useState(null);
+  const [bgRemovalStep, setBgRemovalStep] = useState(0); // 0: not started, 1-3: steps, -1: error
+  const [bgRemovalError, setBgRemovalError] = useState("");
 
   const fileInputRef = useRef(null);
   const cropperRef = useRef(null);
@@ -249,8 +247,6 @@ export default function MenuComponent() {
     setCurrentImageId(null);
     setShowCropper(false);
     setCropImage(null);
-    setBackgroundRemovalPreview(null);
-    setOriginalImageBeforeRemoval(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -258,122 +254,67 @@ export default function MenuComponent() {
 
   // Background removal function
   const removeBackground = async () => {
-    if (!imagePreview && !currentImageId) {
-      showToast("Por favor, selecione uma imagem primeiro", "error");
-      return;
-    }
+    if (!croppedImageBlob) return;
+
+    setRemovingBackground(true);
+    setBgRemovalStep(1);
+    setBgRemovalError("");
 
     try {
-      setRemovingBackground(true);
+      // Step 1: Converting image
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Image = reader.result;
 
-      // Get the image data (either from preview URL or create from blob or from existing image)
-      let imageDataToSend;
+          // Step 2: Removing background
+          setBgRemovalStep(2);
+          const response = await apiRequest("/uploads/remove-background", {
+            method: "POST",
+            body: JSON.stringify({ imageData: base64Image }),
+          });
 
-      if (croppedImageBlob) {
-        // Convert blob to base64
-        const reader = new FileReader();
-        imageDataToSend = await new Promise((resolve, reject) => {
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(croppedImageBlob);
-        });
-      } else if (imagePreview) {
-        // If it's a data URL or blob URL, we need to fetch it first
-        if (imagePreview.startsWith("data:")) {
-          imageDataToSend = imagePreview;
-        } else if (imagePreview.startsWith("blob:")) {
-          // Convert blob URL to base64
-          const response = await fetch(imagePreview);
-          const blob = await response.blob();
-          const reader = new FileReader();
-          imageDataToSend = await new Promise((resolve, reject) => {
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        } else {
-          // It's a URL from the server, fetch it
-          const response = await fetch(imagePreview);
-          const blob = await response.blob();
-          const reader = new FileReader();
-          imageDataToSend = await new Promise((resolve, reject) => {
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+          if (!response) {
+            throw new Error("Resposta inválida do servidor");
+          }
+
+          // Step 3: Processing result
+          setBgRemovalStep(3);
+          const { imageData } = response;
+
+          // Convert the result to a blob
+          const base64Data = imageData.split(",")[1];
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: "image/png" });
+
+          // Replace the current image with the processed one
+          setCroppedImageBlob(blob);
+          setImagePreview(imageData);
+
+          // Success! Reset states
+          showToast("Fundo removido com sucesso!", "success");
+          setBgRemovalStep(0);
+          setRemovingBackground(false);
+        } catch (error) {
+          console.error("Erro ao remover fundo:", error);
+          setBgRemovalStep(-1);
+          setBgRemovalError(error.message || "Erro ao processar imagem");
+          showToast("Erro ao remover fundo da imagem", "error");
+          // Keep removingBackground true to show error state
         }
-      } else if (currentImageId) {
-        // Fetch existing image from server
-        const imageUrl = getImageUrl(currentImageId);
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        imageDataToSend = await new Promise((resolve, reject) => {
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      }
-
-      console.log("[BG REMOVAL] Sending request to remove background...");
-
-      // Save original image before removal (for undo)
-      setOriginalImageBeforeRemoval({
-        preview: imagePreview,
-        blob: croppedImageBlob,
-      });
-
-      // Call the background removal API
-      const response = await apiRequest("/upload/remove-background", {
-        method: "POST",
-        body: JSON.stringify({
-          imageData: imageDataToSend,
-        }),
-      });
-
-      console.log("[BG REMOVAL] Background removed successfully!");
-
-      // Convert the returned base64 to blob
-      const base64Response = response.imageData;
-      const base64Data = base64Response.replace(
-        /^data:image\/[^;]+;base64,/,
-        ""
-      );
-      const binaryData = atob(base64Data);
-      const arrayBuffer = new Uint8Array(binaryData.length);
-
-      for (let i = 0; i < binaryData.length; i++) {
-        arrayBuffer[i] = binaryData.charCodeAt(i);
-      }
-
-      const blob = new Blob([arrayBuffer], { type: "image/png" });
-
-      // Update the preview and blob
-      const previewUrl = URL.createObjectURL(blob);
-      setImagePreview(previewUrl);
-      setCroppedImageBlob(blob);
-      setBackgroundRemovalPreview(previewUrl);
-
-      showToast("Fundo removido com sucesso!", "success");
+      };
+      reader.readAsDataURL(croppedImageBlob);
     } catch (error) {
-      console.error("[BG REMOVAL] Error removing background:", error);
-      showToast(
-        "Erro ao remover o fundo. Por favor, tente novamente.",
-        "error"
-      );
-    } finally {
-      setRemovingBackground(false);
-    }
-  };
-
-  // Undo background removal
-  const undoBackgroundRemoval = () => {
-    if (originalImageBeforeRemoval) {
-      setImagePreview(originalImageBeforeRemoval.preview);
-      setCroppedImageBlob(originalImageBeforeRemoval.blob);
-      setBackgroundRemovalPreview(null);
-      setOriginalImageBeforeRemoval(null);
-      showToast("Fundo original restaurado", "info");
+      console.error("Erro ao converter imagem:", error);
+      setBgRemovalStep(-1);
+      setBgRemovalError(error.message || "Erro ao converter imagem");
+      showToast("Erro ao processar imagem", "error");
+      // Keep removingBackground true to show error state
     }
   };
 
@@ -1264,10 +1205,10 @@ export default function MenuComponent() {
       {modalOpen &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="modal-overlay">
-            <div className="modal-container">
+          <div className="menu-modal-overlay">
+            <div className="menu-modal-container">
               {/* Modal Header */}
-              <div className="modal-header">
+              <div className="menu-modal-header">
                 <div className="header-text">
                   <h2>
                     {editingItem
@@ -1292,54 +1233,56 @@ export default function MenuComponent() {
               </div>
 
               {/* Modal Content */}
-              <div className="modal-content">
+              <div className="menu-modal-content">
                 {/* Basic Information */}
                 <div className="form-grid">
                   <div className="form-group full-width">
                     <label>Nome do item *</label>
-                    <Input
+                    <input
+                      type="text"
                       placeholder="Introduza o nome do item"
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
+                      className="custom-input"
                     />
                   </div>
 
                   <div className="form-group">
                     <label>Preço (€) *</label>
-                    <Input
-                      placeholder="0,00"
+                    <input
                       type="number"
+                      placeholder="0,00"
                       step="0.01"
                       value={preco}
                       onChange={(e) => setPreco(e.target.value)}
+                      className="custom-input"
                     />
                   </div>
 
                   <div className="form-group">
                     <label>Categoria</label>
-                    <Select
+                    <select
                       value={selectedCategory}
-                      onChange={setSelectedCategory}
-                      placeholder="Selecionar categoria"
-                      style={{ width: "100%" }}
-                      className="custom-select"
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="custom-input"
                     >
-                      <Select.Option value="none">Sem categoria</Select.Option>
+                      <option value="none">Sem categoria</option>
                       {availableCategories.map((category) => (
-                        <Select.Option key={category.id} value={category.name}>
+                        <option key={category.id} value={category.name}>
                           {category.name}
-                        </Select.Option>
+                        </option>
                       ))}
-                    </Select>
+                    </select>
                   </div>
 
                   <div className="form-group full-width">
                     <label>Descrição</label>
-                    <TextArea
+                    <textarea
                       placeholder="Introduza a descrição do item (opcional)"
                       value={descricao}
                       onChange={(e) => setDescricao(e.target.value)}
                       rows={4}
+                      className="custom-input"
                     />
                   </div>
                 </div>
@@ -1428,7 +1371,7 @@ export default function MenuComponent() {
                               backgroundColor: "#dc2626",
                               color: "white",
                               border: "none",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               fontSize: "14px",
                               cursor: "pointer",
                             }}
@@ -1494,76 +1437,54 @@ export default function MenuComponent() {
                         border: "1px solid #e5e7eb",
                       }}
                     >
-                      <div
-                        style={{
-                          position: "relative",
-                          display: "inline-block",
-                          marginBottom: "16px",
-                          width: "100%",
-                          textAlign: "center",
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
+                      {!removingBackground && (
+                        <div
                           style={{
-                            maxWidth: "300px",
-                            maxHeight: "300px",
-                            objectFit: "contain",
-                            borderRadius: "8px",
-                            border: "1px solid #e5e7eb",
-                            backgroundColor: backgroundRemovalPreview
-                              ? "transparent"
-                              : "#ffffff",
+                            position: "relative",
+                            display: "inline-block",
+                            marginBottom: "16px",
+                            width: "100%",
+                            textAlign: "center",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
                           }}
-                        />
-                        {backgroundRemovalPreview && (
-                          <div
+                        >
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            style={{
+                              maxWidth: "300px",
+                              maxHeight: "300px",
+                              objectFit: "contain",
+                              borderRadius: "8px",
+                              border: "1px solid #e5e7eb",
+                              backgroundColor: "#ffffff",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={resetImage}
                             style={{
                               position: "absolute",
                               top: "8px",
-                              left: "8px",
-                              backgroundColor: "#10b981",
+                              right: "8px",
+                              width: "32px",
+                              height: "32px",
+                              backgroundColor: "#dc2626",
                               color: "white",
-                              padding: "4px 8px",
-                              borderRadius: "6px",
-                              fontSize: "12px",
-                              fontWeight: "600",
+                              border: "none",
+                              borderRadius: "50%",
+                              cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
-                              gap: "4px",
-                              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                              justifyContent: "center",
                             }}
                           >
-                            <Wand2 size={12} />
-                            Fundo Removido
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={resetImage}
-                          style={{
-                            position: "absolute",
-                            top: "8px",
-                            right: "8px",
-                            width: "32px",
-                            height: "32px",
-                            backgroundColor: "#dc2626",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "50%",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
+                            <X size={16} />
+                          </button>
+                        </div>
+                      )}
                       {selectedImage && (
                         <div
                           style={{
@@ -1587,85 +1508,205 @@ export default function MenuComponent() {
                           flexWrap: "wrap",
                         }}
                       >
-                        {!backgroundRemovalPreview ? (
+                        {croppedImageBlob && !removingBackground && (
                           <button
                             type="button"
                             onClick={removeBackground}
-                            disabled={removingBackground}
                             style={{
                               display: "flex",
                               alignItems: "center",
                               gap: "6px",
                               padding: "8px 16px",
-                              backgroundColor: removingBackground
-                                ? "#9ca3af"
-                                : "#8b5cf6",
+                              backgroundColor: "#8b5cf6",
                               color: "white",
                               border: "none",
-                              borderRadius: "6px",
-                              fontSize: "14px",
-                              cursor: removingBackground
-                                ? "not-allowed"
-                                : "pointer",
-                              transition: "all 0.2s ease",
-                            }}
-                            title="Remover fundo da imagem usando IA"
-                          >
-                            <Wand2
-                              size={16}
-                              className={
-                                removingBackground ? "animate-spin" : ""
-                              }
-                            />
-                            {removingBackground
-                              ? "A processar..."
-                              : "Remover Fundo"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={undoBackgroundRemoval}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "8px 16px",
-                              backgroundColor: "#f59e0b",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "6px",
+                              borderRadius: "1.5rem",
                               fontSize: "14px",
                               cursor: "pointer",
                               transition: "all 0.2s ease",
                             }}
-                            title="Restaurar imagem original"
+                            title="Remover fundo da imagem usando IA"
                           >
-                            <RefreshCw size={16} />
-                            Desfazer Remoção
+                            <Wand2 size={16} />
+                            Remover Fundo
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={removingBackground}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "8px 16px",
-                            backgroundColor: "#f3f4f6",
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "6px",
-                            fontSize: "14px",
-                            cursor: removingBackground
-                              ? "not-allowed"
-                              : "pointer",
-                          }}
-                        >
-                          <Upload size={16} />
-                          Trocar Imagem
-                        </button>
+                        {removingBackground && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "12px",
+                              padding: "8px 16px",
+                              width: "100%",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "12px",
+                                width: "100%",
+                                maxWidth: "300px",
+                              }}
+                            >
+                              {[1, 2, 3].map((step) => {
+                                const isError = bgRemovalStep === -1;
+                                const isCurrent = bgRemovalStep === step;
+                                const isCompleted = bgRemovalStep > step;
+                                const isFailed = isError && bgRemovalStep !== 0;
+
+                                return (
+                                  <div
+                                    key={step}
+                                    style={{
+                                      flex: 1,
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        width: "32px",
+                                        height: "32px",
+                                        borderRadius: "50%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backgroundColor: isFailed
+                                          ? "#dc2626"
+                                          : isCompleted
+                                          ? "#10b981"
+                                          : isCurrent
+                                          ? "#8b5cf6"
+                                          : "#e5e7eb",
+                                        color:
+                                          isFailed || isCompleted || isCurrent
+                                            ? "white"
+                                            : "#9ca3af",
+                                        fontWeight: "600",
+                                        fontSize: "14px",
+                                        transition: "all 0.3s ease",
+                                      }}
+                                    >
+                                      {isFailed ? (
+                                        <X size={16} />
+                                      ) : isCompleted ? (
+                                        "✓"
+                                      ) : (
+                                        step
+                                      )}
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: "11px",
+                                        color: isFailed ? "#dc2626" : "#6b7280",
+                                        textAlign: "center",
+                                        fontWeight: isCurrent ? "600" : "400",
+                                      }}
+                                    >
+                                      {step === 1
+                                        ? "Converter"
+                                        : step === 2
+                                        ? "Remover"
+                                        : "Processar"}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {bgRemovalStep === -1 && bgRemovalError && (
+                              <div
+                                style={{
+                                  padding: "8px 12px",
+                                  backgroundColor: "#fee2e2",
+                                  border: "1px solid #fecaca",
+                                  borderRadius: "6px",
+                                  color: "#dc2626",
+                                  fontSize: "12px",
+                                  textAlign: "center",
+                                  maxWidth: "300px",
+                                }}
+                              >
+                                {bgRemovalError}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {!removingBackground && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "8px 16px",
+                              backgroundColor: "#f3f4f6",
+                              color: "#374151",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "1.5rem",
+                              fontSize: "14px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Upload size={16} />
+                            Trocar Imagem
+                          </button>
+                        )}
+                        {bgRemovalStep === -1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBgRemovalStep(0);
+                                setBgRemovalError("");
+                                removeBackground();
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "8px 16px",
+                                backgroundColor: "#8b5cf6",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "1.5rem",
+                                fontSize: "14px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <RefreshCw size={16} />
+                              Tentar Novamente
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBgRemovalStep(0);
+                                setBgRemovalError("");
+                                setRemovingBackground(false);
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "8px 16px",
+                                backgroundColor: "#f3f4f6",
+                                color: "#374151",
+                                border: "1px solid #d1d5db",
+                                borderRadius: "1.5rem",
+                                fontSize: "14px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <X size={16} />
+                              Cancelar
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1705,7 +1746,7 @@ export default function MenuComponent() {
                           style={{
                             padding: "6px 12px",
                             fontSize: "14px",
-                            borderRadius: "6px",
+                            borderRadius: "1.5rem",
                             border: isSelected
                               ? "1px solid #3b82f6"
                               : "1px solid #d1d5db",
@@ -1810,7 +1851,7 @@ export default function MenuComponent() {
                         padding: "0 12px",
                         backgroundColor: "white",
                         border: "1px solid #d1d5db",
-                        borderRadius: "6px",
+                        borderRadius: "1.5rem",
                         fontSize: "14px",
                       }}
                     />
@@ -1823,7 +1864,7 @@ export default function MenuComponent() {
                         backgroundColor: "#3b82f6",
                         color: "white",
                         border: "none",
-                        borderRadius: "6px",
+                        borderRadius: "1.5rem",
                         fontWeight: "500",
                         cursor: "pointer",
                       }}
@@ -1908,7 +1949,7 @@ export default function MenuComponent() {
                     color: "#374151",
                     backgroundColor: "white",
                     border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    borderRadius: "1.5rem",
                     cursor: "pointer",
                   }}
                 >
@@ -1926,7 +1967,7 @@ export default function MenuComponent() {
                     padding: "8px 16px",
                     fontSize: "14px",
                     fontWeight: "500",
-                    borderRadius: "6px",
+                    borderRadius: "1.5rem",
                     border: "none",
                     cursor:
                       loadingCollections ||

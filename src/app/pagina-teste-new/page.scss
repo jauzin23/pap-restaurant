@@ -9,19 +9,6 @@
   height: 100%;
   z-index: -1;
   overflow: hidden;
-
-  // Dark overlay on top of the beams
-  &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.05);
-    pointer-events: none;
-    z-index: 1;
-  }
 }
 
 .fade-in,
