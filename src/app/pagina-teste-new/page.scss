@@ -462,19 +462,40 @@ body {
 }
 
 .dashboard-content {
-  margin-left: 14rem;
+  margin-left: 80px;
   transition: margin-left 0.3s ease;
   height: 100% !important;
-
   background: transparent;
-  width: calc(100% - 14rem);
+  width: calc(100% - 80px);
   display: flex;
   flex-direction: column;
   position: relative;
 
   &.sidebar-collapsed {
-    margin-left: 6.5rem;
-    width: calc(100% - 6.5rem);
+    margin-left: 80px;
+    width: calc(100% - 80px);
+  }
+
+  // Tablet responsive - smaller sidebar
+  @media (max-width: 1024px) {
+    margin-left: 80px;
+    width: calc(100% - 80px);
+
+    &.sidebar-collapsed {
+      margin-left: 80px;
+      width: calc(100% - 80px);
+    }
+  }
+
+  // Mobile responsive - full width, sidebar overlays
+  @media (max-width: 768px) {
+    margin-left: 0;
+    width: 100%;
+
+    &.sidebar-collapsed {
+      margin-left: 0;
+      width: 100%;
+    }
   }
 }
 
@@ -482,7 +503,8 @@ body {
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
-  padding-right: 16px;
+  padding: 1.5rem;
+  padding-right: 1.5rem;
 
   display: flex;
   flex-direction: column;
@@ -495,6 +517,20 @@ body {
   // Extra spacing after welcome card
   .welcome-card {
     margin-bottom: 2rem;
+  }
+
+  // Tablet responsive padding
+  @media (max-width: 1024px) {
+    padding: 1.25rem;
+  }
+
+  // Mobile responsive padding
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
   }
 
   /* Custom scrollbar styling */
@@ -521,18 +557,10 @@ body {
   scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.05);
 }
 
-// Responsive
+// Additional responsive adjustments
 @media (max-width: 768px) {
-  .dashboard-content {
-    margin-left: 0;
-
-    &.sidebar-collapsed {
-      margin-left: 0;
-    }
-  }
-
-  .main-content {
-    padding: 1rem;
+  .dashboard {
+    flex-direction: column;
   }
 }
 
@@ -719,7 +747,7 @@ body {
 
 .profile-image {
   position: relative;
-  padding: 8px;
+  padding: 0px;
   border-radius: 16px;
   width: 100%;
   height: 100%;
@@ -1752,5 +1780,46 @@ body {
     width: 20px;
     height: 20px;
     border: 2px solid white;
+  }
+}
+
+// Performance optimizations for mobile devices
+@media (max-width: 768px) {
+  // Reduce animations on mobile for better performance
+  .fade-in,
+  .fade-in-delayed,
+  .slide-in-up,
+  .slide-in-left,
+  .scale-in,
+  .nav-fade-in,
+  .loading-fade-in,
+  .loading-scale-in,
+  .loading-slide-up,
+  .loading-logo,
+  .loading-spinner,
+  .loading-text,
+  .stagger-item {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  // Simplify transforms
+  .slide-in-up,
+  .slide-in-left {
+    transform: none !important;
+  }
+
+  // Reduce motion for better performance
+  * {
+    animation-duration: 0.1s !important;
+    transition-duration: 0.1s !important;
+  }
+}
+
+// Further reduce animations on very small screens
+@media (max-width: 480px) {
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }

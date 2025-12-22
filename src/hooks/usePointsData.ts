@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export const usePointsData = (userId = null, period = "week", month = null) => {
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [userStats, setUserStats] = useState(null);
-  const [globalStats, setGlobalStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export const usePointsData = (userId: string | null = null, period: string = "week", month: string | null = null) => {
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [userStats, setUserStats] = useState<any>(null);
+  const [globalStats, setGlobalStats] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -64,7 +64,7 @@ export const usePointsData = (userId = null, period = "week", month = null) => {
       }
     } catch (err) {
       console.error("Erro ao buscar dados de pontos:", err);
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }

@@ -222,6 +222,30 @@ function ProfilePageContent({
 
         // Fetch the profile user data
         const profileUserData = await users.get(targetUserId);
+
+        // Fetch worked hours from stats
+        try {
+          const token = getAuthToken();
+          if (token) {
+            const statsResponse = await fetch(
+              `${API_BASE_URL}/stats/user/${targetUserId}/comprehensive`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+            if (statsResponse.ok) {
+              const statsData = await statsResponse.json();
+              if (statsData.worked_hours) {
+                profileUserData.hrs = parseFloat(
+                  statsData.worked_hours.total_hours
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching worked hours:", error);
+        }
+
         setProfileUser(profileUserData);
 
         // Initialize form data
@@ -1407,7 +1431,7 @@ function ProfilePageContent({
 
           {/* Personal Statistics Section - Full Width */}
           {profileUser && (
-            <div style={{ marginTop: "48px", width: "100%" }}>
+            <div style={{ marginTop: "8px", width: "100%" }}>
               <UserPersonalStats userId={profileUser.$id || profileUser.id} />
             </div>
           )}
@@ -1854,7 +1878,7 @@ function ProfilePageContent({
               style={{
                 backgroundColor: "white",
                 padding: "32px",
-                borderRadius: "16px",
+                borderRadius: "32px",
                 maxWidth: "400px",
                 width: "90%",
                 boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
@@ -1894,7 +1918,7 @@ function ProfilePageContent({
                   disabled={isDeleting}
                   style={{
                     padding: "10px 20px",
-                    borderRadius: "8px",
+                    borderRadius: "1.5rem",
                     border: "1px solid #e5e7eb",
                     backgroundColor: "white",
                     color: "#64748b",
@@ -1911,7 +1935,7 @@ function ProfilePageContent({
                   disabled={isDeleting}
                   style={{
                     padding: "10px 20px",
-                    borderRadius: "8px",
+                    borderRadius: "1.5rem",
                     border: "none",
                     backgroundColor: "#ef4444",
                     color: "white",

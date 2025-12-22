@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Clock,
@@ -76,7 +76,7 @@ const ManagerStaffView = () => {
   });
 
   // Load staff data
-  const loadStaffData = async () => {
+  const loadStaffData = useCallback(async () => {
     try {
       setRefreshing(true);
       const response = await users.list();
@@ -113,7 +113,8 @@ const ManagerStaffView = () => {
           email: u.email,
           telefone: u.telefone || "",
           hoursWorked: u.hrs || 0,
-          status: u.status || "offline",
+          status: u.is_working ? "online" : "offline",
+          isWorking: u.is_working || false,
           profileImg: u.profile_image
             ? getImageUrl("imagens-perfil", u.profile_image)
             : "",
@@ -133,7 +134,7 @@ const ManagerStaffView = () => {
       setRefreshing(false);
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -157,7 +158,15 @@ const ManagerStaffView = () => {
 
   // WebSocket real-time updates
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!socket || !connected) {
+      console.log("⚠️ ManagerStaffView: Socket not ready", {
+        socket: !!socket,
+        connected,
+      });
+      return;
+    }
+
+    console.log("🔌 ManagerStaffView: Setting up WebSocket listeners");
 
     const handleUserCreated = (user) => {
       console.log("🆕 New user created:", user.name);
@@ -169,14 +178,22 @@ const ManagerStaffView = () => {
       loadStaffData();
     };
 
+    const handlePresencaRegistada = (data) => {
+      console.log("⏰ Presença registada:", data);
+      loadStaffData(); // Refetch to update is_working status
+    };
+
     socket.on("user:created", handleUserCreated);
     socket.on("user:updated", handleUserUpdated);
+    socket.on("presenca:registada", handlePresencaRegistada);
 
     return () => {
+      console.log("🔌 ManagerStaffView: Cleaning up WebSocket listeners");
       socket.off("user:created", handleUserCreated);
       socket.off("user:updated", handleUserUpdated);
+      socket.off("presenca:registada", handlePresencaRegistada);
     };
-  }, [socket, connected]);
+  }, [socket, connected, loadStaffData]);
 
   // Handle form input changes
   const handleInputChange = (field, value) => {

@@ -114,12 +114,98 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
-        overflow: hidden;
+        overflow-y: auto;
         padding: 0 24px 24px 24px;
         min-height: 0;
         height: 100%;
         flex: 1;
         transition: all 0.4s ease;
+
+        .filter-bar {
+          display: flex;
+          gap: 12px;
+          flex-shrink: 0;
+          align-items: center;
+
+          .search-box {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 1.5rem;
+            padding: 0 16px;
+            transition: all 0.2s ease;
+
+            &:focus-within {
+              border-color: #3b82f6;
+              box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            svg {
+              color: #9ca3af;
+              flex-shrink: 0;
+            }
+
+            input {
+              flex: 1;
+              border: none;
+              outline: none;
+              padding: 12px 12px;
+              font-family: "Nunito", sans-serif;
+              font-size: 14px;
+              font-weight: 500;
+              color: #1f2937;
+              background: transparent;
+
+              &::placeholder {
+                color: #9ca3af;
+              }
+            }
+
+            .clear-search {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 4px;
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              color: #9ca3af;
+              transition: color 0.2s ease;
+              flex-shrink: 0;
+
+              &:hover {
+                color: #1f2937;
+              }
+            }
+          }
+
+          .category-select {
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 1.5rem;
+            background: #ffffff;
+            font-family: "Nunito", sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+            min-width: 140px;
+
+            &:hover {
+              border-color: #d1d5db;
+            }
+
+            &:focus {
+              border-color: #3b82f6;
+              box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+          }
+        }
 
         .customer-info-card {
           background: #ffffff;
@@ -263,9 +349,7 @@
         .menu-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 16px;
-          flex: 1;
-          overflow: hidden;
+          gap: 8px;
           padding: 4px;
           align-content: start;
 

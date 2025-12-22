@@ -51,6 +51,7 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const { stats, loading } = useUserStatsWebSocket(userId, dateFrom, dateTo);
+  const statsTyped = stats as any;
   const {
     userStats: pointsStats,
     loading: pointsLoading,
@@ -77,20 +78,20 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
 
   const availableMonths = getAvailableMonths();
 
-  if (loading || !stats) {
+  if (loading || !statsTyped) {
     return <div className="loading-container">A carregar estatísticas...</div>;
   }
 
-  const hourlyData = stats.hourly_pattern.map((h: any) => ({
+  const hourlyData = statsTyped.hourly_pattern.map((h: any) => ({
     hour: `${h.hour}:00`,
     pedidos: h.orders_count,
   }));
 
-  const dailyData = stats.daily_breakdown.slice(0, 14).reverse();
+  const dailyData = statsTyped.daily_breakdown.slice(0, 14).reverse();
   const scoreClass =
-    stats.performance_score >= 80
+    statsTyped.performance_score >= 80
       ? "high-score"
-      : stats.performance_score >= 60
+      : statsTyped.performance_score >= 60
       ? "medium-score"
       : "low-score";
 
@@ -106,11 +107,11 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
             <div className="stat-content">
               <div className="stat-label">Pedidos</div>
               <div className="stat-value">
-                <NumberFlow value={stats.orders.total_handled} />
+                <NumberFlow value={statsTyped.orders.total_handled} />
               </div>
             </div>
           </div>
-          <div className="stat-footer">{stats.orders.active} ativos</div>
+          <div className="stat-footer">{statsTyped.orders.active} ativos</div>
         </div>
 
         <div className="stat-card">
@@ -121,11 +122,11 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
             <div className="stat-content">
               <div className="stat-label">Aceites</div>
               <div className="stat-value">
-                <NumberFlow value={stats.orders.accepted} />
+                <NumberFlow value={statsTyped.orders.accepted} />
               </div>
             </div>
           </div>
-          <div className="stat-footer">{stats.orders.prepared} preparados</div>
+          <div className="stat-footer">{statsTyped.orders.prepared} preparados</div>
         </div>
 
         <div className="stat-card">
@@ -136,12 +137,12 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
             <div className="stat-content">
               <div className="stat-label">Pedidos Entregues</div>
               <div className="stat-value">
-                <NumberFlow value={stats.orders.delivered} />
+                <NumberFlow value={statsTyped.orders.delivered} />
               </div>
             </div>
           </div>
           <div className="stat-footer">
-            {stats.time_performance.fast_percentage}% rápidos
+            {statsTyped.time_performance.fast_percentage}% rápidos
           </div>
         </div>
 
@@ -153,7 +154,7 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
             <div className="stat-content">
               <div className="stat-label">Total Processados</div>
               <div className="stat-value">
-                <NumberFlow value={stats.orders.total_handled} />
+                <NumberFlow value={statsTyped.orders.total_handled} />
               </div>
             </div>
           </div>
@@ -252,14 +253,14 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
       </div>
 
       {/* Top Items */}
-      {stats.top_items_handled.length > 0 && (
+      {statsTyped.top_items_handled.length > 0 && (
         <div className="top-items-section">
           <div className="section-header">
             <h3>Itens Mais Trabalhados</h3>
             <p>Top 5 produtos</p>
           </div>
           <div className="items-list">
-            {stats.top_items_handled
+            {statsTyped.top_items_handled
               .slice(0, 5)
               .map((item: any, index: number) => (
                 <div key={index} className="item-card">

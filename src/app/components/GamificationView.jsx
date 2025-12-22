@@ -226,60 +226,56 @@ const GamificationView = ({ user }) => {
           {globalStats && (
             <div className="global-stats-grid">
               <div className="global-stat-card">
-                <div className="global-stat-icon">
-                  <Trophy size={24} />
+                <div className="stat-header">
+                  <span className="stat-title">Utilizadores Ativos</span>
+                  <Trophy className="stat-icon" />
                 </div>
-                <div className="global-stat-content">
-                  <div className="global-stat-value">
-                    <NumberFlow value={globalStats.totals?.active_users || 0} />
-                  </div>
-                  <div className="global-stat-label">Utilizadores Ativos</div>
+                <div className="stat-value">
+                  <NumberFlow value={globalStats.totals?.active_users || 0} />
                 </div>
+                <div className="stat-description">Membros ativos da equipa</div>
               </div>
 
               <div className="global-stat-card">
-                <div className="global-stat-icon">
-                  <Star size={24} />
+                <div className="stat-header">
+                  <span className="stat-title">Pontos Distribuídos</span>
+                  <Star className="stat-icon" />
                 </div>
-                <div className="global-stat-content">
-                  <div className="global-stat-value">
-                    <NumberFlow
-                      value={globalStats.totals?.total_points_distributed || 0}
-                    />
-                  </div>
-                  <div className="global-stat-label">Pontos Distribuídos</div>
+                <div className="stat-value">
+                  <NumberFlow
+                    value={globalStats.totals?.total_points_distributed || 0}
+                  />
                 </div>
+                <div className="stat-description">Total de pontos atribuídos</div>
               </div>
 
               <div className="global-stat-card">
-                <div className="global-stat-icon">
-                  <Medal size={24} />
+                <div className="stat-header">
+                  <span className="stat-title">Total de Ações</span>
+                  <Medal className="stat-icon" />
                 </div>
-                <div className="global-stat-content">
-                  <div className="global-stat-value">
-                    <NumberFlow
-                      value={globalStats.totals?.total_actions || 0}
-                    />
-                  </div>
-                  <div className="global-stat-label">Total de Ações</div>
+                <div className="stat-value">
+                  <NumberFlow
+                    value={globalStats.totals?.total_actions || 0}
+                  />
                 </div>
+                <div className="stat-description">Ações realizadas no período</div>
               </div>
 
               <div className="global-stat-card">
-                <div className="global-stat-icon">
-                  <BarChart3 size={24} />
+                <div className="stat-header">
+                  <span className="stat-title">Média por Ação</span>
+                  <BarChart3 className="stat-icon" />
                 </div>
-                <div className="global-stat-content">
-                  <div className="global-stat-value">
-                    <NumberFlow
-                      value={parseFloat(
-                        globalStats.totals?.avg_points_per_action || 0
-                      )}
-                      format={{ minimumFractionDigits: 1 }}
-                    />
-                  </div>
-                  <div className="global-stat-label">Média por Ação</div>
+                <div className="stat-value">
+                  <NumberFlow
+                    value={parseFloat(
+                      globalStats.totals?.avg_points_per_action || 0
+                    )}
+                    format={{ minimumFractionDigits: 1 }}
+                  />
                 </div>
+                <div className="stat-description">Pontos médios por ação</div>
               </div>
             </div>
           )}

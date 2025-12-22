@@ -59,7 +59,7 @@ import {
   Radar,
 } from "recharts";
 import "./ManagerView.scss";
-import { getImageUrl as getImageUrlHelper } from "../../lib/api";
+import { getImageUrl as getImageUrlHelper, getImageUrl } from "../../lib/api";
 import TableLayoutManager from "./TableLayout";
 import DashboardCards from "./DashboardCards";
 
@@ -114,6 +114,7 @@ const ManagerView = ({
   const [selectedOrder, setSelectedOrder] = React.useState(null);
   const [orderModalVisible, setOrderModalVisible] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [staffData, setStaffData] = React.useState([]);
 
   // Fetch latest orders function
   const fetchLatestOrders = React.useCallback(async () => {
@@ -136,28 +137,97 @@ const ManagerView = ({
     }
   }, []);
 
+  // Fetch staff attendance data
+  const fetchStaffData = React.useCallback(async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const usersArray = data?.users || data || [];
+
+        // For each user, fetch their latest clock-in time if they're working
+        const transformedStaff = await Promise.all(
+          usersArray.map(async (user) => {
+            let clockInTime = null;
+
+            if (user.is_working) {
+              try {
+                const presencaResponse = await fetch(
+                  `${API_BASE_URL}/api/presencas/user/${user.id}`,
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (presencaResponse.ok) {
+                  const presencaData = await presencaResponse.json();
+                  const latestEntrada = presencaData.presencas?.find(
+                    (p) => p.tipo_acao === "entrada"
+                  );
+                  if (latestEntrada) {
+                    clockInTime = latestEntrada.timestamp;
+                  }
+                }
+              } catch (err) {
+                console.error("Error fetching presenca for user:", err);
+              }
+            }
+
+            return {
+              id: user.id,
+              name: user.name || user.username || "Sem Nome",
+              role: user.labels?.[0] || "staff",
+              profile_image: user.profile_image
+                ? getImageUrlHelper("imagens-perfil", user.profile_image)
+                : "",
+              status: user.is_working ? "online" : "offline",
+              isWorking: user.is_working || false,
+              clockInTime: clockInTime,
+            };
+          })
+        );
+
+        setStaffData(transformedStaff);
+      }
+    } catch (error) {
+      console.error("Failed to fetch staff data:", error);
+    }
+  }, []);
+
+  // Initial data fetch
+  React.useEffect(() => {
+    fetchStaffData();
+  }, [fetchStaffData]);
+
   // WebSocket listeners for real-time updates
   React.useEffect(() => {
     if (!socket || !connected) return;
 
     const handleTakeawayCompleted = () => {
-      console.log("🛍️✅ Takeaway completed - refreshing latest orders");
       fetchLatestOrders();
     };
 
     const handleStatsUpdated = () => {
-      console.log("📊 Stats updated - refreshing latest orders");
       fetchLatestOrders();
+    };
+
+    const handlePresencaRegistada = (data) => {
+      fetchStaffData();
     };
 
     socket.on("takeaway:completed", handleTakeawayCompleted);
     socket.on("stats:updated", handleStatsUpdated);
+    socket.on("presenca:registada", handlePresencaRegistada);
 
     return () => {
       socket.off("takeaway:completed", handleTakeawayCompleted);
       socket.off("stats:updated", handleStatsUpdated);
+      socket.off("presenca:registada", handlePresencaRegistada);
     };
-  }, [socket, connected, fetchLatestOrders]);
+  }, [socket, connected, fetchLatestOrders, fetchStaffData]);
 
   // Update states when WebSocket data arrives
   React.useEffect(() => {
@@ -561,6 +631,39 @@ const ManagerView = ({
     );
   };
 
+  // Work Duration Display Component
+  const WorkDuration = ({ clockInTime }) => {
+    const [duration, setDuration] = React.useState("");
+
+    React.useEffect(() => {
+      if (!clockInTime) return;
+
+      const updateDuration = () => {
+        const start = new Date(clockInTime);
+        const now = new Date();
+        const diff = now - start;
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        setDuration(
+          `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+            2,
+            "0"
+          )}:${String(seconds).padStart(2, "0")}`
+        );
+      };
+
+      updateDuration();
+      const interval = setInterval(updateDuration, 1000);
+
+      return () => clearInterval(interval);
+    }, [clockInTime]);
+
+    return <span className="work-duration">{duration}</span>;
+  };
+
   return (
     <div className="manager-view">
       {/* Section Header */}
@@ -573,6 +676,71 @@ const ManagerView = ({
 
       {/* Dashboard Cards */}
       <DashboardCards showAllMetrics={true} />
+
+      {/* Online Staff Card */}
+      <div className="card chart-card online-staff-card">
+        <div className="card-header-modern">
+          <div className="card-icon-wrapper">
+            <Users size={20} />
+          </div>
+          <div className="card-header-text">
+            <h3>Equipa Online</h3>
+            <p>
+              {staffData.filter((s) => s.status === "online").length} de{" "}
+              {staffData.length} funcionários
+            </p>
+          </div>
+        </div>
+
+        <div className="online-staff-list">
+          {staffData.filter((s) => s.status === "online").length === 0 ? (
+            <div className="empty-state">
+              <Users size={48} color="#94a3b8" />
+              <p>Nenhum funcionário online no momento</p>
+            </div>
+          ) : (
+            staffData
+              .filter((s) => s.status === "online")
+              .map((staff) => (
+                <div key={staff.id} className="online-staff-item">
+                  <div className="staff-card-inner">
+                    <div className="staff-avatar-wrapper">
+                      {staff.profile_image ? (
+                        <img
+                          src={staff.profile_image}
+                          alt={staff.name}
+                          className="staff-avatar"
+                        />
+                      ) : (
+                        <div className="staff-avatar staff-avatar-placeholder">
+                          <UserCircle size={28} />
+                        </div>
+                      )}
+                      <span className="online-indicator">
+                        <span className="pulse-ring"></span>
+                        <span className="pulse-dot"></span>
+                      </span>
+                    </div>
+                    <div className="staff-details">
+                      <div className="staff-info">
+                        <span className="staff-name">{staff.name}</span>
+                        <span className="staff-role">{staff.role}</span>
+                      </div>
+                      <div className="work-time">
+                        <Clock size={14} />
+                        {staff.clockInTime ? (
+                          <WorkDuration clockInTime={staff.clockInTime} />
+                        ) : (
+                          <span className="work-duration">--:--:--</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
 
       {/* Main Charts Grid */}
       <div className="charts-grid">
@@ -698,7 +866,7 @@ const ManagerView = ({
                 <p>Pedidos de hoje (presenciais e takeaway)</p>
               </div>
             </div>
-            <div>
+            <div style={{ height: "400px", overflowY: "auto" }}>
               {latestOrders.map((order) => (
                 <div
                   key={order.id}
@@ -802,6 +970,8 @@ const ManagerView = ({
           flexDirection: "column",
           gap: "0.5rem",
           marginBottom: "0.5rem",
+          width: "100%",
+          maxWidth: "100%",
         }}
       >
         {/* Weekly Pattern */}
@@ -819,7 +989,8 @@ const ManagerView = ({
                 <Select
                   value={selectedWeek}
                   onChange={setSelectedWeek}
-                  style={{ width: 200 }}
+                  style={{ maxWidth: 200, width: "100%" }}
+                  className="custom-select"
                   options={availableWeeks.map((week) => ({
                     value: week.offset,
                     label: week.display,
@@ -963,7 +1134,7 @@ const ManagerView = ({
               <Select
                 value={selectedMonth}
                 onChange={(value) => setSelectedMonth(value)}
-                style={{ width: 200 }}
+                style={{ maxWidth: 200, width: "100%" }}
                 className="custom-select"
                 options={availableMonths.map((month) => ({
                   value: month.value,
@@ -1083,7 +1254,7 @@ const ManagerView = ({
                 <Select
                   value={selectedMonth}
                   onChange={(value) => setSelectedMonth(value)}
-                  style={{ width: 200 }}
+                  style={{ maxWidth: 200, width: "100%" }}
                   className="custom-select"
                   options={availableMonths.map((month) => ({
                     value: month.value,

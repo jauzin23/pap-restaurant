@@ -1,28 +1,41 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import Sidebar from "../components/Sidebar";
 import { BackgroundBeams } from "../components/BackgroundBeams";
 import "./page.scss";
-import { auth, users, profileImages, API_FILES_URL } from "../../lib/api";
-import { isAuthenticated } from "../../lib/auth";
-import ManagerView from "../components/ManagerView";
-import StaffView from "../components/StaffView";
-import MenuComponent from "../components/MenuComponent";
-import StockComponent from "../components/StockComponent";
-import TableLayoutManager from "../components/TableLayout";
-import ManagerStaffView from "../components/ManagerStaffView";
-import PayOrdersComponent from "../components/PayOrdersComponent";
-import GamificationView from "../components/GamificationView";
-import ReservationManager from "../components/ReservationManager";
+import { getCurrentUser, AuthGuard } from "../../lib/auth";
 import DashboardCards from "../components/DashboardCards";
 import {
   WebSocketProvider,
   useWebSocketContext,
 } from "../../contexts/WebSocketContext";
+import { NotificationProvider } from "../../contexts/NotificationContext";
+import { useNotifications } from "../../hooks/useNotifications";
+import NotificationErrorBoundary from "../../components/NotificationErrorBoundary";
+import { useIsMobile } from "../../hooks/use-mobile";
+
+// Lazy load heavy components for better performance
+const ManagerView = lazy(() => import("../components/ManagerView"));
+const StaffView = lazy(() => import("../components/StaffView"));
+const MenuComponent = lazy(() => import("../components/MenuComponent"));
+const StockComponent = lazy(() => import("../components/StockComponent"));
+const TableLayoutManager = lazy(() => import("../components/TableLayout"));
+const ManagerStaffView = lazy(() => import("../components/ManagerStaffView"));
+const PayOrdersComponent = lazy(() => import("../components/PayOrdersComponent"));
+const GamificationView = lazy(() => import("../components/GamificationView"));
+const ReservationManager = lazy(() => import("../components/ReservationManager"));
+const PresencasComponent = lazy(() => import("../components/PresencasComponent"));
+
+// Component that initializes notifications (must be inside NotificationProvider)
+const NotificationInitializer = () => {
+  useNotifications();
+  return null;
+};
 
 const RestaurantDashboardContent = () => {
   const { socket, connected, reconnecting } = useWebSocketContext();
+  const isMobile = useIsMobile();
   // State declarations MUST come before any useEffect that uses them
   const [expandedSections, setExpandedSections] = useState({
     kitchen: false,
@@ -38,15 +51,16 @@ const RestaurantDashboardContent = () => {
   const [profileImg, setProfileImg] = useState("");
   const [user, setUser] = useState(null);
   const [userLabels, setUserLabels] = useState([]);
-  const [currentView, setCurrentView] = useState(null); // null initially, set after user loads
-  const [activeNavItem, setActiveNavItem] = useState("Painel"); // Track active navigation item
+  const [currentView, setCurrentView] = useState(null);
+  const [activeNavItem, setActiveNavItem] = useState("Painel");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Random color for username - refreshed on every load
   const [usernameColor, setUsernameColor] = useState("");
 
   // Big list of vibrant colors for username
-  const USERNAME_COLORS = [
+  const USERNAME_COLORS = React.useMemo(() => [
     "#FF6B6B", // Coral Red
     "#4ECDC4", // Turquoise
     "#45B7D1", // Sky Blue
@@ -97,7 +111,7 @@ const RestaurantDashboardContent = () => {
     "#EE5A6F", // Watermelon
     "#C44569", // Blush Pink
     "#F8B739", // Saffron
-  ];
+  ], []);
 
   // Select random color on component mount
   useEffect(() => {
@@ -107,7 +121,7 @@ const RestaurantDashboardContent = () => {
   }, []);
 
   // Mock chart data for manager view - Daily revenue for the week
-  const chartData = [
+  const chartData = React.useMemo(() => [
     { month: "Segunda", revenue: 2800 },
     { month: "Terça", revenue: 3200 },
     { month: "Quarta", revenue: 2950 },
@@ -115,13 +129,13 @@ const RestaurantDashboardContent = () => {
     { month: "Sexta", revenue: 4200 },
     { month: "Sábado", revenue: 4800 },
     { month: "Domingo", revenue: 3400 },
-  ];
+  ], []);
 
-  const chartConfig = {
+  const chartConfig = React.useMemo(() => ({
     dataKey: "revenue",
     color: "#ff6b35",
     label: "Receita Diária (€)",
-  };
+  }), []);
 
   // Check if user is a manager (you can modify this logic based on your role system)
   const isManager =
@@ -162,14 +176,6 @@ const RestaurantDashboardContent = () => {
     console.log("BlurText animation completed!");
   };
 
-  // Authentication guard - redirect to login if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = "/login";
-      return;
-    }
-  }, []);
-
   // Only fetch users when staff accordion is opened for the first time
   useEffect(() => {
     if (expandedSections.staff && !staffFetched) {
@@ -177,19 +183,29 @@ const RestaurantDashboardContent = () => {
         try {
           const result = await users.list();
           setStaffUsers(result.users || []);
+          setStaffFetched(true);
         } catch (err) {
           console.error("Error fetching staff users:", err);
+          // If it's an auth error, getCurrentUser will handle logout
+          if (err.message && (
+            err.message.includes("Session expired") ||
+            err.message.includes("Authentication failed") ||
+            err.message.includes("401") ||
+            err.message.includes("403")
+          )) {
+            // Token error already handled by apiRequest
+            return;
+          }
           setStaffUsers([]);
+          setStaffFetched(true); // Prevent retrying on every render
         }
       }
       fetchUsers();
-      setStaffFetched(true);
     }
   }, [expandedSections.staff, staffFetched]);
 
   useEffect(() => {
-    auth
-      .get()
+    getCurrentUser()
       .then(async (user) => {
         setUsername(user.name || user.username || user.email);
         setUser(user);
@@ -225,6 +241,8 @@ const RestaurantDashboardContent = () => {
         setIsLoading(false);
       })
       .catch((err) => {
+        console.error("Failed to get current user:", err);
+        // getCurrentUser already handles logout on auth errors
         setUsername("");
         setProfileImg("");
         setIsLoading(false);
@@ -309,16 +327,22 @@ const RestaurantDashboardContent = () => {
 
   return (
     <div className="dashboard fade-in">
-      {/* Background Beams with Overlay */}
-      <div className="background-beams-container">
-        <BackgroundBeams />
-      </div>
+      {/* Background Beams with Overlay - Only on desktop for performance */}
+      {!isMobile && (
+        <div className="background-beams-container">
+          <BackgroundBeams />
+        </div>
+      )}
 
       <Sidebar
         activeNavItem={activeNavItem}
-        onNavClick={handleNavClick}
+        onNavClick={(item) => {
+          handleNavClick(item);
+          setMobileSidebarOpen(false); // Close sidebar on mobile after navigation
+        }}
         isCollapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isOpen={mobileSidebarOpen}
+        onToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         user={user}
         username={username}
         userLabels={userLabels}
@@ -333,7 +357,20 @@ const RestaurantDashboardContent = () => {
         <main className="main-content fade-in-delayed">
           {/* Only render views when user data is loaded */}
           {user && (
-            <>
+            <Suspense fallback={
+              <div className="loading-component">
+                <div className="spinner" style={{
+                  width: '40px',
+                  height: '40px',
+                  border: '3px solid #f0f0f0',
+                  borderTop: '3px solid #ff6b35',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '20px auto'
+                }} />
+                <p style={{textAlign: 'center', color: '#666'}}>A carregar...</p>
+              </div>
+            }>
               {(() => {
                 console.log("Active nav item:", activeNavItem);
                 console.log("Current view:", currentView);
@@ -348,6 +385,8 @@ const RestaurantDashboardContent = () => {
                 <TableLayoutManager user={user} />
               ) : activeNavItem === "Reservas" ? (
                 <ReservationManager />
+              ) : activeNavItem === "Presenças" ? (
+                <PresencasComponent />
               ) : activeNavItem === "Staff" ? (
                 <ManagerStaffView />
               ) : activeNavItem === "Pagamentos" ? (
@@ -383,7 +422,7 @@ const RestaurantDashboardContent = () => {
                   )}
                 </>
               ) : null}
-            </>
+            </Suspense>
           )}
         </main>
       </div>
@@ -394,7 +433,14 @@ const RestaurantDashboardContent = () => {
 const RestaurantDashboard = () => {
   return (
     <WebSocketProvider>
-      <RestaurantDashboardContent />
+      <NotificationErrorBoundary>
+        <NotificationProvider>
+          <NotificationInitializer />
+          <AuthGuard>
+            <RestaurantDashboardContent />
+          </AuthGuard>
+        </NotificationProvider>
+      </NotificationErrorBoundary>
     </WebSocketProvider>
   );
 };

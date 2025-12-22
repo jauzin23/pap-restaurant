@@ -17,9 +17,12 @@ import {
   CreditCard,
   Trophy,
   Calendar,
+  Clock,
+  Bell,
 } from "lucide-react";
 import { logout } from "../../lib/auth";
 import { getImageUrl } from "../../lib/api";
+import NotificationBadge from "../../components/NotificationBadge";
 
 // Custom Restaurant Layout Icon
 const RestLayoutIcon = ({ size = 18 }) => (
@@ -45,6 +48,8 @@ const Sidebar = ({
   username: propUsername,
   userLabels: propUserLabels,
   profileImg: propProfileImg,
+  isOpen = false,
+  onToggle,
 }) => {
   const router = useRouter();
 
@@ -54,6 +59,7 @@ const Sidebar = ({
     { id: "Ementa", label: "Ementa", icon: UtensilsCrossed },
     { id: "Stock", label: "Stock", icon: Package },
     { id: "Reservas", label: "Reservas", icon: Calendar },
+    { id: "Presenças", label: "Presenças", icon: Clock },
     { id: "Pagamentos", label: "Pagamentos", icon: CreditCard },
     { id: "Gamificação", label: "Gamificação", icon: Trophy },
     { id: "Staff", label: "Pessoal", icon: Users },
@@ -121,90 +127,157 @@ const Sidebar = ({
   const profileImg =
     propProfileImg || user?.profileImage || user?.profile_image || "";
 
+  // Check if user is manager
+  const isManager = userLabels.some(
+    (label) =>
+      label.toLowerCase() === "gestor" || label.toLowerCase() === "manager"
+  );
+
+  // Filter menu items based on user role
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (item.id === "Presenças") {
+      return isManager;
+    }
+    return true;
+  });
+
   return (
-    <aside className="sidebar collapsed">
-      {/* Sidebar Brand */}
-      <div className="sidebar-brand">
-        <div className="brand-icon">
-          <span>M+</span>
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={onToggle}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile toggle arrow - outside sidebar so it's always visible */}
+      <button
+        className={`sidebar-toggle-arrow ${isOpen ? "sidebar-open" : ""}`}
+        onClick={onToggle}
+        aria-label="Toggle sidebar"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {isOpen ? (
+            // Left arrow when open
+            <path
+              d="M10 12L6 8L10 4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : (
+            // Right arrow when closed
+            <path
+              d="M6 12L10 8L6 4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+        </svg>
+      </button>
+
+      <aside className={`sidebar collapsed ${isOpen ? "mobile-open" : ""}`}>
+        {/* Sidebar Brand */}
+        <div className="sidebar-brand">
+          <div className="brand-icon">
+            <span>M+</span>
+          </div>
         </div>
-      </div>
 
-      <hr className="sidebar-divider" />
+        <hr className="sidebar-divider" />
 
-      {/* Navigation */}
-      <nav className="sidebar-nav">
-        {menuItems.map((item, index) => {
-          const Icon = item.icon;
-          const isActive = activeNavItem === item.id;
+        {/* Navigation */}
+        <nav className="sidebar-nav">
+          {filteredMenuItems.map((item, index) => {
+            const Icon = item.icon;
+            const isActive = activeNavItem === item.id;
 
-          return (
-            <button
-              key={item.id}
-              className={`nav-item ${isActive ? "active" : ""}`}
-              onClick={() => onNavClick(item.id)}
-              title={item.label}
-              style={{ animationDelay: `${0.1 + index * 0.05}s` }}
-            >
-              <Icon size={18} />
-            </button>
-          );
-        })}
-      </nav>
-
-      <hr className="sidebar-divider" />
-
-      {/* User Profile Section with Radix Dropdown */}
-      <div className="sidebar-topbar">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button className="user-profile-btn" title={username}>
-              <ProfileImage
-                src={profileImg}
-                alt={username}
-                size={40}
-                isCircular={true}
-              />
-            </button>
-          </DropdownMenu.Trigger>
-
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              className="user-dropdown"
-              sideOffset={5}
-              align="start"
-              side="right"
-            >
-              <DropdownMenu.Item
-                className="user-dropdown-item"
-                onSelect={handleProfileClick}
+            return (
+              <button
+                key={item.id}
+                className={`nav-item ${isActive ? "active" : ""}`}
+                onClick={() => onNavClick(item.id)}
+                title={item.label}
+                style={{ animationDelay: `${0.1 + index * 0.05}s` }}
               >
-                <User size={16} />
-                <span>Perfil</span>
-              </DropdownMenu.Item>
+                <Icon size={18} />
+              </button>
+            );
+          })}
+        </nav>
 
-              <DropdownMenu.Item
-                className="user-dropdown-item"
-                onSelect={() => router.push("/settings")}
+        <hr className="sidebar-divider" />
+
+        {/* Notification Controls */}
+        <div className="sidebar-controls">
+          <NotificationBadge className="sidebar-control-btn" />
+        </div>
+
+        <hr className="sidebar-divider" />
+
+        {/* User Profile Section with Radix Dropdown */}
+        <div className="sidebar-topbar">
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="user-profile-btn" title={username}>
+                <ProfileImage
+                  src={profileImg}
+                  alt={username}
+                  size={40}
+                  isCircular={true}
+                />
+              </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="user-dropdown"
+                sideOffset={5}
+                align="start"
+                side="right"
               >
-                <Settings size={16} />
-                <span>Definições</span>
-              </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="user-dropdown-item"
+                  onSelect={handleProfileClick}
+                >
+                  <User size={16} />
+                  <span>Perfil</span>
+                </DropdownMenu.Item>
 
-              <DropdownMenu.Separator className="user-dropdown-divider" />
+                <DropdownMenu.Item
+                  className="user-dropdown-item"
+                  onSelect={() => router.push("/settings")}
+                >
+                  <Settings size={16} />
+                  <span>Definições</span>
+                </DropdownMenu.Item>
 
-              <DropdownMenu.Item
-                className="user-dropdown-item danger"
-                onSelect={handleLogout}
-              >
-                <LogOut size={16} />
-                <span>Sair</span>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-      </div>
-    </aside>
+                <DropdownMenu.Separator className="user-dropdown-divider" />
+
+                <DropdownMenu.Item
+                  className="user-dropdown-item danger"
+                  onSelect={handleLogout}
+                >
+                  <LogOut size={16} />
+                  <span>Sair</span>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
+      </aside>
+    </>
   );
 };
 

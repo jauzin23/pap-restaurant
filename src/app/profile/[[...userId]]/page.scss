@@ -61,7 +61,6 @@
 // Profile Page Styles - Card-Based Layout (Scoped to prevent global conflicts)
 .profile-page {
   width: 100%;
-  max-width: 1600px;
   margin: 0 auto;
   padding: clamp(1.5rem, 3vw, 3rem);
   position: relative;
@@ -127,7 +126,7 @@
   .profile-grid {
     display: grid;
     grid-template-columns: clamp(320px, 28vw, 400px) 1fr;
-    gap: clamp(1.5rem, 2.5vw, 2rem);
+    gap: 8px;
     align-items: start;
 
     @media (max-width: 1024px) {
@@ -146,10 +145,6 @@
     animation: fadeIn 0.6s ease-out;
     overflow: hidden;
     box-shadow: none !important;
-
-    &:hover {
-      transform: translateY(-1px);
-    }
   }
 
   .profile-avatar-section {
@@ -255,7 +250,7 @@
   .profile-info-grid {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 8px;
   }
 
   .info-card {
@@ -265,10 +260,6 @@
     border: 1px solid #e5e7eb;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     animation: fadeIn 0.6s ease-out;
-
-    &:hover {
-      transform: translateY(-1px);
-    }
 
     &.manager-card {
       background: #ffffff;

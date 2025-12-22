@@ -1,5 +1,6 @@
 // Authentication utilities for the restaurant app
 
+import React from "react";
 import { auth, getAuthToken, removeAuthToken, handleTokenExpiration } from "./api";
 
 // Check if an error is a token/auth error
@@ -95,11 +96,77 @@ export const getCurrentUser = async () => {
   }
 };
 
-// Auth guard hook for protected routes
+// Auth guard hook for protected routes with token validation
 export const useAuthGuard = () => {
-  if (typeof window !== "undefined" && !isAuthenticated()) {
-    window.location.href = "/login";
-    return false;
+  const [isValidating, setIsValidating] = React.useState(true);
+  const [isAuthValid, setIsAuthValid] = React.useState(false);
+
+  React.useEffect(() => {
+    const validateToken = async () => {
+      if (!isAuthenticated()) {
+        setIsValidating(false);
+        setIsAuthValid(false);
+        return;
+      }
+
+      try {
+        // Try to get current user to validate token
+        await getCurrentUser();
+        setIsAuthValid(true);
+      } catch (error) {
+        // Token is invalid, getCurrentUser handles logout
+        setIsAuthValid(false);
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    validateToken();
+  }, []);
+
+  React.useEffect(() => {
+    if (!isValidating && !isAuthValid && typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+  }, [isValidating, isAuthValid]);
+
+  return { isValidating, isAuthenticated: isAuthValid };
+};
+
+// AuthGuard component for protecting routes
+export const AuthGuard = ({ children }) => {
+  const { isValidating, isAuthenticated } = useAuthGuard();
+
+  if (isValidating) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'white'
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '3px solid #f0f0f0',
+          borderTop: '3px solid #ff6b35',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
   }
-  return true;
+
+  if (!isAuthenticated) {
+    return null; // Will redirect via useEffect
+  }
+
+  return children;
 };

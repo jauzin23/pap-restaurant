@@ -22,7 +22,6 @@
 
   .stock-container {
     max-width: none;
-    padding-top: 2rem;
     padding-bottom: 2rem;
   }
 
@@ -30,14 +29,11 @@
   .stock-header-card {
     margin-bottom: 1rem;
     padding: 1.5rem;
-    background: #fafafa;
-    border: 1.5px solid #d1d5db;
+    background: #fff;
+    border: 1px solid #d1d5db;
     border-radius: 1.5rem;
     border-bottom-left-radius: 0px;
     border-bottom-right-radius: 0px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
-      inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
 
     &__content {
       display: flex;
@@ -198,14 +194,11 @@
   .stock-tabs {
     display: flex;
     margin-top: 1.5rem;
-    border-bottom: 2px solid #e5e7eb;
     padding-bottom: 0;
     padding-left: 24px;
-    background-color: white;
     border-radius: 1.5rem 1.5rem 0 0;
-    border: 1.5px solid #d1d5db;
-    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+    background: #fff;
+    border: 1px solid #d1d5db;
   }
 
   .stock-tab {
@@ -307,11 +300,9 @@
   }
 
   .warehouse-card {
-    background: white;
-    border: 1.5px solid #d1d5db;
-    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
-    border-radius: 1.5rem;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 40px;
     padding: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -392,10 +383,11 @@
       .view-btn {
         flex: 1;
         padding: 10px;
-        background: #3b82f6;
-        color: white;
+        // dark color in text
+        color: #1f2937;
         border: none;
         border-radius: 1.5rem;
+        border: 1px solid #d1d5db;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
@@ -403,7 +395,7 @@
         font-family: inherit;
 
         &:hover {
-          background: #2563eb;
+          background: #f9fafb;
         }
       }
 
@@ -718,12 +710,10 @@
   }
 
   .stat-card {
-    background: #ffffff;
-    border-radius: 0rem;
+    border-radius: 1.5rem;
     padding: 1.25rem;
-    border: 1.5px solid #d1d5db;
-    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+    background: #fff;
+    border: 1px solid #d1d5db;
     transition: all 0.2s ease;
 
     .stat-header {
@@ -831,15 +821,11 @@
 
   // Main Content Card
   .main-content-card {
-    background: #ffffff;
-    border-radius: 1.5rem;
-    border-top-left-radius: 0rem;
-    border-top-right-radius: 0rem;
+    border-radius: 44px;
     padding: 1.25rem;
     padding-bottom: 0rem;
-    border: 1.5px solid #d1d5db;
-    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+    background: #fff;
+    border: 1px solid #d1d5db;
   }
 
   // Content Controls
@@ -3643,9 +3629,9 @@ body > .modal-overlay {
   padding-top: 24px;
 
   .main-content-card {
-    background: white;
-    border-radius: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 44px;
+    background: #fff;
+    border: 1px solid #d1d5db;
     padding: 24px;
     overflow: hidden;
   }

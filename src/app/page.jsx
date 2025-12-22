@@ -16,6 +16,7 @@ import StockComponent from "./components/StockComponent";
 import TableLayoutManager from "./components/TableLayout";
 import ManagerStaffView from "./components/ManagerStaffView";
 import ReservationManager from "./components/ReservationManager";
+import PresencasComponent from "./components/PresencasComponent";
 import {
   WebSocketProvider,
   useWebSocketContext,
@@ -328,6 +329,8 @@ const RestaurantDashboardContent = () => {
                 <TableLayoutManager user={user} />
               ) : activeNavItem === "Reservas" ? (
                 <ReservationManager />
+              ) : activeNavItem === "Presenças" ? (
+                <PresencasComponent />
               ) : activeNavItem === "Staff" ? (
                 <ManagerStaffView />
               ) : (

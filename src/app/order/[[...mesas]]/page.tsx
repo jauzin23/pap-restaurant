@@ -11,8 +11,7 @@ import {
   UtensilsCrossed,
   Loader2,
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
+  Search,
 } from "lucide-react";
 import { BackgroundBeams } from "../../components/BackgroundBeams";
 import { auth, takeawayApi } from "../../../lib/api";
@@ -67,7 +66,9 @@ function PedidoPageContent({
   const [validTableIds, setValidTableIds] = useState<string[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>("Todos");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [displayedItemsCount, setDisplayedItemsCount] = useState(20);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOrderSubmitting, setIsOrderSubmitting] = useState(false);
@@ -75,9 +76,8 @@ function PedidoPageContent({
   const [menuLoading, setMenuLoading] = useState(false);
   const [noteModalItem, setNoteModalItem] = useState<OrderItem | null>(null);
   const [tempNote, setTempNote] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12); // Default, will be calculated
   const menuGridRef = React.useRef<HTMLDivElement>(null);
+  const scrollSentinelRef = React.useRef<HTMLDivElement>(null);
   const [isOrderSectionVisible, setIsOrderSectionVisible] = useState(false);
   const [isOrderSectionExiting, setIsOrderSectionExiting] = useState(false);
 
@@ -241,60 +241,59 @@ function PedidoPageContent({
     loadUserAndData();
   }, [mesas]);
 
-  // Calculate items per page based on grid size
-  useEffect(() => {
-    const calculateItemsPerPage = () => {
-      if (!menuGridRef.current) return;
-
-      const gridWidth = menuGridRef.current.offsetWidth;
-      const gridHeight = menuGridRef.current.offsetHeight;
-
-      // Menu card dimensions: 180px min width + 16px gap
-      const cardWidth = 196; // 180 + 16 gap
-      const cardHeight = 218; // ~140px image + ~78px info + gap
-
-      const itemsPerRow = Math.floor(gridWidth / cardWidth) || 1;
-      const rows = Math.floor(gridHeight / cardHeight) || 2;
-
-      const calculatedItems = itemsPerRow * rows;
-      setItemsPerPage(Math.max(calculatedItems, 6)); // Minimum 6 items
-    };
-
-    calculateItemsPerPage();
-    window.addEventListener("resize", calculateItemsPerPage);
-    return () => window.removeEventListener("resize", calculateItemsPerPage);
-  }, []);
-
+  // Filter menu items by search and category
   const filteredMenuItems = useMemo(() => {
-    const filtered =
-      activeCategory === "Todos"
-        ? menuItems
-        : menuItems.filter(
-            (item) => (item.category || "outros") === activeCategory
-          );
+    let filtered = menuItems;
 
-    // Reset to page 1 if current page is beyond total pages
-    const totalPages = Math.ceil(filtered.length / itemsPerPage);
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(1);
+    // Filter by category
+    if (selectedCategory !== "Todos") {
+      filtered = filtered.filter(
+        (item) => (item.category || "outros") === selectedCategory
+      );
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((item) =>
+        item.nome.toLowerCase().includes(query)
+      );
     }
 
     return filtered;
-  }, [menuItems, activeCategory, itemsPerPage, currentPage]);
+  }, [menuItems, selectedCategory, searchQuery]);
 
-  // Paginated items
-  const paginatedMenuItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredMenuItems.slice(startIndex, endIndex);
-  }, [filteredMenuItems, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredMenuItems.length / itemsPerPage);
-
-  // Reset to page 1 when category changes
+  // Reset displayed items count when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [activeCategory]);
+    setDisplayedItemsCount(20);
+  }, [selectedCategory, searchQuery]);
+
+  // Infinite scroll: Load more items when scrolling to bottom
+  useEffect(() => {
+    const sentinel = scrollSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          displayedItemsCount < filteredMenuItems.length
+        ) {
+          setDisplayedItemsCount((prev) =>
+            Math.min(prev + 20, filteredMenuItems.length)
+          );
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [displayedItemsCount, filteredMenuItems.length]);
+
+  const displayedMenuItems = useMemo(() => {
+    return filteredMenuItems.slice(0, displayedItemsCount);
+  }, [filteredMenuItems, displayedItemsCount]);
 
   // Handle order section visibility with animation
   useEffect(() => {
@@ -464,103 +463,99 @@ function PedidoPageContent({
         <div className="order-content">
           {/* Left: Menu */}
           <div className="menu-section">
-            <div className="category-bar">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  className={`category-btn ${
-                    activeCategory === category ? "active" : ""
-                  }`}
-                  onClick={() => setActiveCategory(category)}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="pagination-controls">
-                <button
-                  className="pagination-btn"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft size={20} />
-                  Anterior
-                </button>
-                <div className="pagination-info">
-                  Página {currentPage} de {totalPages}
-                </div>
-                <button
-                  className="pagination-btn"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                >
-                  Próxima
-                  <ChevronRight size={20} />
-                </button>
+            {/* Search and Filter Bar */}
+            <div className="filter-bar">
+              <div className="search-box">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Procurar item..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    className="clear-search"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
-            )}
+              <select
+                className="category-select"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div ref={menuGridRef} className="menu-grid">
               {menuLoading ? (
                 <div className="loading-state">
                   <Loader2 size={32} className="loading-spinner" />
                 </div>
-              ) : paginatedMenuItems.length === 0 ? (
+              ) : displayedMenuItems.length === 0 ? (
                 <div className="empty-state">
                   <UtensilsCrossed size={48} />
                   <p>Nenhum item disponível</p>
                 </div>
               ) : (
-                paginatedMenuItems.map((item) => {
-                  const imageUrl = getImageUrl(item.image_id);
-                  const itemId = item.$id || item.id;
-                  const inOrderCount = orderItems.filter(
-                    (i) => (i.$id || i.id) === itemId
-                  ).length;
+                <>
+                  {displayedMenuItems.map((item) => {
+                    const imageUrl = getImageUrl(item.image_id);
+                    const itemId = item.$id || item.id;
+                    const inOrderCount = orderItems.filter(
+                      (i) => (i.$id || i.id) === itemId
+                    ).length;
 
-                  return (
-                    <div
-                      key={itemId}
-                      className={`menu-card ${
-                        inOrderCount > 0 ? "in-order" : ""
-                      }`}
-                      onClick={() => addToOrder(item)}
-                    >
-                      <div className="menu-card-image">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={item.nome} />
-                        ) : (
-                          <div className="no-image">
-                            <UtensilsCrossed size={32} />
-                          </div>
+                    return (
+                      <div
+                        key={itemId}
+                        className={`menu-card ${
+                          inOrderCount > 0 ? "in-order" : ""
+                        }`}
+                        onClick={() => addToOrder(item)}
+                      >
+                        <div className="menu-card-image">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={item.nome} />
+                          ) : (
+                            <div className="no-image">
+                              <UtensilsCrossed size={32} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="menu-card-info">
+                          <h3>{item.nome}</h3>
+                          <span className="price">
+                            €
+                            <NumberFlow
+                              value={item.preco || 0}
+                              format={{
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }}
+                            />
+                          </span>
+                        </div>
+                        {inOrderCount > 0 && (
+                          <div className="in-order-badge">{inOrderCount}</div>
                         )}
                       </div>
-                      <div className="menu-card-info">
-                        <h3>{item.nome}</h3>
-                        <span className="price">
-                          €
-                          <NumberFlow
-                            value={item.preco || 0}
-                            format={{
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }}
-                          />
-                        </span>
-                      </div>
-                      {inOrderCount > 0 && (
-                        <div className="in-order-badge">{inOrderCount}</div>
-                      )}
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                  {/* Scroll sentinel for infinite scroll */}
+                  <div
+                    ref={scrollSentinelRef}
+                    style={{ height: "1px", gridColumn: "1 / -1" }}
+                  />
+                </>
               )}
             </div>
           </div>

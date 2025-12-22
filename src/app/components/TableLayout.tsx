@@ -103,16 +103,9 @@ interface Layout {
 }
 
 interface TableLayoutManagerProps {
-  user?: any;
-  onOrderCreate?: (tableNumbers: number[]) => void;
+  user: any;
+  onOrderCreate?: () => void;
 }
-
-// Hardcoded layouts for demo
-const INITIAL_LAYOUTS: Layout[] = [];
-
-// ============================================================================
-// OPTIMIZED DRAG HANDLERS
-// ============================================================================
 
 const useOptimizedDrag = (
   currentLayout: Layout | undefined,
@@ -133,7 +126,7 @@ const useOptimizedDrag = (
     (
       e: React.MouseEvent | React.TouchEvent,
       tableId: string,
-      canvasRef: React.RefObject<HTMLDivElement>
+      canvasRef: React.RefObject<HTMLDivElement | null>
     ) => {
       if (!currentLayout) return;
       const table = currentLayout.tables.find((t) => t.id === tableId);
@@ -169,7 +162,7 @@ const useOptimizedDrag = (
   const handleMove = useCallback(
     (
       e: MouseEvent | TouchEvent,
-      canvasRef: React.RefObject<HTMLDivElement>
+      canvasRef: React.RefObject<HTMLDivElement | null>
     ) => {
       const dragState = dragStateRef.current;
       if (
@@ -443,6 +436,20 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     loadMenuItems();
   }, []);
 
+  // Close modal if selected table has no active orders after ordersData updates
+  useEffect(() => {
+    if (showOrderModal && selectedTable) {
+      const status = getTableStatus(selectedTable);
+      const hasOrders =
+        Array.isArray(tableStatuses[selectedTable]?.orderIds) &&
+        tableStatuses[selectedTable].orderIds.length > 0;
+      if (status === "available" || !hasOrders) {
+        setShowOrderModal(false);
+        setSelectedTableOrders([]);
+      }
+    }
+  }, [ordersData, showOrderModal, selectedTable, tableStatuses]);
+
   // Refresh orders when switching to view mode OR when layout changes
   useEffect(() => {
     if (mode === "view" && layouts.length > 0) {
@@ -450,15 +457,23 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     }
   }, [mode, currentLayoutIndex]);
 
-  // Recalculate statuses when layout changes
+  // Keep selectedTableOrders in sync with ordersData when modal is open
   useEffect(() => {
-    const layout = layouts[currentLayoutIndex];
-    if (layout && allTables.length > 0) {
-      console.log("=== LAYOUT CHANGED - RECALCULATING STATUSES ===");
-      console.log("New layout ID:", layout.id);
-      calculateTableStatuses(allTables, ordersData, layout.id);
+    if (showOrderModal && selectedTableOrders.length > 0) {
+      // Get the order IDs from the currently displayed orders
+      const displayedOrderIds = selectedTableOrders.map((o) => o.$id || o.id);
+
+      // Find the latest versions of these orders from ordersData
+      const updatedOrders = ordersData.filter((order) =>
+        displayedOrderIds.includes(order.$id || order.id)
+      );
+
+      // Only update if we found matching orders and they're different
+      if (updatedOrders.length > 0) {
+        setSelectedTableOrders(updatedOrders);
+      }
     }
-  }, [currentLayoutIndex, layouts, allTables, ordersData]);
+  }, [ordersData, showOrderModal]);
 
   // Generate group colors for multi-table orders
   const generateGroupColors = (orderCount: number): string[] => {
@@ -524,118 +539,180 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   };
 
   // Calculate table statuses based on orders
-  const calculateTableStatuses = (
-    allTablesData: any[],
-    ordersData: any[],
-    layoutId: string
-  ) => {
-    const statuses: Record<
-      string,
-      {
-        status: "available" | "occupied" | "reserved";
-        groupColor?: string;
-        orderIds?: string[];
-      }
-    > = {};
-
-    // Get the current layout name from the layouts array
-    const currentLayout = layouts.find((l) => l.id === layoutId);
-    const layoutName = currentLayout?.name;
-
-    console.log("=== DEBUG TABLE FILTERING ===");
-    console.log("Looking for layout ID:", layoutId, "Layout Name:", layoutName);
-
-    // Check each table's layout_name
-    allTablesData.forEach((table, index) => {
-      if (index < 3) {
-        console.log(`Table ${index} RAW DATA:`, table);
-        console.log(`Table ${index} PROCESSED:`, {
-          id: table.$id || table.id,
-          tableNumber: table.tableNumber,
-          layout_name: table.layout_name,
-          matches: table.layout_name === layoutName,
-        });
-      }
-    });
-
-    // Filter tables by layout_name instead of layout_id
-    const currentLayoutTables = allTablesData.filter(
-      (table) => table.layout_name === layoutName
-    );
-
-    currentLayoutTables.forEach((table) => {
-      const tableId = table.$id || table.id;
-      if (tableId) {
-        statuses[tableId] = { status: "available" };
-      }
-    });
-
-    console.log("Filtering for layout name:", layoutName);
-    console.log("Tables in current layout:", currentLayoutTables.length);
-    console.log("Total tables in system:", allTablesData.length);
-
-    // Group orders by their table combinations
-    const orderGroups: Record<string, any[]> = {};
-
-    ordersData.forEach((order) => {
-      if (order.table_id && Array.isArray(order.table_id)) {
-        // Filter out table IDs that don't belong to current layout
-        const tablesInCurrentLayout = order.table_id.filter(
-          (tableId: string) => {
-            const table = allTablesData.find(
-              (t) => (t.$id || t.id) === tableId
-            );
-            return table && table.layout_name === layoutName;
-          }
-        );
-
-        // Only add to order groups if at least one table is in current layout
-        if (tablesInCurrentLayout.length > 0) {
-          // Sort table IDs to create consistent group keys
-          const sortedTableIds = [...tablesInCurrentLayout].sort();
-          const groupKey = sortedTableIds.join(",");
-
-          if (!orderGroups[groupKey]) {
-            orderGroups[groupKey] = [];
-          }
-          orderGroups[groupKey].push(order);
+  const calculateTableStatuses = useCallback(
+    (allTablesData: any[], ordersData: any[], layoutId: string) => {
+      const statuses: Record<
+        string,
+        {
+          status: "available" | "occupied" | "reserved";
+          groupColor?: string;
+          orderIds?: string[];
         }
-      }
-    });
+      > = {};
 
-    // Generate colors for multi-table groups
-    const groupKeys = Object.keys(orderGroups);
-    const multiTableGroups = groupKeys.filter((key) => key.includes(","));
-    const groupColors = generateGroupColors(multiTableGroups.length);
+      // Get the current layout name from the layouts array
+      const currentLayout = layouts.find((l) => l.id === layoutId);
+      const layoutName = currentLayout?.name;
 
-    // Apply statuses and colors
-    groupKeys.forEach((groupKey, groupIndex) => {
-      const groupOrders = orderGroups[groupKey];
-      const tableIds = groupKey.split(",");
-      const isMultiTable = tableIds.length > 1;
+      console.log("=== DEBUG TABLE FILTERING ===");
+      console.log(
+        "Looking for layout ID:",
+        layoutId,
+        "Layout Name:",
+        layoutName
+      );
 
-      // Only assign group colors to multi-table orders
-      const groupColor = isMultiTable
-        ? groupColors[multiTableGroups.indexOf(groupKey)]
-        : undefined;
+      // Check each table's layout_name
+      allTablesData.forEach((table, index) => {
+        if (index < 3) {
+          console.log(`Table ${index} RAW DATA:`, table);
+          console.log(`Table ${index} PROCESSED:`, {
+            id: table.$id || table.id,
+            tableNumber: table.tableNumber,
+            layout_name: table.layout_name,
+            matches: table.layout_name === layoutName,
+          });
+        }
+      });
 
-      tableIds.forEach((tableId) => {
-        // Only update if this table exists in our statuses (it was found in allTablesData)
-        if (statuses[tableId]) {
+      // Filter tables by layout_name instead of layout_id
+      const currentLayoutTables = allTablesData.filter(
+        (table) => table.layout_name === layoutName
+      );
+
+      currentLayoutTables.forEach((table) => {
+        const tableId = table.$id || table.id;
+        if (tableId) {
           statuses[tableId] = {
-            status: "occupied",
-            groupColor: groupColor, // Will be undefined for single tables
-            orderIds: groupOrders.map((order) => order.id || order.$id),
+            status: "available",
+            groupColor: undefined,
+            orderIds: [],
           };
         }
       });
-    });
 
-    console.log("Calculated table statuses:", statuses);
-    console.log("Orders data count:", ordersData.length);
-    console.log("Multi-table groups:", multiTableGroups.length);
-    setTableStatuses(statuses);
-  };
+      console.log("Filtering for layout name:", layoutName);
+      console.log("Tables in current layout:", currentLayoutTables.length);
+      console.log("Total tables in system:", allTablesData.length);
+
+      // Only filter out paid/cancelled orders - delivered orders should still occupy tables
+      const activeOrders = ordersData.filter((order) => {
+        const status = order.status || "pendente";
+        return status !== "pago" && status !== "paid" && status !== "cancelado";
+      });
+
+      console.log(
+        "Total orders:",
+        ordersData.length,
+        "Active orders:",
+        activeOrders.length
+      );
+
+      // Group orders by their table combinations
+      const orderGroups: Record<string, any[]> = {};
+
+      activeOrders.forEach((order) => {
+        if (order.table_id && Array.isArray(order.table_id)) {
+          // Filter out table IDs that don't belong to current layout
+          const tablesInCurrentLayout = order.table_id.filter(
+            (tableId: string) => {
+              const table = allTablesData.find(
+                (t) => (t.$id || t.id) === tableId
+              );
+              return table && table.layout_name === layoutName;
+            }
+          );
+
+          // Only add to order groups if at least one table is in current layout
+          if (tablesInCurrentLayout.length > 0) {
+            // Sort table IDs to create consistent group keys
+            const sortedTableIds = [...tablesInCurrentLayout].sort();
+            const groupKey = sortedTableIds.join(",");
+
+            if (!orderGroups[groupKey]) {
+              orderGroups[groupKey] = [];
+            }
+            orderGroups[groupKey].push(order);
+          }
+        }
+      });
+
+      // Generate colors for multi-table groups
+      const groupKeys = Object.keys(orderGroups);
+      const multiTableGroups = groupKeys.filter((key) => key.includes(","));
+      const groupColors = generateGroupColors(multiTableGroups.length);
+
+      // Apply statuses and colors
+      groupKeys.forEach((groupKey, groupIndex) => {
+        const groupOrders = orderGroups[groupKey];
+        const tableIds = groupKey.split(",");
+        const isMultiTable = tableIds.length > 1;
+
+        // Only assign group colors to multi-table orders
+        const groupColor = isMultiTable
+          ? groupColors[multiTableGroups.indexOf(groupKey)]
+          : undefined;
+
+        tableIds.forEach((tableId) => {
+          // Only update if this table exists in our statuses (it was found in allTablesData)
+          if (statuses[tableId] && groupOrders.length > 0) {
+            statuses[tableId] = {
+              status: "occupied",
+              groupColor: groupColor, // Will be undefined for single tables
+              orderIds: groupOrders.map((order) => order.id || order.$id),
+            };
+          }
+        });
+      });
+
+      // After assigning occupied status, ensure tables with no active orders are available
+      currentLayoutTables.forEach((table) => {
+        const tableId = table.$id || table.id;
+
+        // Check if this table has ANY active orders
+        const hasActiveOrders = activeOrders.some((order) => {
+          if (order.table_id && Array.isArray(order.table_id)) {
+            return order.table_id.includes(tableId);
+          }
+          return false;
+        });
+
+        // If no active orders for this table, force it to available
+        if (!hasActiveOrders) {
+          statuses[tableId] = {
+            status: "available",
+            groupColor: undefined,
+            orderIds: [],
+          };
+        }
+      });
+
+      console.log("Final calculated table statuses:", statuses);
+
+      console.log("Calculated table statuses:", statuses);
+      console.log("Orders data count:", ordersData.length);
+      console.log("Multi-table groups:", multiTableGroups.length);
+      setTableStatuses(statuses);
+    },
+    [layouts]
+  );
+  useEffect(() => {
+    const layout = layouts[currentLayoutIndex];
+    if (layout && allTables.length > 0 && ordersData.length >= 0) {
+      console.log("=== RECALCULATING TABLE STATUSES ===");
+      console.log("Layout ID:", layout.id);
+      console.log("Orders count:", ordersData.length);
+      console.log("Tables count:", allTables.length);
+
+      calculateTableStatuses(allTables, ordersData, layout.id);
+    }
+  }, [
+    currentLayoutIndex,
+    layouts,
+    allTables,
+    ordersData,
+    calculateTableStatuses,
+  ]);
 
   // Mock table statuses - in a real app, this would come from orders API
   const getTableStatus = (
@@ -1010,6 +1087,18 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     (socket as Socket).on("order:created", handleOrderCreated);
     (socket as Socket).on("order:updated", handleOrderUpdated);
     (socket as Socket).on("order:deleted", handleOrderDeleted);
+    (socket as Socket).on("order:paid", (data) => {
+      console.log("💸 Order paid event received via WebSocket", data);
+
+      // Remove paid orders from ordersData immediately
+      const paidOrderIds = data.order_item_ids || [];
+      setOrdersData((prev) =>
+        prev.filter((order) => !paidOrderIds.includes(order.id || order.$id))
+      );
+
+      // Then refresh to ensure consistency
+      loadAllTablesAndOrders();
+    });
     (socket as Socket).on("table:created", handleTableCreated);
     (socket as Socket).on("table:updated", handleTableUpdated);
     (socket as Socket).on("table:deleted", handleTableDeleted);
@@ -1035,6 +1124,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       (socket as Socket).off("order:created", handleOrderCreated);
       (socket as Socket).off("order:updated", handleOrderUpdated);
       (socket as Socket).off("order:deleted", handleOrderDeleted);
+      (socket as Socket).off("order:paid");
       (socket as Socket).off("table:created", handleTableCreated);
       (socket as Socket).off("table:updated", handleTableUpdated);
       (socket as Socket).off("table:deleted", handleTableDeleted);
@@ -1285,8 +1375,12 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     } else {
       const status = getTableStatus(tableId);
 
-      // If table is occupied, show order details
-      if (status === "occupied" && tableStatuses[tableId]?.orderIds) {
+      // Only open modal if table is occupied AND has non-empty orderIds
+      if (
+        status === "occupied" &&
+        Array.isArray(tableStatuses[tableId]?.orderIds) &&
+        tableStatuses[tableId].orderIds.length > 0
+      ) {
         const tableOrders = ordersData.filter((order) =>
           tableStatuses[tableId].orderIds?.includes(order.id || order.$id)
         );
@@ -1772,49 +1866,143 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                           <label>
                             <Maximize2 size={14} />
                             Largura
+                            <span className="size-value-badge">
+                              {currentLayout.width}px
+                            </span>
                           </label>
-                          <input
-                            type="number"
-                            value={currentLayout.width}
-                            onChange={(e) => {
-                              const newWidth =
-                                Number.parseInt(e.target.value) || 600;
-                              setLayouts((prev) =>
-                                prev.map((layout, idx) =>
-                                  idx === currentLayoutIndex
-                                    ? { ...layout, width: newWidth }
-                                    : layout
-                                )
-                              );
-                              setHasUnsavedChanges(true);
-                            }}
-                            min={400}
-                            max={1200}
-                          />
+                          <div className="stepper-input">
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => {
+                                const newWidth = Math.max(
+                                  400,
+                                  currentLayout.width - 50
+                                );
+                                setLayouts((prev) =>
+                                  prev.map((layout, idx) =>
+                                    idx === currentLayoutIndex
+                                      ? { ...layout, width: newWidth }
+                                      : layout
+                                  )
+                                );
+                                setHasUnsavedChanges(true);
+                              }}
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <input
+                              type="range"
+                              value={currentLayout.width}
+                              onChange={(e) => {
+                                const newWidth =
+                                  Number.parseInt(e.target.value) || 600;
+                                setLayouts((prev) =>
+                                  prev.map((layout, idx) =>
+                                    idx === currentLayoutIndex
+                                      ? { ...layout, width: newWidth }
+                                      : layout
+                                  )
+                                );
+                                setHasUnsavedChanges(true);
+                              }}
+                              min={400}
+                              max={1200}
+                              step={50}
+                              className="layout-slider"
+                            />
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => {
+                                const newWidth = Math.min(
+                                  1200,
+                                  currentLayout.width + 50
+                                );
+                                setLayouts((prev) =>
+                                  prev.map((layout, idx) =>
+                                    idx === currentLayoutIndex
+                                      ? { ...layout, width: newWidth }
+                                      : layout
+                                  )
+                                );
+                                setHasUnsavedChanges(true);
+                              }}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
                         </div>
                         <div className="size-input-group">
                           <label>
                             <Maximize2 size={14} />
                             Altura
+                            <span className="size-value-badge">
+                              {currentLayout.height}px
+                            </span>
                           </label>
-                          <input
-                            type="number"
-                            value={currentLayout.height}
-                            onChange={(e) => {
-                              const newHeight =
-                                Number.parseInt(e.target.value) || 400;
-                              setLayouts((prev) =>
-                                prev.map((layout, idx) =>
-                                  idx === currentLayoutIndex
-                                    ? { ...layout, height: newHeight }
-                                    : layout
-                                )
-                              );
-                              setHasUnsavedChanges(true);
-                            }}
-                            min={300}
-                            max={800}
-                          />
+                          <div className="stepper-input">
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => {
+                                const newHeight = Math.max(
+                                  300,
+                                  currentLayout.height - 50
+                                );
+                                setLayouts((prev) =>
+                                  prev.map((layout, idx) =>
+                                    idx === currentLayoutIndex
+                                      ? { ...layout, height: newHeight }
+                                      : layout
+                                  )
+                                );
+                                setHasUnsavedChanges(true);
+                              }}
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <input
+                              type="range"
+                              value={currentLayout.height}
+                              onChange={(e) => {
+                                const newHeight =
+                                  Number.parseInt(e.target.value) || 400;
+                                setLayouts((prev) =>
+                                  prev.map((layout, idx) =>
+                                    idx === currentLayoutIndex
+                                      ? { ...layout, height: newHeight }
+                                      : layout
+                                  )
+                                );
+                                setHasUnsavedChanges(true);
+                              }}
+                              min={300}
+                              max={800}
+                              step={50}
+                              className="layout-slider"
+                            />
+                            <button
+                              type="button"
+                              className="stepper-btn"
+                              onClick={() => {
+                                const newHeight = Math.min(
+                                  800,
+                                  currentLayout.height + 50
+                                );
+                                setLayouts((prev) =>
+                                  prev.map((layout, idx) =>
+                                    idx === currentLayoutIndex
+                                      ? { ...layout, height: newHeight }
+                                      : layout
+                                  )
+                                );
+                                setHasUnsavedChanges(true);
+                              }}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1886,39 +2074,86 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                       <div className="panel-content">
                         <div className="table-props-content">
                           <div className="prop-group">
-                            <label>Número da Mesa</label>
-                            <input
-                              type="number"
-                              value={selectedTableData.number}
-                              onChange={(e) => {
-                                const newNumber =
-                                  Number.parseInt(e.target.value) || 1;
-                                if (
-                                  isTableNumberUnique(
-                                    newNumber,
-                                    selectedTableData.id
-                                  )
-                                ) {
-                                  updateTable(selectedTableData.id, {
-                                    number: newNumber,
-                                  });
-                                }
-                              }}
-                              min={1}
-                              className={
-                                !isTableNumberUnique(
-                                  selectedTableData.number,
-                                  selectedTableData.id
-                                )
-                                  ? "error"
-                                  : ""
-                              }
-                            />
+                            <label>
+                              Número da Mesa
+                              <span className="size-value-badge">
+                                {selectedTableData.number}
+                              </span>
+                            </label>
+                            <div className="stepper-input">
+                              <button
+                                type="button"
+                                className="stepper-btn"
+                                onClick={() => {
+                                  const newNumber = Math.max(
+                                    1,
+                                    selectedTableData.number - 1
+                                  );
+                                  if (
+                                    isTableNumberUnique(
+                                      newNumber,
+                                      selectedTableData.id
+                                    )
+                                  ) {
+                                    updateTable(selectedTableData.id, {
+                                      number: newNumber,
+                                    });
+                                  }
+                                }}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <input
+                                type="number"
+                                className="table-number-display"
+                                value={selectedTableData.number}
+                                onChange={(e) => {
+                                  const newNumber =
+                                    Number.parseInt(e.target.value) || 1;
+                                  if (
+                                    isTableNumberUnique(
+                                      newNumber,
+                                      selectedTableData.id
+                                    )
+                                  ) {
+                                    updateTable(selectedTableData.id, {
+                                      number: newNumber,
+                                    });
+                                  }
+                                }}
+                                min={1}
+                              />
+                              <button
+                                type="button"
+                                className="stepper-btn"
+                                onClick={() => {
+                                  const newNumber =
+                                    selectedTableData.number + 1;
+                                  if (
+                                    isTableNumberUnique(
+                                      newNumber,
+                                      selectedTableData.id
+                                    )
+                                  ) {
+                                    updateTable(selectedTableData.id, {
+                                      number: newNumber,
+                                    });
+                                  }
+                                }}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
                           </div>
 
                           <div className="prop-group-row">
                             <div className="prop-group">
-                              <label>Largura</label>
+                              <label>
+                                Largura
+                                <span className="size-value-badge">
+                                  {selectedTableData.width}px
+                                </span>
+                              </label>
                               <div className="stepper-input">
                                 <button
                                   type="button"
@@ -1936,6 +2171,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                                 </button>
                                 <input
                                   type="number"
+                                  className="table-dimension-display"
                                   value={selectedTableData.width}
                                   onChange={(e) =>
                                     updateTable(selectedTableData.id, {
@@ -1959,7 +2195,12 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                               </div>
                             </div>
                             <div className="prop-group">
-                              <label>Altura</label>
+                              <label>
+                                Altura
+                                <span className="size-value-badge">
+                                  {selectedTableData.height}px
+                                </span>
+                              </label>
                               <div className="stepper-input">
                                 <button
                                   type="button"
@@ -1977,6 +2218,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                                 </button>
                                 <input
                                   type="number"
+                                  className="table-dimension-display"
                                   value={selectedTableData.height}
                                   onChange={(e) =>
                                     updateTable(selectedTableData.id, {
@@ -2079,16 +2321,15 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                               }
                               title="Duplicar Mesa"
                             >
-                              <Copy size={16} />
-                              Duplicar Mesa
+                              <Copy size={18} />
                             </button>
 
                             <button
                               className="delete-table-btn"
                               onClick={() => deleteTable(selectedTableData.id)}
+                              title="Eliminar Mesa"
                             >
-                              <Trash2 size={16} />
-                              Eliminar Mesa
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         </div>
@@ -2793,12 +3034,44 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     return sum + price * quantity;
   }, 0);
 
-  // Sort orders by created_at (oldest first - chronological order)
-  const sortedOrders = [...orders].sort((a, b) => {
-    const dateA = new Date(a.created_at || a.$createdAt || 0).getTime();
-    const dateB = new Date(b.created_at || b.$createdAt || 0).getTime();
-    return dateA - dateB; // Oldest first (chronological order)
-  });
+  // Store initial order of orders by created_at, and keep it fixed
+  const initialOrderRef = useRef<string[] | null>(null);
+  useEffect(() => {
+    if (!initialOrderRef.current && orders.length > 0) {
+      initialOrderRef.current = [...orders]
+        .sort((a, b) => {
+          const dateA = new Date(a.created_at || a.$createdAt || 0).getTime();
+          const dateB = new Date(b.created_at || b.$createdAt || 0).getTime();
+          return dateA - dateB;
+        })
+        .map((o) => o.id || o.$id);
+    }
+    // If the set of order IDs changes (e.g. new order added or deleted), reset
+    if (initialOrderRef.current) {
+      const currentIds = orders.map((o) => o.id || o.$id);
+      if (
+        initialOrderRef.current.length !== currentIds.length ||
+        !initialOrderRef.current.every((id) => currentIds.includes(id))
+      ) {
+        initialOrderRef.current = [...orders]
+          .sort((a, b) => {
+            const dateA = new Date(a.created_at || a.$createdAt || 0).getTime();
+            const dateB = new Date(b.created_at || b.$createdAt || 0).getTime();
+            return dateA - dateB;
+          })
+          .map((o) => o.id || o.$id);
+      }
+    }
+  }, [orders]);
+
+  // Render orders in the fixed initial order
+  const sortedOrders = initialOrderRef.current
+    ? initialOrderRef.current
+        .map((id) => orders.find((o) => (o.id || o.$id) === id))
+        .filter(Boolean)
+    : orders;
+
+  // Use sortedOrders everywhere instead of orders
 
   // Helper function to calculate elapsed time
   const getElapsedTime = (createdAt: string): string => {
@@ -2925,19 +3198,37 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                                   </select>
                                 </div>
                                 <div className="edit-group">
-                                  <label>Preço</label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={editingPrice}
-                                    onChange={(e) =>
-                                      setEditingPrice(
-                                        parseFloat(e.target.value) || 0
-                                      )
-                                    }
-                                    placeholder="0.00"
-                                  />
+                                  <label>
+                                    Preço
+                                    <span className="size-value-badge">
+                                      {editingPrice.toFixed(2)}€
+                                    </span>
+                                  </label>
+                                  <div className="stepper-input">
+                                    <button
+                                      type="button"
+                                      className="stepper-btn"
+                                      onClick={() =>
+                                        setEditingPrice(
+                                          Math.max(0, editingPrice - 0.5)
+                                        )
+                                      }
+                                    >
+                                      <Minus size={14} />
+                                    </button>
+                                    <span className="price-display">
+                                      {editingPrice.toFixed(2)}€
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="stepper-btn"
+                                      onClick={() =>
+                                        setEditingPrice(editingPrice + 0.5)
+                                      }
+                                    >
+                                      <Plus size={14} />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
 
@@ -3431,6 +3722,8 @@ const TableComponent = React.memo<TableComponentProps>(
       prevProps.table.number === nextProps.table.number &&
       prevProps.table.shape === nextProps.table.shape &&
       prevProps.table.chairs.length === nextProps.table.chairs.length &&
+      prevProps.table.status === nextProps.table.status && // ADD THIS LINE
+      prevProps.table.groupColor === nextProps.table.groupColor && // ADD THIS LINE
       prevProps.isSelected === nextProps.isSelected &&
       prevProps.isSelectedForOrder === nextProps.isSelectedForOrder &&
       prevProps.orderTotal === nextProps.orderTotal &&

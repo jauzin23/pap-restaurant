@@ -25,6 +25,7 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
     activeOrders: 12,
     todayReservations: 8,
     kitchenEfficiency: null,
+    workedHours: null,
   });
 
   // Fetch real data from API (only if customMetrics not provided)
@@ -42,22 +43,43 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
           return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/stats/live`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split("T")[0];
+        const todayStart = `${today} 00:00:00`;
+        const todayEnd = `${today} 23:59:59`;
+
+        const [statsResponse, workedHoursResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/stats/live`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(
+            `${API_BASE_URL}/api/presencas/resumo?date_from=${encodeURIComponent(
+              todayStart
+            )}&date_to=${encodeURIComponent(todayEnd)}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          ),
+        ]);
+
+        let workedHours = null;
+        if (workedHoursResponse.ok) {
+          const workedData = await workedHoursResponse.json();
+          workedHours = workedData.resumo?.total_horas || 0;
+        }
+
+        if (statsResponse.ok) {
+          const data = await statsResponse.json();
           setMetrics({
             dailyRevenue: data.current?.revenue_today || 0,
             monthlyRevenue: data.current?.revenue_month || 0,
             activeOrders: data.current?.orders_in_progress || 0,
             todayReservations: data.current?.orders_today || 0,
             kitchenEfficiency: null,
+            workedHours: workedHours,
           });
         } else {
-          console.error("Stats API response not OK:", response.status);
+          console.error("Stats API response not OK:", statsResponse.status);
         }
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
@@ -128,11 +150,26 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
       showInBasic: false,
       hideIfNull: true,
     },
+    {
+      id: "worked-hours",
+      title: "Horas Trabalhadas",
+      subtitle: "hoje",
+      value: metrics.workedHours,
+      format: "hours",
+      icon: Activity,
+      color: "#10b981",
+      textColor: "#10b981",
+      gradient: "linear-gradient(135deg, #6ee7b7 0%, #10b981 100%)",
+      showInBasic: true,
+      hideIfNull: true,
+    },
   ];
 
   const cards = showAllMetrics
     ? allCards.filter((card) => !card.hideIfNull || card.value != null)
-    : allCards.filter((card) => card.showInBasic);
+    : allCards.filter(
+        (card) => card.showInBasic && (!card.hideIfNull || card.value != null)
+      );
 
   return (
     <div className="dashboard-cards-wrapper">
@@ -201,6 +238,17 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
                       }}
                     >
                       min
+                    </span>
+                  )}
+                  {card.format === "hours" && (
+                    <span
+                      style={{
+                        fontSize: "0.6em",
+                        marginLeft: "4px",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      h
                     </span>
                   )}
                 </div>

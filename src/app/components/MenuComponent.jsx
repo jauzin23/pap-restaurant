@@ -81,6 +81,8 @@ export default function MenuComponent() {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterTag, setFilterTag] = useState("");
   const [filterIngredient, setFilterIngredient] = useState("");
+  const [sortBy, setSortBy] = useState("created"); // created, name, price-asc, price-desc
+  const [pageSize, setPageSize] = useState(10);
 
   // Collections data
   const [availableTags, setAvailableTags] = useState([]);
@@ -683,9 +685,9 @@ export default function MenuComponent() {
     });
   }
 
-  // Filtered menu items based on search and filters
+  // Filtered and sorted menu items
   const filteredMenuItems = useMemo(() => {
-    return menuItems.filter((item) => {
+    let filtered = menuItems.filter((item) => {
       // Search text filter
       if (searchText) {
         const searchLower = searchText.toLowerCase();
@@ -718,7 +720,31 @@ export default function MenuComponent() {
 
       return true;
     });
-  }, [menuItems, searchText, filterCategory, filterTag, filterIngredient]);
+
+    // Apply sorting
+    if (sortBy === "name") {
+      filtered.sort((a, b) => a.nome.localeCompare(b.nome));
+    } else if (sortBy === "price-asc") {
+      filtered.sort((a, b) => parseFloat(a.preco) - parseFloat(b.preco));
+    } else if (sortBy === "price-desc") {
+      filtered.sort((a, b) => parseFloat(b.preco) - parseFloat(a.preco));
+    } else if (sortBy === "created") {
+      filtered.sort(
+        (a, b) =>
+          new Date(b.$createdAt || b.created_at) -
+          new Date(a.$createdAt || a.created_at)
+      );
+    }
+
+    return filtered;
+  }, [
+    menuItems,
+    searchText,
+    filterCategory,
+    filterTag,
+    filterIngredient,
+    sortBy,
+  ]);
 
   return (
     <div className="menu-component">
@@ -852,7 +878,7 @@ export default function MenuComponent() {
                 allowClear
               >
                 {availableCategories.map((cat) => (
-                  <Select.Option key={cat.name} value={cat.name}>
+                  <Select.Option key={cat.id} value={cat.name}>
                     {cat.name}
                   </Select.Option>
                 ))}
@@ -866,7 +892,7 @@ export default function MenuComponent() {
                 allowClear
               >
                 {availableTags.map((tag) => (
-                  <Select.Option key={tag.name} value={tag.name}>
+                  <Select.Option key={tag.id} value={tag.name}>
                     {tag.name}
                   </Select.Option>
                 ))}
@@ -897,6 +923,18 @@ export default function MenuComponent() {
                     </Select.Option>
                   ))}
               </Select>
+              <Select
+                placeholder="Ordenar por"
+                value={sortBy}
+                onChange={(value) => setSortBy(value)}
+                style={{ width: 180 }}
+                className="custom-select"
+              >
+                <Select.Option value="created">Mais recentes</Select.Option>
+                <Select.Option value="name">Nome (A-Z)</Select.Option>
+                <Select.Option value="price-asc">Preço (menor)</Select.Option>
+                <Select.Option value="price-desc">Preço (maior)</Select.Option>
+              </Select>
             </div>
 
             <Table
@@ -906,14 +944,17 @@ export default function MenuComponent() {
               }))}
               loading={loading}
               pagination={{
-                pageSize: 10,
+                pageSize: pageSize,
+                pageSizeOptions: ["10", "20", "50", "100"],
                 showSizeChanger: true,
+                onShowSizeChange: (current, size) => setPageSize(size),
                 showTotal: (total, range) =>
-                  `${range[0]}-${range[1]} p/página de ${total} itens${
+                  `${range[0]}-${range[1]} por página de ${total} itens${
                     total !== menuItems.length
                       ? ` (${menuItems.length} no total)`
                       : ""
                   }`,
+                locale: { items_per_page: "/ página" },
               }}
               scroll={{ x: "max-content" }}
               tableLayout="auto"

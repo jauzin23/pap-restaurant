@@ -8,10 +8,60 @@
   min-height: 100%;
   background: transparent;
 
+  // Main page scrollbar
+  &::-webkit-scrollbar {
+    width: 8px !important;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 10px !important;
+    border: 2px solid transparent !important;
+    background-clip: padding-box !important;
+
+    &:hover {
+      background: #94a3b8 !important;
+      background-clip: padding-box !important;
+    }
+  }
+
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd5e1 transparent !important;
+
+  // Global scrollbar styling for all children
+  * {
+    &::-webkit-scrollbar {
+      width: 8px !important;
+      height: 8px !important;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent !important;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1 !important;
+      border-radius: 10px !important;
+      border: 2px solid transparent !important;
+      background-clip: padding-box !important;
+
+      &:hover {
+        background: #94a3b8 !important;
+        background-clip: padding-box !important;
+      }
+    }
+
+    scrollbar-width: thin !important;
+    scrollbar-color: #cbd5e1 transparent !important;
+  }
+
   .staff-container {
     max-width: none;
     margin: 0;
-    padding-top: 32px;
     padding-bottom: 32px;
   }
 
@@ -19,14 +69,11 @@
   .stock-header-card {
     margin-bottom: 1rem;
     padding: 1.5rem;
-    background: #fafafa;
-    border: 1.5px solid #d1d5db;
+    background: #fff;
+    border: 1px solid #d1d5db;
     border-radius: 1.5rem;
     border-bottom-left-radius: 0px;
     border-bottom-right-radius: 0px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
-      inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.08);
 
     &__content {
       display: flex;
@@ -307,15 +354,11 @@
   }
 
   .stat-card {
-    background: #ffffff;
     border-radius: 1.5rem;
     padding: 1.25rem;
-    border: 1px solid #e5e7eb;
+    background: #fff;
+    border: 1px solid #d1d5db;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-
-    &:hover {
-      transform: translateY(-1.5px);
-    }
 
     .stat-header {
       display: flex;
@@ -364,12 +407,46 @@
     }
   }
 
+  @keyframes pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
+    }
+  }
+
   // Main Content Card
   .main-content-card {
-    background: #ffffff;
     border-radius: 1.5rem;
     padding: 1.25rem;
-    border: 1px solid #e5e7eb;
+    background: #fff;
+    border: 1px solid #d1d5db;
+
+    &::-webkit-scrollbar {
+      width: 8px !important;
+      height: 8px !important;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent !important;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1 !important;
+      border-radius: 10px !important;
+      border: 2px solid transparent !important;
+      background-clip: padding-box !important;
+
+      &:hover {
+        background: #94a3b8 !important;
+        background-clip: padding-box !important;
+      }
+    }
+
+    scrollbar-width: thin !important;
+    scrollbar-color: #cbd5e1 transparent !important;
   }
 
   // Content Controls
@@ -500,6 +577,33 @@
     .ant-table-container {
       border-radius: 8px;
       border: 1px solid #e5e7eb;
+    }
+
+    // Custom scrollbar for table
+    .ant-table-body {
+      &::-webkit-scrollbar {
+        width: 8px !important;
+        height: 8px !important;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #cbd5e1 !important;
+        border-radius: 10px !important;
+        border: 2px solid transparent !important;
+        background-clip: padding-box !important;
+
+        &:hover {
+          background: #94a3b8 !important;
+          background-clip: padding-box !important;
+        }
+      }
+
+      scrollbar-width: thin !important;
+      scrollbar-color: #cbd5e1 transparent !important;
     }
   }
 

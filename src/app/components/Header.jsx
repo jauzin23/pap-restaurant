@@ -102,6 +102,7 @@ const Header = ({
     "Stock",
     "Reservas",
     "Mesas",
+    "Presenças",
     "Financeiro",
     "Relatórios",
   ];
