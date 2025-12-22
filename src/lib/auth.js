@@ -1,13 +1,18 @@
 // Authentication utilities for the restaurant app
 
 import React from "react";
-import { auth, getAuthToken, removeAuthToken, handleTokenExpiration } from "./api";
+import {
+  auth,
+  getAuthToken,
+  removeAuthToken,
+  handleTokenExpiration,
+} from "./api";
 
 // Check if an error is a token/auth error
 export const isTokenError = (error) => {
   if (!error) return false;
 
-  const errorStr = typeof error === 'string' ? error : error.message || '';
+  const errorStr = typeof error === "string" ? error : error.message || "";
 
   return (
     errorStr.includes("Token inválido") ||
@@ -139,21 +144,25 @@ export const AuthGuard = ({ children }) => {
 
   if (isValidating) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: 'white'
-      }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '3px solid #f0f0f0',
-          borderTop: '3px solid #ff6b35',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          background: "white",
+        }}
+      >
+        <div
+          style={{
+            width: "40px",
+            height: "40px",
+            border: "3px solid #f0f0f0",
+            borderTop: "3px solid #ff6b35",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+          }}
+        />
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }

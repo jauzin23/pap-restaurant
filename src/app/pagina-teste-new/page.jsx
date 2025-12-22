@@ -22,10 +22,16 @@ const MenuComponent = lazy(() => import("../components/MenuComponent"));
 const StockComponent = lazy(() => import("../components/StockComponent"));
 const TableLayoutManager = lazy(() => import("../components/TableLayout"));
 const ManagerStaffView = lazy(() => import("../components/ManagerStaffView"));
-const PayOrdersComponent = lazy(() => import("../components/PayOrdersComponent"));
+const PayOrdersComponent = lazy(() =>
+  import("../components/PayOrdersComponent")
+);
 const GamificationView = lazy(() => import("../components/GamificationView"));
-const ReservationManager = lazy(() => import("../components/ReservationManager"));
-const PresencasComponent = lazy(() => import("../components/PresencasComponent"));
+const ReservationManager = lazy(() =>
+  import("../components/ReservationManager")
+);
+const PresencasComponent = lazy(() =>
+  import("../components/PresencasComponent")
+);
 
 // Component that initializes notifications (must be inside NotificationProvider)
 const NotificationInitializer = () => {
@@ -60,58 +66,61 @@ const RestaurantDashboardContent = () => {
   const [usernameColor, setUsernameColor] = useState("");
 
   // Big list of vibrant colors for username
-  const USERNAME_COLORS = React.useMemo(() => [
-    "#FF6B6B", // Coral Red
-    "#4ECDC4", // Turquoise
-    "#45B7D1", // Sky Blue
-    "#FFA07A", // Light Salmon
-    "#98D8C8", // Mint
-    "#F7DC6F", // Golden Yellow
-    "#BB8FCE", // Lavender
-    "#85C1E2", // Powder Blue
-    "#F8B739", // Amber
-    "#52B788", // Emerald Green
-    "#F06292", // Pink
-    "#7C4DFF", // Deep Purple
-    "#FF7043", // Deep Orange
-    "#26C6DA", // Cyan
-    "#9CCC65", // Light Green
-    "#AB47BC", // Purple
-    "#EC407A", // Hot Pink
-    "#5C6BC0", // Indigo
-    "#FFCA28", // Amber Yellow
-    "#66BB6A", // Green
-    "#EF5350", // Red
-    "#42A5F5", // Blue
-    "#FF6B35", // Orange (Mesa+ brand)
-    "#8E44AD", // Violet
-    "#3498DB", // Dodger Blue
-    "#E74C3C", // Alizarin
-    "#1ABC9C", // Turquoise
-    "#F39C12", // Orange
-    "#9B59B6", // Amethyst
-    "#2ECC71", // Nephritis
-    "#E67E22", // Carrot
-    "#16A085", // Green Sea
-    "#D35400", // Pumpkin
-    "#C0392B", // Pomegranate
-    "#27AE60", // Green
-    "#2980B9", // Belize Blue
-    "#8E44AD", // Wisteria
-    "#FF6348", // Tomato
-    "#FF4757", // Radical Red
-    "#5F27CD", // Purple
-    "#00D2D3", // Bright Cyan
-    "#FF9FF3", // Fuchsia Pink
-    "#54A0FF", // French Sky Blue
-    "#48DBFB", // Bright Turquoise
-    "#1DD1A1", // Caribbean Green
-    "#10AC84", // Green Darner Tail
-    "#FF9F43", // Orange Yellow
-    "#EE5A6F", // Watermelon
-    "#C44569", // Blush Pink
-    "#F8B739", // Saffron
-  ], []);
+  const USERNAME_COLORS = React.useMemo(
+    () => [
+      "#FF6B6B", // Coral Red
+      "#4ECDC4", // Turquoise
+      "#45B7D1", // Sky Blue
+      "#FFA07A", // Light Salmon
+      "#98D8C8", // Mint
+      "#F7DC6F", // Golden Yellow
+      "#BB8FCE", // Lavender
+      "#85C1E2", // Powder Blue
+      "#F8B739", // Amber
+      "#52B788", // Emerald Green
+      "#F06292", // Pink
+      "#7C4DFF", // Deep Purple
+      "#FF7043", // Deep Orange
+      "#26C6DA", // Cyan
+      "#9CCC65", // Light Green
+      "#AB47BC", // Purple
+      "#EC407A", // Hot Pink
+      "#5C6BC0", // Indigo
+      "#FFCA28", // Amber Yellow
+      "#66BB6A", // Green
+      "#EF5350", // Red
+      "#42A5F5", // Blue
+      "#FF6B35", // Orange (Mesa+ brand)
+      "#8E44AD", // Violet
+      "#3498DB", // Dodger Blue
+      "#E74C3C", // Alizarin
+      "#1ABC9C", // Turquoise
+      "#F39C12", // Orange
+      "#9B59B6", // Amethyst
+      "#2ECC71", // Nephritis
+      "#E67E22", // Carrot
+      "#16A085", // Green Sea
+      "#D35400", // Pumpkin
+      "#C0392B", // Pomegranate
+      "#27AE60", // Green
+      "#2980B9", // Belize Blue
+      "#8E44AD", // Wisteria
+      "#FF6348", // Tomato
+      "#FF4757", // Radical Red
+      "#5F27CD", // Purple
+      "#00D2D3", // Bright Cyan
+      "#FF9FF3", // Fuchsia Pink
+      "#54A0FF", // French Sky Blue
+      "#48DBFB", // Bright Turquoise
+      "#1DD1A1", // Caribbean Green
+      "#10AC84", // Green Darner Tail
+      "#FF9F43", // Orange Yellow
+      "#EE5A6F", // Watermelon
+      "#C44569", // Blush Pink
+      "#F8B739", // Saffron
+    ],
+    []
+  );
 
   // Select random color on component mount
   useEffect(() => {
@@ -121,21 +130,27 @@ const RestaurantDashboardContent = () => {
   }, []);
 
   // Mock chart data for manager view - Daily revenue for the week
-  const chartData = React.useMemo(() => [
-    { month: "Segunda", revenue: 2800 },
-    { month: "Terça", revenue: 3200 },
-    { month: "Quarta", revenue: 2950 },
-    { month: "Quinta", revenue: 3600 },
-    { month: "Sexta", revenue: 4200 },
-    { month: "Sábado", revenue: 4800 },
-    { month: "Domingo", revenue: 3400 },
-  ], []);
+  const chartData = React.useMemo(
+    () => [
+      { month: "Segunda", revenue: 2800 },
+      { month: "Terça", revenue: 3200 },
+      { month: "Quarta", revenue: 2950 },
+      { month: "Quinta", revenue: 3600 },
+      { month: "Sexta", revenue: 4200 },
+      { month: "Sábado", revenue: 4800 },
+      { month: "Domingo", revenue: 3400 },
+    ],
+    []
+  );
 
-  const chartConfig = React.useMemo(() => ({
-    dataKey: "revenue",
-    color: "#ff6b35",
-    label: "Receita Diária (€)",
-  }), []);
+  const chartConfig = React.useMemo(
+    () => ({
+      dataKey: "revenue",
+      color: "#ff6b35",
+      label: "Receita Diária (€)",
+    }),
+    []
+  );
 
   // Check if user is a manager (you can modify this logic based on your role system)
   const isManager =
@@ -187,12 +202,13 @@ const RestaurantDashboardContent = () => {
         } catch (err) {
           console.error("Error fetching staff users:", err);
           // If it's an auth error, getCurrentUser will handle logout
-          if (err.message && (
-            err.message.includes("Session expired") ||
-            err.message.includes("Authentication failed") ||
-            err.message.includes("401") ||
-            err.message.includes("403")
-          )) {
+          if (
+            err.message &&
+            (err.message.includes("Session expired") ||
+              err.message.includes("Authentication failed") ||
+              err.message.includes("401") ||
+              err.message.includes("403"))
+          ) {
             // Token error already handled by apiRequest
             return;
           }
@@ -357,20 +373,27 @@ const RestaurantDashboardContent = () => {
         <main className="main-content fade-in-delayed">
           {/* Only render views when user data is loaded */}
           {user && (
-            <Suspense fallback={
-              <div className="loading-component">
-                <div className="spinner" style={{
-                  width: '40px',
-                  height: '40px',
-                  border: '3px solid #f0f0f0',
-                  borderTop: '3px solid #ff6b35',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  margin: '20px auto'
-                }} />
-                <p style={{textAlign: 'center', color: '#666'}}>A carregar...</p>
-              </div>
-            }>
+            <Suspense
+              fallback={
+                <div className="loading-component">
+                  <div
+                    className="spinner"
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      border: "3px solid #f0f0f0",
+                      borderTop: "3px solid #ff6b35",
+                      borderRadius: "50%",
+                      animation: "spin 1s linear infinite",
+                      margin: "20px auto",
+                    }}
+                  />
+                  <p style={{ textAlign: "center", color: "#666" }}>
+                    A carregar...
+                  </p>
+                </div>
+              }
+            >
               {(() => {
                 console.log("Active nav item:", activeNavItem);
                 console.log("Current view:", currentView);
