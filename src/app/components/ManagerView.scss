@@ -406,7 +406,7 @@
       .circle-svg {
         width: 100%;
         height: 100%;
-        filter: drop-shadow(0 2px 8px rgba(255, 107, 53, 0.15));
+        filter: drop-shadow(0 2px 8px rgba(52, 152, 219, 0.15));
 
         circle:first-child {
           stroke: #f1f5f9;
@@ -514,7 +514,7 @@
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
           &.task {
-            background: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%);
+            background: linear-gradient(135deg, #3498db 0%, #5dade2 100%);
           }
 
           &.progress {
@@ -2429,7 +2429,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 4rem 1rem;
+    padding: 1rem 1rem;
+    padding-top: 0px;
     text-align: center;
     gap: 1rem;
 

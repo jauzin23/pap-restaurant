@@ -65,37 +65,41 @@ const DevicesPanel = ({ dispositivos, onRefresh, onOpenEnrollment }) => {
             key={device.device_id}
             className={`device-card ${device.is_online ? "online" : "offline"}`}
           >
-            {/* Status Icon */}
-            <div className="device-icon">
-              <Nfc size={20} />
+            {/* Hologram GIF Container */}
+            <div className="hologram-container">
+              <img src="/3d.gif" alt="Hologram" className="hologram-gif" />
             </div>
 
             {/* Device Info */}
             <div className="device-content">
               <div className="device-title">
                 <h3>{device.nome}</h3>
-                <span
-                  className={`status-dot ${
+                <div
+                  className={`status-indicator ${
                     device.is_online ? "online" : "offline"
                   }`}
-                ></span>
+                ></div>
               </div>
               <p className="device-location">
                 {device.localizacao || "Sem localização"}
               </p>
               <div className="device-stats">
-                <span className="stat">
+                <div className="stat">
                   <Clock size={14} />
-                  {formatLastSeen(device.last_seen)}
-                </span>
-                <span className="stat">
+                  <span>{formatLastSeen(device.last_seen)}</span>
+                </div>
+                <div className="stat">
                   <Users size={14} />
-                  {device.total_utilizadores_hoje || 0}
-                </span>
-                <span className="stat">
+                  <span>{device.total_utilizadores_hoje || 0}</span>
+                </div>
+                <div className="stat">
                   <FileText size={14} />
-                  {device.total_registos_hoje || 0}
-                </span>
+                  <span>{device.total_registos_hoje || 0}</span>
+                </div>
+                <div className="stat">
+                  <Nfc size={14} />
+                  <span>{device.device_id?.slice(-3) || "N/A"}</span>
+                </div>
               </div>
             </div>
 
@@ -106,13 +110,13 @@ const DevicesPanel = ({ dispositivos, onRefresh, onOpenEnrollment }) => {
                 disabled={!device.is_online}
                 title="Vincular Cartão"
               >
-                <CreditCard size={16} />
+                <CreditCard size={18} />
               </button>
               <button
                 onClick={() => loadDeviceLogs(device.device_id)}
                 title="Ver Logs"
               >
-                <ScrollText size={16} />
+                <ScrollText size={18} />
               </button>
             </div>
           </div>

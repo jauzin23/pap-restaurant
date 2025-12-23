@@ -5,7 +5,6 @@ import Sidebar from "../components/Sidebar";
 import { BackgroundBeams } from "../components/BackgroundBeams";
 import "./page.scss";
 import { getCurrentUser, AuthGuard } from "../../lib/auth";
-import DashboardCards from "../components/DashboardCards";
 import {
   WebSocketProvider,
   useWebSocketContext,
@@ -146,7 +145,7 @@ const RestaurantDashboardContent = () => {
   const chartConfig = React.useMemo(
     () => ({
       dataKey: "revenue",
-      color: "#ff6b35",
+      color: "#3498DB",
       label: "Receita Diária (€)",
     }),
     []
@@ -376,21 +375,8 @@ const RestaurantDashboardContent = () => {
             <Suspense
               fallback={
                 <div className="loading-component">
-                  <div
-                    className="spinner"
-                    style={{
-                      width: "40px",
-                      height: "40px",
-                      border: "3px solid #f0f0f0",
-                      borderTop: "3px solid #ff6b35",
-                      borderRadius: "50%",
-                      animation: "spin 1s linear infinite",
-                      margin: "20px auto",
-                    }}
-                  />
-                  <p style={{ textAlign: "center", color: "#666" }}>
-                    A carregar...
-                  </p>
+                  <div className="spinner" />
+                  <p>A carregar...</p>
                 </div>
               }
             >
@@ -432,7 +418,6 @@ const RestaurantDashboardContent = () => {
                     />
                   ) : (
                     <>
-                      <DashboardCards showAllMetrics={false} />
                       <StaffView
                         expandedSections={expandedSections}
                         toggleSection={toggleSection}
@@ -440,6 +425,8 @@ const RestaurantDashboardContent = () => {
                         username={username}
                         userLabels={userLabels}
                         profileImg={profileImg}
+                        onNavChange={handleNavClick}
+                        user={user}
                       />
                     </>
                   )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Package,
   Clock,
@@ -12,6 +12,10 @@ import {
   Zap,
   Crown,
   Medal,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import {
   AreaChart,
@@ -44,12 +48,83 @@ interface UserStatsProps {
 
 const COLORS = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe"];
 
+// Custom Select Component
+interface CustomSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  className?: string;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({
+  value,
+  onChange,
+  options,
+  placeholder = "Select...",
+  className = "",
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        selectRef.current &&
+        !selectRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((option) => option.value === value);
+
+  return (
+    <div ref={selectRef} className={`custom-select ${className}`}>
+      <div className="custom-select-trigger" onClick={() => setIsOpen(!isOpen)}>
+        <span className={selectedOption ? "selected-text" : "placeholder-text"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`select-arrow ${isOpen ? "rotated" : ""}`}
+        />
+      </div>
+
+      {isOpen && (
+        <div className="custom-select-dropdown">
+          {options.map((option) => (
+            <div
+              key={option.value}
+              className={`custom-select-option ${
+                option.value === value ? "selected" : ""
+              }`}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              {option.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const UserPersonalStats: React.FC<UserStatsProps> = ({
   userId,
   dateFrom,
   dateTo,
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const { stats, loading } = useUserStatsWebSocket(userId, dateFrom, dateTo);
   const statsTyped = stats as any;
   const {
@@ -77,6 +152,11 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
   };
 
   const availableMonths = getAvailableMonths();
+
+  // Reset to page 1 when month filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedMonth]);
 
   if (loading || !statsTyped) {
     return <div className="loading-container">A carregar estatísticas...</div>;
@@ -126,7 +206,9 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
               </div>
             </div>
           </div>
-          <div className="stat-footer">{statsTyped.orders.prepared} preparados</div>
+          <div className="stat-footer">
+            {statsTyped.orders.prepared} preparados
+          </div>
         </div>
 
         <div className="stat-card">
@@ -398,7 +480,11 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
                       <div key={index} className="breakdown-item">
                         <div className="breakdown-category">
                           <span className={`category-badge ${cat.category}`}>
-                            {cat.category === "basic" ? "📦" : "⚠️"}
+                            {cat.category === "basic" ? (
+                              <Package size={20} color="#10b981" />
+                            ) : (
+                              <AlertTriangle size={20} color="#ef4444" />
+                            )}
                           </span>
                           <span className="category-name">
                             {cat.category === "basic"
@@ -431,46 +517,94 @@ export const UserPersonalStats: React.FC<UserStatsProps> = ({
               <div className="history-header">
                 <h4>Histórico de Atividades</h4>
                 <div className="month-selector">
-                  <select
+                  <CustomSelect
                     value={selectedMonth || ""}
-                    onChange={(e) => setSelectedMonth(e.target.value || null)}
+                    onChange={(value) => setSelectedMonth(value || null)}
+                    options={[
+                      { value: "", label: "Todos os Meses" },
+                      ...availableMonths,
+                    ]}
                     className="month-dropdown"
-                  >
-                    <option value="">Todos os Meses</option>
-                    {availableMonths.map((month) => (
-                      <option key={month.value} value={month.value}>
-                        {month.label}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
               <div className="history-list-profile">
-                {pointsStats.history.map((item: any) => (
-                  <div key={item.id} className="history-item-profile">
-                    <div
-                      className={`points-badge-profile ${
-                        item.points_earned > 0 ? "positive" : "negative"
-                      }`}
-                    >
-                      {item.points_earned > 0 ? "+" : ""}
-                      {item.points_earned}
-                    </div>
-                    <div className="history-details-profile">
-                      <div className="history-description-profile">
-                        {item.description}
-                      </div>
-                      <div className="history-time-profile">
-                        {new Date(item.created_at).toLocaleString("pt-PT", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  const totalItems = pointsStats.history.length;
+                  const totalPages = Math.ceil(totalItems / itemsPerPage);
+                  const startIndex = (currentPage - 1) * itemsPerPage;
+                  const endIndex = startIndex + itemsPerPage;
+                  const currentItems = pointsStats.history.slice(
+                    startIndex,
+                    endIndex
+                  );
+
+                  return (
+                    <>
+                      {currentItems.map((item: any) => (
+                        <div key={item.id} className="history-item-profile">
+                          <div
+                            className={`points-badge-profile ${
+                              item.points_earned > 0 ? "positive" : "negative"
+                            }`}
+                          >
+                            {item.points_earned > 0 ? "+" : ""}
+                            {item.points_earned}
+                          </div>
+                          <div className="history-details-profile">
+                            <div className="history-description-profile">
+                              {item.description}
+                            </div>
+                            <div className="history-time-profile">
+                              {new Date(item.created_at).toLocaleString(
+                                "pt-PT",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="pagination-controls">
+                          <button
+                            onClick={() =>
+                              setCurrentPage(Math.max(1, currentPage - 1))
+                            }
+                            disabled={currentPage === 1}
+                            className="pagination-btn"
+                          >
+                            <ChevronLeft size={16} />
+                            Anterior
+                          </button>
+
+                          <div className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              setCurrentPage(
+                                Math.min(totalPages, currentPage + 1)
+                              )
+                            }
+                            disabled={currentPage === totalPages}
+                            className="pagination-btn"
+                          >
+                            Próxima
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

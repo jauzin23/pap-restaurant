@@ -21,6 +21,7 @@ import {
   Camera,
   Upload,
   Wand2,
+  Edit,
   RefreshCw,
   Check,
   Tag,
@@ -34,6 +35,7 @@ import { auth, users, getAuthToken } from "../../../lib/api";
 import { isAuthenticated } from "../../../lib/auth";
 import { useWebSocketContext } from "../../../contexts/WebSocketContext";
 import { UserPersonalStats } from "../../components/UserPersonalStats";
+import ClockHistory from "../../components/ClockHistory";
 import "./page.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -64,7 +66,6 @@ function ProfilePageContent({
   const resolvedParams = React.use(params);
   const userIdParam = resolvedParams.userId ? resolvedParams.userId[0] : null;
 
-  // WebSocket context
   const { socket, connected } = useWebSocketContext();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -77,16 +78,13 @@ function ProfilePageContent({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Password change states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Form state
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -99,7 +97,6 @@ function ProfilePageContent({
     labels: [] as string[],
   });
 
-  // Image editing states
   const [editingImage, setEditingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -119,7 +116,6 @@ function ProfilePageContent({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropperRef = useRef<any>(null);
 
-  // Toast notification function using Ant Design
   const showToast = (
     message: string,
     type: "success" | "error" | "info" = "success"
@@ -137,7 +133,6 @@ function ProfilePageContent({
     });
   };
 
-  // Profile Image Component
   const ProfileImage = ({
     src,
     alt,
@@ -181,24 +176,19 @@ function ProfilePageContent({
     );
   };
 
-  // Check if current user is manager
   const isManager =
     userLabels.includes("manager") ||
     userLabels.includes("Manager") ||
     userLabels.includes("gerente") ||
     userLabels.includes("Gerente");
 
-  // Check if viewing own profile
   const isOwnProfile =
     currentUser && profileUser && currentUser.id === profileUser.id;
 
-  // Can edit check
   const canEdit = isOwnProfile || isManager;
 
-  // Can edit manager fields
   const canEditManagerFields = isManager;
 
-  // Load user data
   useEffect(() => {
     const loadUserData = async () => {
       if (!isAuthenticated()) {
@@ -207,23 +197,18 @@ function ProfilePageContent({
       }
 
       try {
-        // Get current logged-in user
         const userData = await auth.get();
         setCurrentUser(userData);
         setUserLabels(userData.labels || []);
 
-        // Determine which user profile to load
         let targetUserId = userIdParam;
 
-        // If no userId provided or userId matches current user, show own profile
         if (!targetUserId || targetUserId === userData.id) {
           targetUserId = userData.id;
         }
 
-        // Fetch the profile user data
         const profileUserData = await users.get(targetUserId);
 
-        // Fetch worked hours from stats
         try {
           const token = getAuthToken();
           if (token) {
@@ -248,7 +233,6 @@ function ProfilePageContent({
 
         setProfileUser(profileUserData);
 
-        // Initialize form data
         setFormData({
           name: profileUserData.name || "",
           email: profileUserData.email || "",
@@ -271,12 +255,10 @@ function ProfilePageContent({
     loadUserData();
   }, [userIdParam]);
 
-  // WebSocket real-time updates
   useEffect(() => {
     if (!socket || !connected || !profileUser?.id) return;
 
     const handleUserUpdated = (updatedUser: any) => {
-      // Only update if it's THIS user's profile
       if (
         updatedUser.id === profileUser.id ||
         updatedUser.$id === profileUser.id
@@ -284,7 +266,6 @@ function ProfilePageContent({
         console.log("📝 Profile updated via WebSocket:", updatedUser.name);
         setProfileUser(updatedUser);
 
-        // Update form data if not currently editing
         if (!isEditing) {
           setFormData({
             name: updatedUser.name || "",
@@ -308,7 +289,6 @@ function ProfilePageContent({
     };
   }, [socket, connected, profileUser?.id, isEditing]);
 
-  // Handle form input change
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -321,14 +301,12 @@ function ProfilePageContent({
     }));
   };
 
-  // Handle save
   const handleSave = async () => {
     if (!profileUser || !canEdit) return;
 
     try {
       setIsSaving(true);
 
-      // Prepare update data
       const updateData: any = {
         name: formData.name,
         email: formData.email,
@@ -337,7 +315,6 @@ function ProfilePageContent({
         nif: formData.nif ? parseInt(formData.nif) : undefined,
       };
 
-      // If manager, include manager-only fields
       if (canEditManagerFields) {
         updateData.contrato = formData.contrato;
         updateData.hrs = formData.hrs ? parseFloat(formData.hrs) : undefined;
@@ -345,20 +322,16 @@ function ProfilePageContent({
         updateData.labels = formData.labels;
       }
 
-      // Remove undefined values
       Object.keys(updateData).forEach(
         (key) => updateData[key] === undefined && delete updateData[key]
       );
 
-      // Update user
       const updatedUser = await users.update(profileUser.id, updateData);
 
-      // Update local state
       setProfileUser(updatedUser);
       setIsEditing(false);
       setSaveSuccess(true);
 
-      // Clear success message after 3 seconds
       setTimeout(() => {
         setSaveSuccess(false);
       }, 3000);
@@ -373,11 +346,9 @@ function ProfilePageContent({
     }
   };
 
-  // Handle cancel
   const handleCancel = () => {
     if (!profileUser) return;
 
-    // Reset form data
     setFormData({
       name: profileUser.name || "",
       email: profileUser.email || "",
@@ -392,12 +363,10 @@ function ProfilePageContent({
     setIsEditing(false);
   };
 
-  // Go back
   const goBack = () => {
     router.push("/pagina-teste-new");
   };
 
-  // Handle delete user
   const handleDeleteUser = async () => {
     if (!profileUser || !canEditManagerFields) return;
 
@@ -430,11 +399,9 @@ function ProfilePageContent({
     }
   };
 
-  // Handle password change
   const handlePasswordChange = async () => {
     if (!profileUser) return;
 
-    // Validation
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       showToast("As passwords não coincidem", "error");
       return;
@@ -445,27 +412,13 @@ function ProfilePageContent({
       return;
     }
 
-    // If changing own password (not manager), current password is required
-    const isOwnProfile = currentUser?.id === profileUser.id;
-    const isManager = currentUser?.labels?.includes("manager");
-
-    if (isOwnProfile && !isManager && !passwordData.currentPassword) {
-      showToast("Password atual é obrigatória", "error");
-      return;
-    }
-
     try {
       setChangingPassword(true);
       const token = getAuthToken();
 
-      const requestBody: any = {
+      const requestBody = {
         newPassword: passwordData.newPassword,
       };
-
-      // Only send current password if it's the user's own profile and they're not a manager
-      if (isOwnProfile && !isManager) {
-        requestBody.currentPassword = passwordData.currentPassword;
-      }
 
       const response = await fetch(
         `${API_BASE_URL}/users/${profileUser.id}/password`,
@@ -480,10 +433,9 @@ function ProfilePageContent({
       );
 
       if (response.ok) {
-        showToast("Password alterada com sucesso", "success");
+        showToast("Password resetada com sucesso", "success");
         setShowPasswordModal(false);
         setPasswordData({
-          currentPassword: "",
           newPassword: "",
           confirmPassword: "",
         });
@@ -499,7 +451,6 @@ function ProfilePageContent({
     }
   };
 
-  // Image handling functions
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith("image/")) {
@@ -552,7 +503,6 @@ function ProfilePageContent({
     }
   };
 
-  // API helper function with timeout
   const apiRequest = async (
     endpoint: string,
     options: RequestInit = {},
@@ -567,7 +517,6 @@ function ProfilePageContent({
       },
     };
 
-    // Create abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -646,7 +595,6 @@ function ProfilePageContent({
           });
         }
       } else if (profileUser?.profile_image) {
-        // Get S3 bucket URL from environment (fallback to API redirect if not set)
         const S3_BUCKET_URL = process.env.NEXT_PUBLIC_AWS_S3_BUCKET_URL;
         const imageUrl = S3_BUCKET_URL
           ? `${S3_BUCKET_URL}/imagens-perfil/${profileUser.profile_image}`
@@ -663,7 +611,6 @@ function ProfilePageContent({
         return;
       }
 
-      // Check image size (warn if > 5MB)
       const sizeInMB = (imageDataToSend.length * 3) / 4 / (1024 * 1024);
       if (sizeInMB > 5) {
         console.warn(`Large image: ${sizeInMB.toFixed(2)}MB`);
@@ -676,7 +623,6 @@ function ProfilePageContent({
 
       console.log("[BG REMOVAL] Sending request to remove background...");
 
-      // Use 60 second timeout for background removal (it can take time)
       const response = await apiRequest(
         "/upload/remove-background",
         {
@@ -709,7 +655,6 @@ function ProfilePageContent({
     } catch (error: any) {
       console.error("Error removing background:", error);
 
-      // More specific error messages
       let errorMessage = "Erro ao remover o fundo. ";
       if (error.message?.includes("timeout")) {
         errorMessage +=
@@ -785,7 +730,6 @@ function ProfilePageContent({
         reader.readAsDataURL(croppedImageBlob);
       });
 
-      // Update user with new profile image
       const updatedUser = await users.update(profileUser.id, {
         profile_image: filename,
       });
@@ -810,7 +754,6 @@ function ProfilePageContent({
     }
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="dashboard fade-in">
@@ -890,7 +833,6 @@ function ProfilePageContent({
         </div>
       </div>
 
-      {/* Success overlay */}
       {saveSuccess && (
         <div className="save-success-overlay">
           <div className="save-success-content">
@@ -902,7 +844,6 @@ function ProfilePageContent({
 
       <main className="main-content fade-in-delayed">
         <div className="profile-page">
-          {/* Header */}
           <div className="profile-header">
             <button onClick={goBack} className="back-button">
               <ArrowLeft size={20} />
@@ -912,11 +853,12 @@ function ProfilePageContent({
             </h1>
           </div>
 
-          {/* Grid Layout */}
-          <div className="profile-grid">
-            {/* Left Column - Profile Card */}
+          <div
+            className={`profile-grid ${
+              canEdit ? "has-right-panel" : "full-width"
+            }`}
+          >
             <div className="profile-card">
-              {/* Profile Avatar Section */}
               <div className="profile-avatar-section">
                 <div
                   style={{
@@ -981,7 +923,7 @@ function ProfilePageContent({
                 )}
               </div>
 
-              {/* Quick Stats */}
+              {}
               <div className="profile-quick-stats">
                 <div className="stat-item">
                   <span className="stat-label">
@@ -1034,411 +976,424 @@ function ProfilePageContent({
               </div>
             </div>
 
-            {/* Right Column - Info Cards */}
-            <div className="profile-info-grid">
-              {/* Personal Information Card */}
-              <div className="info-card">
-                <div className="card-header">
-                  <h3>
-                    <User size={20} />
-                    Informação Pessoal
-                  </h3>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    {!isEditing && canEdit && (
-                      <button
-                        onClick={() => setShowPasswordModal(true)}
-                        className="edit-button fade-in-edit"
-                        style={{ background: "#10b981" }}
-                      >
-                        Alterar Password
-                      </button>
-                    )}
-                    {!isEditing && canEdit && (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="edit-button fade-in-edit"
-                      >
-                        Editar
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="card-content">
-                  {/* Name */}
-                  <div className="info-field">
-                    <label>
-                      <User size={14} />
-                      Nome
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        placeholder="Nome completo"
-                        className="slide-in-edit"
-                      />
-                    ) : (
-                      <p className="fade-in-edit">{profileUser.name || "—"}</p>
-                    )}
-                  </div>
-
-                  {/* Username */}
-                  <div className="info-field">
-                    <label>
-                      <User size={14} />
-                      Nome de Utilizador
-                    </label>
-                    {isEditing ? (
-                      <div
-                        style={{ display: "flex", alignItems: "center" }}
-                        className="slide-in-edit"
-                      >
-                        <span
-                          style={{
-                            background: "#f1f3f5",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "1.5rem 0 0 1.5rem",
-                            padding: "10px 12px",
-                            fontSize: "clamp(0.875rem, 1.5vw, 0.9375rem)",
-                            color: "#6c757d",
-                            fontWeight: 600,
-                            borderRight: "none",
-                            userSelect: "none",
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          @
-                        </span>
-                        <input
-                          type="text"
-                          name="username"
-                          value={formData.username}
-                          onChange={(e) => {
-                            // Prevent @ at the start
-                            let val = e.target.value;
-                            if (val.startsWith("@")) val = val.slice(1);
-                            setFormData((prev) => ({ ...prev, username: val }));
-                          }}
-                          placeholder="Nome de utilizador"
-                          style={{
-                            borderRadius: "0 1.5rem 1.5rem 0",
-                            borderLeft: "none",
-                          }}
-                          className="slide-in-edit"
-                        />
-                      </div>
-                    ) : (
-                      <p className="fade-in-edit">
-                        @{profileUser.username || "—"}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Email */}
-                  <div className="info-field">
-                    <label>
-                      <Mail size={14} />
-                      Email
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="email@exemplo.com"
-                        className="slide-in-edit"
-                      />
-                    ) : (
-                      <p className="fade-in-edit">{profileUser.email || "—"}</p>
-                    )}
-                  </div>
-
-                  {/* Phone */}
-                  <div className="info-field">
-                    <label>
-                      <Phone size={14} />
-                      Telefone
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="tel"
-                        name="telefone"
-                        value={formData.telefone}
-                        onChange={handleInputChange}
-                        placeholder="912345678"
-                        className="slide-in-edit"
-                      />
-                    ) : (
-                      <p className="fade-in-edit">
-                        {profileUser.telefone || "—"}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* NIF */}
-                  <div className="info-field">
-                    <label>
-                      <CreditCard size={14} />
-                      NIF
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="nif"
-                        value={formData.nif}
-                        onChange={handleInputChange}
-                        placeholder="123456789"
-                        maxLength={9}
-                        className="slide-in-edit"
-                      />
-                    ) : (
-                      <p className="fade-in-edit">{profileUser.nif || "—"}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Professional Information Card - Only visible if manager or has data */}
-              {(isManager ||
-                profileUser.contrato ||
-                profileUser.hrs !== undefined) && (
-                <div className="info-card manager-card">
+            {}
+            {canEdit && (
+              <div className="profile-info-grid">
+                {}
+                <div className="info-card">
                   <div className="card-header">
                     <h3>
-                      <Building2 size={18} />
-                      Informação Profissional
+                      <User size={20} />
+                      Informação Pessoal
                     </h3>
-                    {!canEditManagerFields && (
-                      <span className="view-only">Apenas Visualização</span>
-                    )}
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={handleSave}
+                            className="save-button"
+                            disabled={isSaving}
+                          >
+                            {isSaving ? (
+                              "A guardar..."
+                            ) : (
+                              <>
+                                <Save size={16} />
+                                Guardar
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={handleCancel}
+                            className="cancel-button"
+                            disabled={isSaving}
+                          >
+                            <X size={16} />
+                          </button>
+                          {canEditManagerFields && !isOwnProfile && (
+                            <button
+                              onClick={() => setShowDeleteConfirm(true)}
+                              className="delete-button"
+                              disabled={isSaving}
+                              style={{ marginLeft: "auto" }}
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {!isEditing && canEdit && (
+                            <button
+                              onClick={() => setShowPasswordModal(true)}
+                              className="edit-button fade-in-edit password-edit-button"
+                            >
+                              <Lock size={14} />
+                              Alterar Password
+                            </button>
+                          )}
+                          {!isEditing && canEdit && (
+                            <button
+                              onClick={() => setIsEditing(true)}
+                              className="edit-button fade-in-edit"
+                            >
+                              <Edit size={14} />
+                              Editar
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="card-content">
-                    {/* Contract Type */}
+                    {}
                     <div className="info-field">
                       <label>
-                        <Briefcase size={14} />
-                        Tipo de Contrato
+                        <User size={14} />
+                        Nome
                       </label>
-                      {isEditing && canEditManagerFields ? (
+                      {isEditing ? (
                         <input
                           type="text"
-                          name="contrato"
-                          value={formData.contrato}
+                          name="name"
+                          value={formData.name}
                           onChange={handleInputChange}
-                          placeholder="Ex: estagiário, efetivo, etc."
+                          placeholder="Nome completo"
                           className="slide-in-edit"
                         />
                       ) : (
                         <p className="fade-in-edit">
-                          {profileUser.contrato || "—"}
+                          {profileUser.name || "—"}
                         </p>
                       )}
                     </div>
 
-                    {/* Hours Worked */}
+                    {}
                     <div className="info-field">
                       <label>
-                        <Clock size={14} />
-                        Horas Trabalhadas
+                        <User size={14} />
+                        Nome de Utilizador
                       </label>
-                      {isEditing && canEditManagerFields ? (
-                        <input
-                          type="number"
-                          name="hrs"
-                          value={formData.hrs}
-                          onChange={handleInputChange}
-                          placeholder="0.0"
-                          step="0.1"
+                      {isEditing ? (
+                        <div
+                          style={{ display: "flex", alignItems: "center" }}
                           className="slide-in-edit"
-                        />
-                      ) : (
-                        <p className="fade-in-edit">
-                          {profileUser.hrs ? `${profileUser.hrs}h` : "—"}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Vacation Status */}
-                    <div className="info-field">
-                      <label>
-                        <Calendar size={14} />
-                        Estado de Férias
-                      </label>
-                      {isEditing && canEditManagerFields ? (
-                        <div className="checkbox-wrapper slide-in-edit">
+                        >
+                          <span
+                            style={{
+                              background: "#f1f3f5",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "1.5rem 0 0 1.5rem",
+                              padding: "10px 12px",
+                              fontSize: "clamp(0.875rem, 1.5vw, 0.9375rem)",
+                              color: "#6c757d",
+                              fontWeight: 600,
+                              borderRight: "none",
+                              userSelect: "none",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            @
+                          </span>
                           <input
-                            type="checkbox"
-                            name="ferias"
-                            checked={formData.ferias}
-                            onChange={handleInputChange}
-                            id="ferias-checkbox"
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={(e) => {
+                              let val = e.target.value;
+                              if (val.startsWith("@")) val = val.slice(1);
+                              setFormData((prev) => ({
+                                ...prev,
+                                username: val,
+                              }));
+                            }}
+                            placeholder="Nome de utilizador"
+                            style={{
+                              borderRadius: "0 1.5rem 1.5rem 0",
+                              borderLeft: "none",
+                            }}
+                            className="slide-in-edit"
                           />
-                          <label htmlFor="ferias-checkbox">Em férias</label>
                         </div>
                       ) : (
                         <p className="fade-in-edit">
-                          {profileUser.ferias ? "De Férias" : "A Trabalhar"}
+                          @{profileUser.username || "—"}
                         </p>
                       )}
                     </div>
 
-                    {/* User Roles - Only for Managers */}
-                    {canEditManagerFields && (
+                    {}
+                    <div className="info-field">
+                      <label>
+                        <Mail size={14} />
+                        Email
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="email@exemplo.com"
+                          className="slide-in-edit"
+                        />
+                      ) : (
+                        <p className="fade-in-edit">
+                          {profileUser.email || "—"}
+                        </p>
+                      )}
+                    </div>
+
+                    {}
+                    <div className="info-field">
+                      <label>
+                        <Phone size={14} />
+                        Telefone
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          name="telefone"
+                          value={formData.telefone}
+                          onChange={handleInputChange}
+                          placeholder="912345678"
+                          className="slide-in-edit"
+                        />
+                      ) : (
+                        <p className="fade-in-edit">
+                          {profileUser.telefone || "—"}
+                        </p>
+                      )}
+                    </div>
+
+                    {}
+                    <div className="info-field">
+                      <label>
+                        <CreditCard size={14} />
+                        NIF
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="nif"
+                          value={formData.nif}
+                          onChange={handleInputChange}
+                          placeholder="123456789"
+                          maxLength={9}
+                          className="slide-in-edit"
+                        />
+                      ) : (
+                        <p className="fade-in-edit">{profileUser.nif || "—"}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {}
+                {(isManager ||
+                  profileUser.contrato ||
+                  profileUser.hrs !== undefined) && (
+                  <div className="info-card manager-card">
+                    <div className="card-header">
+                      <h3>
+                        <Building2 size={18} />
+                        Informação Profissional
+                      </h3>
+                      {!canEditManagerFields && (
+                        <span className="view-only">Apenas Visualização</span>
+                      )}
+                    </div>
+                    <div className="card-content">
+                      {}
                       <div className="info-field">
                         <label>
-                          <Tag size={14} />
-                          Cargo
+                          <Briefcase size={14} />
+                          Tipo de Contrato
                         </label>
-                        {isEditing ? (
-                          <div className="labels-edit-wrapper slide-in-edit">
-                            <div className="labels-checkboxes">
-                              {[
-                                { value: "manager", label: "Manager" },
-                                {
-                                  value: "Empregado de Mesa",
-                                  label: "Empregado de Mesa",
-                                },
-                                { value: "chef", label: "chef" },
-                                { value: "Limpeza", label: "Limpeza" },
-                                {
-                                  value: "Rececionista",
-                                  label: "Rececionista",
-                                },
-                              ].map((role) => (
-                                <div
-                                  key={role.value}
-                                  className="label-checkbox-item"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    id={`role-${role.value}`}
-                                    checked={formData.labels.includes(
-                                      role.value
-                                    )}
-                                    onChange={(e) => {
-                                      const newLabels = e.target.checked
-                                        ? [...formData.labels, role.value]
-                                        : formData.labels.filter(
-                                            (l) => l !== role.value
-                                          );
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        labels: newLabels,
-                                      }));
-                                    }}
-                                  />
-                                  <label htmlFor={`role-${role.value}`}>
-                                    {role.label}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                        {isEditing && canEditManagerFields ? (
+                          <input
+                            type="text"
+                            name="contrato"
+                            value={formData.contrato}
+                            onChange={handleInputChange}
+                            placeholder="Ex: estagiário, efetivo, etc."
+                            className="slide-in-edit"
+                          />
                         ) : (
-                          <div className="fade-in-edit">
-                            {profileUser.labels &&
-                            profileUser.labels.length > 0 ? (
-                              <div className="labels-display">
-                                {profileUser.labels.map((label) => (
-                                  <span key={label} className="role-badge">
-                                    {label}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p>Nenhuma função atribuída</p>
-                            )}
-                          </div>
+                          <p className="fade-in-edit">
+                            {profileUser.contrato || "—"}
+                          </p>
                         )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
-              {/* Account Information Card */}
-              <div className="info-card">
-                <div className="card-header">
-                  <h3>
-                    <Calendar size={20} />
-                    Informação da Conta
-                  </h3>
-                </div>
-                <div className="card-content">
-                  <div className="info-field">
-                    <label>
-                      <Calendar size={14} />
-                      Conta Criada
-                    </label>
-                    <p>
-                      {profileUser.created_at
-                        ? new Date(profileUser.created_at).toLocaleDateString(
-                            "pt-PT",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )
-                        : "—"}
-                    </p>
+                      {}
+                      <div className="info-field">
+                        <label>
+                          <Clock size={14} />
+                          Horas Trabalhadas
+                        </label>
+                        {isEditing && canEditManagerFields ? (
+                          <input
+                            type="number"
+                            name="hrs"
+                            value={formData.hrs}
+                            onChange={handleInputChange}
+                            placeholder="0.0"
+                            step="0.1"
+                            className="slide-in-edit"
+                          />
+                        ) : (
+                          <p className="fade-in-edit">
+                            {profileUser.hrs ? `${profileUser.hrs}h` : "—"}
+                          </p>
+                        )}
+                      </div>
+
+                      {}
+                      <div className="info-field">
+                        <label>
+                          <Calendar size={14} />
+                          Estado de Férias
+                        </label>
+                        {isEditing && canEditManagerFields ? (
+                          <div className="checkbox-wrapper slide-in-edit">
+                            <input
+                              type="checkbox"
+                              name="ferias"
+                              checked={formData.ferias}
+                              onChange={handleInputChange}
+                              id="ferias-checkbox"
+                            />
+                            <label htmlFor="ferias-checkbox">Em férias</label>
+                          </div>
+                        ) : (
+                          <p className="fade-in-edit">
+                            {profileUser.ferias ? "De Férias" : "A Trabalhar"}
+                          </p>
+                        )}
+                      </div>
+
+                      {}
+                      {canEditManagerFields && (
+                        <div className="info-field">
+                          <label>
+                            <Tag size={14} />
+                            Cargo
+                          </label>
+                          {isEditing ? (
+                            <div className="labels-edit-wrapper slide-in-edit">
+                              <div className="labels-checkboxes">
+                                {[
+                                  { value: "manager", label: "Manager" },
+                                  {
+                                    value: "Empregado de Mesa",
+                                    label: "Empregado de Mesa",
+                                  },
+                                  { value: "chef", label: "chef" },
+                                  { value: "Limpeza", label: "Limpeza" },
+                                  {
+                                    value: "Rececionista",
+                                    label: "Rececionista",
+                                  },
+                                ].map((role) => (
+                                  <div
+                                    key={role.value}
+                                    className="label-checkbox-item"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      id={`role-${role.value}`}
+                                      checked={formData.labels.includes(
+                                        role.value
+                                      )}
+                                      onChange={(e) => {
+                                        const newLabels = e.target.checked
+                                          ? [...formData.labels, role.value]
+                                          : formData.labels.filter(
+                                              (l) => l !== role.value
+                                            );
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          labels: newLabels,
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`role-${role.value}`}>
+                                      {role.label}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="fade-in-edit">
+                              {profileUser.labels &&
+                              profileUser.labels.length > 0 ? (
+                                <div className="labels-display">
+                                  {profileUser.labels.map((label) => (
+                                    <span key={label} className="role-badge">
+                                      {label}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p>Nenhuma função atribuída</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {}
+                <div className="info-card">
+                  <div className="card-header">
+                    <h3>
+                      <Calendar size={20} />
+                      Informação da Conta
+                    </h3>
+                  </div>
+                  <div className="card-content">
+                    <div className="info-field">
+                      <label>
+                        <Calendar size={14} />
+                        Conta Criada
+                      </label>
+                      <p>
+                        {profileUser.created_at
+                          ? new Date(profileUser.created_at).toLocaleDateString(
+                              "pt-PT",
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              }
+                            )
+                          : "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                {}
               </div>
-
-              {/* Edit Actions at Bottom */}
-              {canEdit && isEditing && (
-                <div className="profile-actions">
-                  <button
-                    onClick={handleSave}
-                    className="save-button"
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      "A guardar..."
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        Guardar
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="cancel-button"
-                    disabled={isSaving}
-                  >
-                    <X size={16} />
-                  </button>
-                  {canEditManagerFields && !isOwnProfile && (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="delete-button"
-                      disabled={isSaving}
-                      style={{ marginLeft: "auto" }}
-                    >
-                      Eliminar
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Personal Statistics Section - Full Width */}
-          {profileUser && (
+          {!isEditing && profileUser && (
             <div style={{ marginTop: "8px", width: "100%" }}>
               <UserPersonalStats userId={profileUser.$id || profileUser.id} />
+              <div style={{ marginTop: "2rem" }}>
+                <ClockHistory userId={profileUser.$id || profileUser.id} />
+              </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* Image Editing Modal */}
       {editingImage &&
         canEdit &&
         typeof document !== "undefined" &&
@@ -1495,7 +1450,7 @@ function ProfilePageContent({
                 </button>
               </div>
 
-              {/* Image Preview or Upload */}
+              {}
               {!imagePreview ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
@@ -1661,7 +1616,7 @@ function ProfilePageContent({
                 style={{ display: "none" }}
               />
 
-              {/* Actions */}
+              {}
               <div
                 style={{
                   display: "flex",
@@ -1720,7 +1675,7 @@ function ProfilePageContent({
           document.body
         )}
 
-      {/* Image Cropper Modal */}
+      {}
       {showCropper &&
         typeof document !== "undefined" &&
         createPortal(
@@ -1854,7 +1809,7 @@ function ProfilePageContent({
           document.body
         )}
 
-      {/* Delete Confirmation Modal */}
+      {}
       {showDeleteConfirm &&
         typeof document !== "undefined" &&
         createPortal(
@@ -1962,7 +1917,7 @@ function ProfilePageContent({
           document.body
         )}
 
-      {/* Password Change Modal */}
+      {}
       {showPasswordModal &&
         typeof document !== "undefined" &&
         createPortal(
@@ -1985,8 +1940,8 @@ function ProfilePageContent({
             <div
               style={{
                 backgroundColor: "white",
-                padding: "32px",
-                borderRadius: "16px",
+                padding: "24px",
+                borderRadius: "1.5rem",
                 maxWidth: "450px",
                 width: "90%",
                 boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
@@ -2001,7 +1956,7 @@ function ProfilePageContent({
                   color: "#1e293b",
                 }}
               >
-                Alterar Password
+                Reset Password
               </h3>
               <p
                 style={{
@@ -2010,10 +1965,7 @@ function ProfilePageContent({
                   fontSize: "14px",
                 }}
               >
-                {currentUser?.id === profileUser?.id &&
-                !currentUser?.labels?.includes("manager")
-                  ? "Insira a sua password atual e a nova password"
-                  : `Alterando password de ${profileUser?.name}`}
+                Digite a nova password para {profileUser?.name}
               </p>
 
               <div
@@ -2023,44 +1975,7 @@ function ProfilePageContent({
                   gap: "16px",
                 }}
               >
-                {/* Current Password - only if own profile and not manager */}
-                {currentUser?.id === profileUser?.id &&
-                  !currentUser?.labels?.includes("manager") && (
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          fontSize: "14px",
-                          fontWeight: "600",
-                          color: "#1e293b",
-                        }}
-                      >
-                        Password Atual
-                      </label>
-                      <input
-                        type="password"
-                        value={passwordData.currentPassword}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            currentPassword: e.target.value,
-                          })
-                        }
-                        placeholder="Digite a password atual"
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          borderRadius: "8px",
-                          border: "1px solid #e5e7eb",
-                          fontSize: "14px",
-                        }}
-                        disabled={changingPassword}
-                      />
-                    </div>
-                  )}
-
-                {/* New Password */}
+                {}
                 <div>
                   <label
                     style={{
@@ -2086,7 +2001,7 @@ function ProfilePageContent({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      borderRadius: "8px",
+                      borderRadius: "1.5rem",
                       border: "1px solid #e5e7eb",
                       fontSize: "14px",
                     }}
@@ -2094,7 +2009,7 @@ function ProfilePageContent({
                   />
                 </div>
 
-                {/* Confirm Password */}
+                {}
                 <div>
                   <label
                     style={{
@@ -2120,7 +2035,7 @@ function ProfilePageContent({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      borderRadius: "8px",
+                      borderRadius: "1.5rem",
                       border: "1px solid #e5e7eb",
                       fontSize: "14px",
                     }}
@@ -2141,7 +2056,6 @@ function ProfilePageContent({
                   onClick={() => {
                     setShowPasswordModal(false);
                     setPasswordData({
-                      currentPassword: "",
                       newPassword: "",
                       confirmPassword: "",
                     });
@@ -2149,7 +2063,7 @@ function ProfilePageContent({
                   disabled={changingPassword}
                   style={{
                     padding: "10px 20px",
-                    borderRadius: "8px",
+                    borderRadius: "1.5rem",
                     border: "1px solid #e5e7eb",
                     backgroundColor: "white",
                     color: "#64748b",
@@ -2166,7 +2080,7 @@ function ProfilePageContent({
                   disabled={changingPassword}
                   style={{
                     padding: "10px 20px",
-                    borderRadius: "8px",
+                    borderRadius: "1.5rem",
                     border: "none",
                     backgroundColor: "#10b981",
                     color: "white",
@@ -2184,7 +2098,7 @@ function ProfilePageContent({
                       <Loader2 size={16} className="spinner" />A alterar...
                     </>
                   ) : (
-                    "Alterar Password"
+                    "Reset Password"
                   )}
                 </button>
               </div>
@@ -2196,7 +2110,6 @@ function ProfilePageContent({
   );
 }
 
-// Main export
 export default function ProfilePage({
   params,
 }: {

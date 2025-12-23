@@ -567,3 +567,22 @@ export const api = {
   login: auth.login,
   logout: auth.logout,
 };
+
+export const presence = {
+  // Get user work intervals (processed data)
+  getUserIntervals: async (userId, options = {}) => {
+    const { date_from, date_to, limit = 50 } = options;
+    const params = new URLSearchParams();
+
+    if (date_from) params.append("date_from", date_from);
+    if (date_to) params.append("date_to", date_to);
+    if (limit) params.append("limit", limit.toString());
+
+    const queryString = params.toString();
+    const url = `/presencas/intervals/${userId}${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    return await apiRequest(url);
+  },
+};

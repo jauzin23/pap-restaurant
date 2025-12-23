@@ -158,7 +158,7 @@ export const AuthGuard = ({ children }) => {
             width: "40px",
             height: "40px",
             border: "3px solid #f0f0f0",
-            borderTop: "3px solid #ff6b35",
+            borderTop: "3px solid #3498DB",
             borderRadius: "50%",
             animation: "spin 1s linear infinite",
           }}

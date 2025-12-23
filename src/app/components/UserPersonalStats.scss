@@ -12,9 +12,14 @@
     background: white;
     padding: 2rem;
     border-radius: 1.5rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d1d5db;
     margin-bottom: 2rem;
     text-align: center;
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
 
     &.high-score {
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -53,15 +58,19 @@
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 8px;
+    gap: 1rem;
+    margin-bottom: 1rem;
 
     .stat-card {
       background: white;
-      padding: 1.25rem;
+      padding: 1.5rem;
       border-radius: 1.5rem;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #d1d5db;
       transition: transform 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+      }
 
       .stat-header {
         display: flex;
@@ -123,8 +132,8 @@
   .charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 1rem;
+    margin-bottom: 1rem;
 
     @media (max-width: 768px) {
       grid-template-columns: 1fr;
@@ -134,7 +143,12 @@
       background: white;
       padding: 1.5rem;
       border-radius: 1.5rem;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #d1d5db;
+      transition: transform 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+      }
 
       .chart-header {
         margin-bottom: 1rem;
@@ -159,7 +173,8 @@
     background: white;
     padding: 1.5rem;
     border-radius: 1.5rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d1d5db;
+    transition: transform 0.2s ease;
 
     .section-header {
       margin-bottom: 1rem;
@@ -187,15 +202,19 @@
         display: flex;
         align-items: center;
         gap: 1rem;
-        padding: 1rem;
+        padding: 0.75rem;
         background: white;
         border-radius: 1.5rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #d1d5db;
         transition: all 0.2s ease;
 
+        &:hover {
+          border-color: #9ca3af;
+        }
+
         .item-image {
-          width: 48px;
-          height: 48px;
+          width: 64px;
+          height: 64px;
           object-fit: contain;
           background: none;
           flex-shrink: 0;
@@ -269,6 +288,11 @@
     border-radius: 1.5rem;
     border: 1px solid #d1d5db;
     margin-top: 1rem;
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
 
     .section-header {
       h3 {
@@ -293,38 +317,28 @@
         background: white;
         border: 1px solid #d1d5db;
         border-radius: 1.5rem;
-        padding: 1.5rem;
+        padding: 1rem;
         display: flex;
         align-items: center;
         gap: 1.25rem;
         transition: all 0.2s ease;
 
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-            0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          border-color: #9ca3af;
-        }
-
         .highlight-icon {
           width: 56px;
           height: 56px;
-          border-radius: 1.5rem;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          background: #667eea15;
           color: #667eea;
         }
 
         &.total-points .highlight-icon {
-          background: #fbbf2415;
           color: #f59e0b;
         }
 
         &.ranking .highlight-icon {
-          background: #8b5cf615;
           color: #8b5cf6;
         }
 
@@ -371,6 +385,11 @@
       align-items: center;
       justify-content: space-between;
       gap: 2rem;
+      transition: transform 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+      }
 
       .level-info {
         display: flex;
@@ -439,13 +458,6 @@
         border: 1px solid #d1d5db;
         transition: all 0.2s ease;
 
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-            0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          border-color: #9ca3af;
-        }
-
         .points-stat-icon {
           width: 44px;
           height: 44px;
@@ -471,17 +483,14 @@
         }
 
         &.green .points-stat-icon {
-          background: rgba(16, 185, 129, 0.1);
           color: #10b981;
         }
 
         &.red .points-stat-icon {
-          background: rgba(239, 68, 68, 0.1);
           color: #ef4444;
         }
 
         &.blue .points-stat-icon {
-          background: rgba(59, 130, 246, 0.1);
           color: #3b82f6;
         }
       }
@@ -510,6 +519,8 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
+          transition: all 0.2s ease;
+          cursor: pointer;
 
           .breakdown-category {
             display: flex;
@@ -563,62 +574,131 @@
         gap: 1rem;
 
         .month-selector {
-          .month-dropdown {
-            padding: 0.5rem 1rem;
-            border-radius: 1.5rem;
-            border: 1px solid #d1d5db;
-            background: white;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #1e293b;
-            cursor: pointer;
-            transition: all 0.2s ease;
+          .custom-select {
+            position: relative;
+            width: 100%;
 
-            &:hover {
-              border-color: #667eea;
-              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            .custom-select-trigger {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 0.5rem 1rem;
+              border-radius: 2rem;
+              border: 1px solid #d1d5db;
+              background: white;
+              font-size: 0.875rem;
+              font-weight: 500;
+              color: #1e293b;
+              cursor: pointer;
+              min-height: 2.5rem;
+
+              &:hover {
+                border-color: #667eea;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+              }
+
+              .selected-text {
+                color: #1e293b;
+                margin-right: 1rem;
+              }
+
+              .placeholder-text {
+                color: #9ca3af;
+                margin-right: 1rem;
+              }
+
+              .select-arrow {
+                color: #6b7280;
+                transition: transform 0.2s ease;
+
+                &.rotated {
+                  transform: rotate(180deg);
+                }
+              }
             }
 
-            &:focus {
-              outline: none;
-              border-color: #667eea;
-              box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            .custom-select-dropdown {
+              position: absolute;
+              top: 100%;
+              left: 0;
+              right: 0;
+              background: white;
+              border: 1px solid #d1d5db;
+              border-radius: 1rem;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+              z-index: 1000;
+              max-height: 200px;
+              overflow-y: auto;
+
+              /* Custom scrollbar styles */
+              &::-webkit-scrollbar {
+                width: 4px;
+              }
+
+              &::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 2px;
+              }
+
+              &::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 2px;
+
+                &:hover {
+                  background: #94a3b8;
+                }
+              }
+
+              /* Firefox */
+              scrollbar-width: thin;
+              scrollbar-color: #cbd5e1 #f1f5f9;
+              margin-top: 0.25rem;
+
+              .custom-select-option {
+                padding: 0.75rem 1rem;
+                cursor: pointer;
+                font-size: 0.875rem;
+                color: #1e293b;
+
+                &:hover {
+                  background: #f9fafb;
+                }
+
+                &.selected {
+                  background: #eff6ff;
+                  color: #2563eb;
+                  font-weight: 500;
+                }
+
+                &:first-child {
+                  border-radius: 1rem 1rem 0 0;
+                }
+
+                &:last-child {
+                  border-radius: 0 0 1rem 1rem;
+                }
+
+                &:only-child {
+                  border-radius: 1rem;
+                }
+              }
             }
           }
         }
-      }
 
-      h4 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: #1e293b;
+        h4 {
+          margin: 0;
+          font-size: 1rem;
+          font-weight: 600;
+          color: #1e293b;
+        }
       }
 
       .history-list-profile {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        max-height: 500px;
-        overflow-y: auto;
-
-        &::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        &::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-
-        &::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-
-          &:hover {
-            background: #94a3b8;
-          }
-        }
+        min-height: 18rem;
 
         .history-item-profile {
           background: white;
@@ -628,7 +708,7 @@
           display: flex;
           align-items: center;
           gap: 1rem;
-          transition: all 0.2s ease;
+          cursor: pointer;
 
           &:hover {
             border-color: #9ca3af;
@@ -668,6 +748,51 @@
               color: #64748b;
             }
           }
+        }
+      }
+
+      .pagination-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+
+        .pagination-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          background: white;
+          border: 1px solid #d1d5db;
+          border-radius: 1.5rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #374151;
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover:not(:disabled) {
+            background: #f9fafb;
+            border-color: #9ca3af;
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          svg {
+            width: 1rem;
+            height: 1rem;
+          }
+        }
+
+        .pagination-info {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #64748b;
         }
       }
     }

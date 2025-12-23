@@ -490,7 +490,7 @@ const ManagerView = ({
   }, [selectedMonth]);
 
   // Chart colors
-  const COLORS = ["#ff6b35", "#ff6b35", "#ff6b35", "#ff6b35", "#ff6b35"];
+  const COLORS = ["#3498DB", "#2980B9", "#1F4E79", "#154360", "#0B2630"];
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }) => {

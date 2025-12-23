@@ -66,7 +66,13 @@ const Sidebar = ({
   ];
 
   // Profile Image Component
-  const ProfileImage = ({ src, alt, size = 32, isCircular = false }) => {
+  const ProfileImage = ({
+    src,
+    alt,
+    size = 32,
+    isCircular = false,
+    isWorking = true,
+  }) => {
     const [hasError, setHasError] = useState(false);
     const API_BASE_URL =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -91,7 +97,9 @@ const Sidebar = ({
 
     return (
       <div
-        className={`profile-image ${isCircular ? "circular" : ""}`}
+        className={`profile-image ${isCircular ? "circular" : ""} ${
+          !isWorking ? "not-working" : ""
+        }`}
         style={{
           width: typeof size === "number" ? `${size}px` : size,
           height: typeof size === "number" ? `${size}px` : size,
@@ -227,7 +235,9 @@ const Sidebar = ({
         <hr className="sidebar-divider" />
 
         {/* User Profile Section with Radix Dropdown */}
-        <div className="sidebar-topbar">
+        <div
+          className={`sidebar-topbar ${!user?.is_working ? "not-working" : ""}`}
+        >
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="user-profile-btn" title={username}>
@@ -236,6 +246,7 @@ const Sidebar = ({
                   alt={username}
                   size={40}
                   isCircular={true}
+                  isWorking={user?.is_working || false}
                 />
               </button>
             </DropdownMenu.Trigger>

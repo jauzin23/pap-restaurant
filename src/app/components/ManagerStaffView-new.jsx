@@ -81,7 +81,6 @@ const ManagerStaffView = () => {
     telefone: "",
     nif: "",
     contrato: "",
-    hrs: "",
     ferias: false,
     labels: [],
   });
@@ -250,7 +249,6 @@ const ManagerStaffView = () => {
       telefone: "",
       nif: "",
       contrato: "",
-      hrs: "",
       ferias: false,
       labels: [],
     });
@@ -296,7 +294,6 @@ const ManagerStaffView = () => {
       if (formData.telefone) userData.telefone = formData.telefone;
       if (formData.nif) userData.nif = formData.nif;
       if (formData.contrato) userData.contrato = formData.contrato;
-      if (formData.hrs) userData.hrs = parseInt(formData.hrs);
       if (formData.labels.length > 0) userData.labels = formData.labels;
       userData.ferias = formData.ferias;
 
@@ -1085,20 +1082,6 @@ const ManagerStaffView = () => {
                         <option value="Temporário">Temporário</option>
                         <option value="Freelancer">Freelancer</option>
                       </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Horas Semanais</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="40"
-                        value={formData.hrs}
-                        onChange={(e) =>
-                          handleInputChange("hrs", e.target.value)
-                        }
-                        disabled={creatingUser}
-                      />
                     </div>
 
                     <div className="form-group full-width">

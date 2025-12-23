@@ -1,739 +1,623 @@
-// Staff View Specific Styles - Same as Manager View
+// Staff View Styles - Matching Manager View Design
 .staff-view {
-  .staff-dashboard-grid {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  // Global scrollbar styling for all children
+  * {
+    &::-webkit-scrollbar {
+      width: 8px !important;
+      height: 8px !important;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent !important;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1 !important;
+      border-radius: 10px !important;
+      border: 2px solid transparent !important;
+      background-clip: padding-box !important;
+
+      &:hover {
+        background: #94a3b8 !important;
+        background-clip: padding-box !important;
+      }
+    }
+
+    scrollbar-width: thin !important;
+    scrollbar-color: #cbd5e1 transparent !important;
+  }
+
+  .manager-section-header {
+    margin-bottom: 0.5rem;
+    padding: 1.5rem;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 2rem;
+    transition: transform 0.2s ease;
+    animation: cardFadeIn 0.5s ease forwards;
+
+    @media (max-width: 1024px) {
+      padding: 1.25rem;
+    }
+
+    @media (max-width: 640px) {
+      padding: 1rem;
+      border-radius: 1rem;
+    }
+
+    .header-title-group {
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 0.375rem 0;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+      }
+
+      p {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin: 0;
+        font-weight: 500;
+      }
+    }
+
+    @media (max-width: 640px) {
+      padding: 1.25rem;
+
+      .header-title-group {
+        h1 {
+          font-size: 1.25rem;
+        }
+
+        p {
+          font-size: 0.8125rem;
+        }
+      }
+    }
+  }
+
+  // Main Content Grid - Row-based layout
+  .staff-content-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  // Status Column & Team Column - Now rows
+  .status-column,
+  .team-column {
     display: grid;
-    grid-template-columns: 260px 1fr 320px;
-    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
   }
 
-  .left-section {
+  // Card Base Styles - EXACTLY like ManagerView
+  .card {
+    padding: 1.5rem;
+    border-radius: 1.5rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    transition: transform 0.2s ease;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    min-height: 250px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+
+    @media (max-width: 1400px) {
+      padding: 1.25rem;
+      min-height: 220px;
+    }
+
+    @media (max-width: 768px) {
+      padding: 1rem;
+      min-height: 200px;
+    }
+
+    @media (max-width: 480px) {
+      padding: 0.875rem;
+      border-radius: 1rem;
+      min-height: 180px;
+    }
   }
 
-  .center-section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .right-section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .summary-icon-value-col {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .summary-icon-value-row {
-    display: flex;
-    align-items: flex-end;
-    flex-direction: row;
-    gap: 6px;
-  }
-
-  // Progress Card Styles
-  .progress-card {
-    .progress-content {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 20px;
+  // Make card content fill available space
+  .chart-card {
+    > .card-header-modern {
+      flex-shrink: 0;
     }
 
-    .hours-display {
-      display: flex;
-      align-items: baseline;
-    }
-
-    .hours {
-      font-size: 40px;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -0.03em;
-    }
-
-    .hours-label {
-      font-size: 20px;
-      color: #666;
-      margin-left: 2px;
-      font-weight: 600;
-    }
-
-    .work-time-label {
-      font-size: 12px;
-      color: #666;
-      margin-top: 6px;
-      font-weight: 500;
-    }
-
-    .week-label {
-      font-size: 11px;
-      color: #999;
-    }
-
-    .highlight-badge {
-      background: #ff6b35;
-      color: white;
-      padding: 5px 12px;
-      border-radius: 14px;
-      font-size: 12px;
-      font-weight: 700;
-      margin-left: auto;
-      letter-spacing: -0.01em;
-    }
-
-    .week-chart {
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
-      height: 110px;
-      padding-top: 16px;
-    }
-
-    .chart-bar {
+    > .online-staff-list,
+    > .tasks-list,
+    > .shift-info,
+    > .orders-list-container {
       flex: 1;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      height: 100%;
-    }
-
-    .bar {
-      width: 100%;
-      background: #e5e5e5;
-      border-radius: 6px 6px 0 0;
-      transition: all 0.3s;
-    }
-
-    .bar.active {
-      background: #ff6b35;
-    }
-
-    .chart-bar span {
-      font-size: 11px;
-      color: #999;
-      font-weight: 600;
+      min-height: 0;
     }
   }
 
-  // Calendar Section Styles
-  .calendar-section {
-    background: white;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-
-    .calendar-header {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 12px;
-    }
-
-    .month {
-      font-size: 13px;
-      color: #999;
-      padding: 6px 0;
-      font-weight: 500;
-    }
-
-    .month.current {
-      color: #1a1a1a;
-      font-weight: 600;
-    }
-
-    .calendar-days {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-
-    .day-column {
-      text-align: center;
-    }
-
-    .day-header {
-      font-size: 11px;
-      color: #999;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-
-    .day-number {
-      font-size: 13px;
-      color: #666;
-      font-weight: 500;
-    }
-
-    .calendar-events {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .event-time {
-      font-size: 11px;
-      color: #999;
-      padding: 3px 0;
-      font-weight: 600;
-    }
-
-    .event-card {
-      padding: 14px;
-      border-radius: 10px;
-      position: relative;
-
-      .event-title {
-        font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 3px;
-        letter-spacing: -0.01em;
-      }
-
-      .event-subtitle {
-        font-size: 11px;
-        opacity: 0.75;
-        margin-bottom: 10px;
-        font-weight: 500;
-      }
-
-      .event-avatars {
-        display: flex;
-        gap: 4px;
-
-        .avatar {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: #666;
-          border: 2px solid white;
-        }
-      }
-
-      &.team-sync {
-        background: #1a1a1a;
-        color: white;
-      }
-
-      &.onboarding {
-        background: #f5f5f5;
-      }
-
-      &.dinner {
-        background: #ff6b35;
-        color: white;
-      }
-    }
-  }
-
-  // Time Tracker Card Styles
-  .time-tracker-card {
-    .time-circle {
-      position: relative;
-      width: 180px;
-      height: 180px;
-      margin: 16px auto;
-
-      .circle-svg {
-        width: 100%;
-        height: 100%;
-      }
-
-      .time-display {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-
-        .time {
-          font-size: 32px;
-          font-weight: 700;
-          line-height: 1;
-          letter-spacing: -0.02em;
-        }
-
-        .time-label {
-          font-size: 11px;
-          color: #999;
-          margin-top: 4px;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-
-  // Onboarding Card Styles
-  .onboarding-card {
-    .percentage {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .onboarding-bars {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 12px;
-
-      .progress-bar {
-        flex: 1;
-        position: relative;
-
-        .bar-label {
-          font-size: 10px;
-          margin-bottom: 6px;
-          color: #666;
-          font-weight: 600;
-        }
-
-        .bar-fill {
-          height: 70px;
-          border-radius: 10px;
-
-          &.task {
-            background: #ff6b35;
-          }
-
-          &.progress {
-            background: #1a1a1a;
-          }
-
-          &.incomplete {
-            background: #e5e5e5;
-          }
-        }
-      }
-    }
-
-    .legend {
-      margin-bottom: 20px;
-      display: flex;
-      gap: 16px;
-
-      .legend-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-        font-weight: 500;
-
-        .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-
-          &.task {
-            background: #ff6b35;
-          }
-
-          &.progress {
-            background: #1a1a1a;
-          }
-
-          &.incomplete {
-            background: #e5e5e5;
-          }
-        }
-      }
-    }
-  }
-
-  // New Order Styles for Stats Bar
-  .stat-item .stat-btn.new-order {
-    background: linear-gradient(135deg, #ff6b35, #ff8c42);
-    color: white;
-    border: none;
+  // Card Header - EXACTLY like ManagerView
+  .card-header-modern {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    max-width: 100%;
 
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
-    }
-  }
-
-  // New Order Card Styles
-  .new-order-card {
-    margin-bottom: 6px;
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-
-      .header-icon {
-        color: #ff6b35;
-      }
+    @media (max-width: 1400px) {
+      margin-bottom: 1rem;
+      gap: 0.625rem;
     }
 
-    .order-description {
-      font-size: 12px;
-      color: #666;
-      margin-bottom: 16px;
-      line-height: 1.4;
+    @media (max-width: 768px) {
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
-    .quick-tables-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
-
-      .quick-table-btn {
-        background: rgba(255, 107, 53, 0.1);
-        border: 1px solid rgba(255, 107, 53, 0.2);
-        border-radius: 8px;
-        padding: 10px;
-        font-size: 13px;
-        font-weight: 600;
-        color: #ff6b35;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: rgba(255, 107, 53, 0.2);
-          transform: translateY(-1px);
-        }
-
-        &.more-tables {
-          background: rgba(26, 26, 26, 0.1);
-          border-color: rgba(26, 26, 26, 0.2);
-          color: #1a1a1a;
-
-          &:hover {
-            background: rgba(26, 26, 26, 0.2);
-          }
-        }
-      }
-    }
-
-    .create-order-btn {
-      width: 100%;
-      background: linear-gradient(135deg, #ff6b35, #ff8c42);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
+    .card-icon-wrapper {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      transition: all 0.3s ease;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      flex-shrink: 0;
 
-      &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+      @media (max-width: 1400px) {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+      }
+
+      svg {
+        @media (max-width: 1400px) {
+          width: 18px;
+          height: 18px;
+        }
+      }
+    }
+
+    .card-header-text {
+      flex: 1;
+      min-width: 0;
+
+      h3 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: hsl(var(--card-foreground));
+        margin: 0 0 0.25rem 0;
+
+        @media (max-width: 1400px) {
+          font-size: 0.8125rem;
+        }
+      }
+
+      p {
+        font-size: 0.75rem;
+        color: hsl(var(--muted-foreground));
+        margin: 0;
+
+        @media (max-width: 1400px) {
+          font-size: 0.6875rem;
+        }
       }
     }
   }
 
-  // Table Selector Modal Styles
-  .table-selector-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
+  // Current Shift Card Styles
+  .shift-info {
+    flex: 1;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    z-index: 9999;
-    padding: 20px;
-  }
 
-  .table-selector-modal {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 107, 53, 0.1);
-    border-radius: 20px;
-    padding: 24px;
-    width: 100%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      0 24px 96px rgba(0, 0, 0, 0.2);
-
-    .modal-header {
+    .shift-time {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e2e8f0;
 
-      h3 {
-        margin: 0;
-        font-size: 18px;
+      .time {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: -0.02em;
+      }
+
+      .status {
+        padding: 0.375rem 0.875rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #1a1a1a;
-      }
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
 
-      .close-btn {
-        background: none;
-        border: none;
-        font-size: 24px;
-        color: #666;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: rgba(255, 107, 53, 0.1);
-          color: #ff6b35;
+        &.active {
+          background: #dcfce7;
+          color: #166534;
         }
       }
     }
 
-    .tables-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-
-      .table-btn {
-        background: rgba(248, 250, 252, 0.8);
-        border: 1px solid rgba(255, 107, 53, 0.1);
-        border-radius: 12px;
-        padding: 16px 12px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        position: relative;
-
-        .table-number {
-          font-size: 18px;
-          font-weight: 700;
-          color: #1a1a1a;
-        }
-
-        .table-status {
-          font-size: 11px;
-          color: #666;
-          text-transform: uppercase;
-          font-weight: 500;
-        }
-
-        .selected-icon {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          color: #10b981;
-        }
-
-        &.available {
-          &:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.9);
-            border-color: rgba(255, 107, 53, 0.3);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-          }
-
-          &.selected {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: #10b981;
-
-            .table-number {
-              color: #10b981;
-            }
-          }
-        }
-
-        &.occupied {
-          background: rgba(239, 68, 68, 0.1);
-          border-color: rgba(239, 68, 68, 0.2);
-          cursor: not-allowed;
-          opacity: 0.6;
-
-          .table-number {
-            color: #ef4444;
-          }
-        }
-
-        &.reserved {
-          background: rgba(245, 158, 11, 0.1);
-          border-color: rgba(245, 158, 11, 0.2);
-          cursor: not-allowed;
-          opacity: 0.6;
-
-          .table-number {
-            color: #f59e0b;
-          }
-        }
-      }
-    }
-
-    .modal-footer {
+    .shift-details {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 0.75rem;
 
-      .selected-info {
-        font-size: 14px;
-        color: #666;
-        padding: 12px;
-        background: rgba(255, 107, 53, 0.05);
-        border-radius: 8px;
-        text-align: center;
-        min-height: 20px;
+      .detail-item {
         display: flex;
         align-items: center;
-        justify-content: center;
-      }
+        gap: 0.625rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 500;
 
-      .modal-actions {
-        display: flex;
-        gap: 12px;
-
-        button {
-          flex: 1;
-          padding: 12px 20px;
-          border-radius: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-size: 14px;
-
-          &.cancel-btn {
-            background: rgba(107, 114, 128, 0.1);
-            color: #6b7280;
-            border: 1px solid rgba(107, 114, 128, 0.2);
-
-            &:hover {
-              background: rgba(107, 114, 128, 0.2);
-              transform: translateY(-1px);
-            }
-          }
-
-          &.confirm-btn {
-            background: linear-gradient(135deg, #ff6b35, #ff8c42);
-            color: white;
-            border: none;
-            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
-
-            &:hover:not(:disabled) {
-              transform: translateY(-1px);
-              box-shadow: 0 6px 24px rgba(255, 107, 53, 0.4);
-            }
-
-            &:disabled {
-              opacity: 0.5;
-              cursor: not-allowed;
-              transform: none;
-              box-shadow: none;
-            }
-          }
+        svg {
+          color: #94a3b8;
+          flex-shrink: 0;
         }
       }
     }
   }
 
-  // Responsive Adjustments for Staff View
-  @media (max-width: 1400px) {
-    .staff-dashboard-grid {
-      grid-template-columns: 240px 1fr 300px;
+  // Tasks List - EXACTLY like ManagerView styling
+  .tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: center;
+
+    .task-button {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: #fafafa;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 1.5rem;
+      color: #1e293b;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      width: 100%;
+      text-align: left;
+
+      @media (max-width: 1400px) {
+        padding: 0.875rem 1rem;
+        gap: 0.625rem;
+      }
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      svg {
+        color: #64748b;
+        transition: color 0.2s ease;
+        flex-shrink: 0;
+
+        @media (max-width: 1400px) {
+          width: 16px;
+          height: 16px;
+        }
+      }
+
+      span {
+        flex: 1;
+      }
     }
   }
 
+  .online-staff-card {
+    animation: cardFadeIn 0.5s ease forwards;
+    box-shadow: none;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    position: relative;
+
+    .online-staff-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+      flex: 1;
+      align-content: start;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .online-staff-item {
+      position: relative;
+      background: #fafafa;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 1.5rem;
+      padding: 1rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: #10b981;
+        transform: scaleY(0);
+        transform-origin: bottom;
+        transition: transform 0.3s ease;
+      }
+
+      .staff-card-inner {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .staff-avatar-wrapper {
+        position: relative;
+        flex-shrink: 0;
+
+        .staff-avatar {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #fff;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          transition: transform 0.3s ease;
+          background: #f8fafc;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64748b;
+        }
+
+        .staff-avatar-placeholder {
+          background: #f1f5f9;
+        }
+
+        .online-indicator {
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.4);
+            position: relative;
+            z-index: 2;
+          }
+
+          .pulse-ring {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #10b981;
+            border-radius: 50%;
+            opacity: 0;
+            z-index: 1;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1)
+              infinite;
+          }
+        }
+      }
+
+      .staff-details {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .staff-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+
+        .staff-name {
+          font-weight: 600;
+          font-size: 0.9375rem;
+          color: #1e293b;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .staff-role {
+          font-size: 0.75rem;
+          color: #64748b;
+          text-transform: capitalize;
+          font-weight: 500;
+          letter-spacing: 0.01em;
+        }
+      }
+
+      .work-time {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: fit-content;
+
+        svg {
+          color: #10b981;
+          flex-shrink: 0;
+        }
+
+        .work-duration {
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: #0f172a;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: 0.02em;
+          font-family: "Roboto Mono", monospace;
+        }
+      }
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem 1rem;
+      padding-top: 0px;
+      text-align: center;
+      gap: 1rem;
+
+      svg {
+        color: #cbd5e1;
+      }
+
+      p {
+        font-size: 0.9375rem;
+        color: #64748b;
+        margin: 0;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Orders List Container - flexible height
+  .orders-list-container {
+    max-height: 500px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 8px !important;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent !important;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1 !important;
+      border-radius: 10px !important;
+      border: 2px solid transparent !important;
+      background-clip: padding-box !important;
+
+      &:hover {
+        background: #94a3b8 !important;
+        background-clip: padding-box !important;
+      }
+    }
+  }
+
+  // Responsive Design
   @media (max-width: 768px) {
-    .staff-dashboard-grid {
+    .staff-content-grid {
       grid-template-columns: 1fr;
     }
 
-    .calendar-days {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-
-    .time-circle {
-      width: 140px !important;
-      height: 140px !important;
-
+    .shift-time {
       .time {
-        font-size: 24px !important;
+        font-size: 1rem !important;
       }
     }
 
-    // New order responsive styles
-    .table-selector-modal {
-      margin: 20px;
-      padding: 20px;
+    .tasks-list .task-button {
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
 
-      .tables-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        gap: 8px;
+      svg {
+        width: 16px;
+        height: 16px;
       }
-    }
-
-    .quick-tables-grid {
-      grid-template-columns: repeat(2, 1fr) !important;
     }
   }
 
   @media (max-width: 480px) {
-    .progress-content {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .hours {
-      font-size: 28px !important;
-    }
-
-    .hours-label {
-      font-size: 16px !important;
-    }
-
-    .week-chart {
-      height: 80px;
-      gap: 8px;
-    }
-
-    .calendar-events {
-      gap: 6px;
-    }
-
-    .event-card {
-      padding: 10px;
-    }
-
-    .onboarding-bars {
-      .bar-fill {
-        height: 50px;
-      }
-    }
-
-    // Additional new order responsive styles
-    .table-selector-modal {
-      .tables-grid {
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      }
-
-      .modal-actions {
+    .shift-info {
+      .shift-time {
         flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
       }
     }
+
+    .tasks-list .task-button {
+      padding: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .online-staff-item {
+      padding: 0.75rem;
+
+      .staff-avatar-wrapper .staff-avatar {
+        width: 48px !important;
+        height: 48px !important;
+      }
+    }
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  80%,
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

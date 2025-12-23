@@ -229,7 +229,7 @@ const LoginPage = () => {
                   Credenciais de teste:
                 </p>
                 <p className="text-blue-700 text-xs">
-                  Email: admin@restaurant.com
+                  Email: jaam.joao.monteiro.2008@gmail.com
                 </p>
                 <p className="text-blue-700 text-xs">Senha: admin123</p>
                 <p className="text-blue-600 text-xs mt-2">
@@ -250,10 +250,6 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @import url("https://fonts.googleapis.com/css?family=Manrope:200,300,regular,500,600,700,800");
-      `}</style>
     </div>
   );
 };

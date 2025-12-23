@@ -48,7 +48,6 @@ const ManagerStaffView = () => {
     telefone: "",
     nif: "",
     contrato: "",
-    hrs: "",
     ferias: false,
     labels: [],
   });
@@ -213,7 +212,6 @@ const ManagerStaffView = () => {
       telefone: "",
       nif: "",
       contrato: "",
-      hrs: "",
       ferias: false,
       labels: [],
     });
@@ -266,7 +264,6 @@ const ManagerStaffView = () => {
       if (formData.telefone) userData.telefone = formData.telefone;
       if (formData.nif) userData.nif = formData.nif;
       if (formData.contrato) userData.contrato = formData.contrato;
-      if (formData.hrs) userData.hrs = parseInt(formData.hrs);
       if (formData.labels.length > 0) userData.labels = formData.labels;
       userData.ferias = formData.ferias;
 
@@ -314,7 +311,11 @@ const ManagerStaffView = () => {
         >
           <Avatar
             size={48}
-            src={record.profileImg}
+            src={
+              record.profileImg && record.profileImg.trim() !== ""
+                ? record.profileImg
+                : undefined
+            }
             icon={<UserCircle />}
             style={{
               backgroundColor: "#f0f0f0",
@@ -710,11 +711,11 @@ const ManagerStaffView = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Username *</label>
+                      <label>Nome de Utilizador *</label>
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="username"
+                        placeholder="nome de utilizador"
                         value={formData.username}
                         onChange={(e) =>
                           handleInputChange("username", e.target.value)
@@ -781,20 +782,6 @@ const ManagerStaffView = () => {
                         <option value="Temporário">Temporário</option>
                         <option value="Freelancer">Freelancer</option>
                       </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Horas Semanais</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="40"
-                        value={formData.hrs}
-                        onChange={(e) =>
-                          handleInputChange("hrs", e.target.value)
-                        }
-                        disabled={creatingUser}
-                      />
                     </div>
 
                     <div className="form-group full-width">
