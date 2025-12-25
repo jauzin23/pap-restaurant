@@ -59,7 +59,7 @@ const apiRequest = async (endpoint, options = {}) => {
   return response.json();
 };
 
-export default function PayOrdersComponent() {
+export default function PayOrdersComponent({ onLoaded }) {
   const { socket, connected } = useWebSocketContext();
 
   // State
@@ -127,7 +127,8 @@ export default function PayOrdersComponent() {
     setLoading(true);
     await Promise.all([fetchOrders(), fetchMenuItems(), fetchTables()]);
     setLoading(false);
-  }, [fetchOrders, fetchMenuItems, fetchTables]);
+    if (onLoaded) onLoaded();
+  }, [fetchOrders, fetchMenuItems, fetchTables, onLoaded]);
 
   useEffect(() => {
     loadData();
@@ -521,19 +522,14 @@ export default function PayOrdersComponent() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="pay-orders-container">
+  return (
+    <div className="pay-orders-container">
+      {loading && (
         <div className="loading-state">
           <Loader2 size={48} className="spinner" />
           <p>A carregar pedidos...</p>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pay-orders-container">
+      )}
       {/* Header Card */}
       <div className="stock-header-card">
         <div className="stock-header-card__content">

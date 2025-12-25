@@ -1,7 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
 
 .pay-orders-container {
+  position: relative;
   width: 100%;
+  min-height: 100%;
   max-width: none;
   display: flex;
   flex-direction: column;
@@ -10,24 +12,6 @@
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  // Loading state
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    gap: 1rem;
-    color: #666;
-    background: white;
-    border-radius: 1.5rem;
-    padding: 3rem;
-
-    .spinner {
-      animation: spin 1s linear infinite;
-    }
-  }
 
   // Header Card (ManagerView style)
   .stock-header-card {
@@ -421,7 +405,7 @@
 
   // Order Group
   .order-group {
-    border: 1px solid #e5e7eb;
+    border: 1px solid #d1d5db;
     border-radius: 1.5rem;
     overflow: hidden;
     transition: all 0.2s;
@@ -824,7 +808,7 @@
             background: #f8f9fa;
             border-radius: 1.5rem;
             font-size: 0.9375rem;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #d1d5db;
 
             .order-item-image {
               width: 48px;
@@ -872,7 +856,7 @@
             justify-content: center;
             gap: 0.5rem;
             padding: 1rem;
-            border: 2px solid #e5e7eb;
+            border: 1px solid #d1d5db;
             border-radius: 1.5rem;
             background: white;
             cursor: pointer;
@@ -934,7 +918,7 @@
           margin-top: 1rem;
           padding: 1rem;
           background: #e8f5e9;
-          border: 1px solid #e5e7eb;
+          border: 1px solid #d1d5db;
           border-radius: 1.5rem;
 
           .change-header {
@@ -1236,7 +1220,7 @@
         border-radius: 1.5rem;
         padding: 1.25rem;
         margin-top: 1.5rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid #d1d5db;
 
         .summary-row {
           display: flex;
@@ -1265,7 +1249,6 @@
             color: #1a73e8;
             padding-top: 0.75rem;
             margin-top: 0.25rem;
-            border-top: 2px solid #dee2e6;
           }
         }
       }

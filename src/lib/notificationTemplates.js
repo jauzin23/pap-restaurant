@@ -81,18 +81,32 @@ export const getNotificationTemplate = (eventType, data) => {
         };
 
       case "reservation:created":
+        // Try to get the number of people from various possible field names
+        const numPeople =
+          data.party_size ||
+          data.guest_count ||
+          data.num_pessoas ||
+          data.guests ||
+          data.partySize ||
+          data.num_people ||
+          data.number_of_people ||
+          data.guests_count ||
+          data.people ||
+          data.count ||
+          0;
+
         return {
           type: "reservation",
           icon: <Calendar size={24} color="#64748b" />,
           color: "#64748b",
           title: "Nova Reserva",
-          message: `${data.customer_name || data.name || "Cliente"} - ${
-            data.guest_count || data.num_pessoas || 0
-          } ${
-            data.guest_count === 1 || data.num_pessoas === 1
-              ? "pessoa"
-              : "pessoas"
-          } - ${formatDateTime(data.reservation_date || data.data)}`,
+          message: `${
+            data.customer_name || data.name || "Cliente"
+          } - ${numPeople} ${
+            numPeople === 1 ? "pessoa" : "pessoas"
+          } - ${formatDateTime(
+            data.reservation_time || data.reservation_date || data.data
+          )}`,
         };
 
       case "menu:created":

@@ -8,7 +8,6 @@ import React, {
   useRef,
 } from "react";
 import { createPortal } from "react-dom";
-import { notification } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/pt";
 import {
@@ -30,6 +29,7 @@ import {
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import NumberFlow from "@number-flow/react";
 import { tableLayouts, tables as tablesApi } from "@/lib/api";
+import { BrowserQRCodeReader } from "@zxing/browser";
 import "./ReservationManager.scss";
 
 dayjs.locale("pt");
@@ -59,35 +59,65 @@ const getNextStatus = (currentStatus) => {
   return workflow[idx + 1];
 };
 
-// QR Reader Component using react-qr-reader
-
-// (removed duplicate import)
-import { BrowserQRCodeReader } from "@zxing/browser";
-
-function QRScanZXingComponent({ onScan }) {
+// QR Reader Component using ZXing
+function QRScanZXingComponent({ onScan, freeze }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
+
   useEffect(() => {
     let codeReader;
     let active = true;
-    if (videoRef.current && !freeze) {
-      codeReader = new BrowserQRCodeReader();
-      codeReader
-        .decodeFromVideoDevice(
-          null,
-          videoRef.current,
-          (result, err, controls) => {
-            if (!controlsRef.current) controlsRef.current = controls;
-            if (result && active) {
-              onScan(result.getText());
-              active = false;
-              if (controlsRef.current) controlsRef.current.stop();
+
+    const startScan = async () => {
+      if (videoRef.current && !freeze) {
+        try {
+          codeReader = new BrowserQRCodeReader();
+          const controls = await codeReader.decodeFromVideoDevice(
+            null,
+            videoRef.current,
+            (result, err) => {
+              if (result && active) {
+                onScan(result.getText());
+                active = false;
+                if (controlsRef.current) {
+                  controlsRef.current.stop();
+                }
+              }
             }
-          }
-        )
-        .then((ctrl) => {
-          controlsRef.current = ctrl;
-        });
+          );
+          controlsRef.current = controls;
+        } catch (error) {
+          console.error("QR Scanner error:", error);
+        }
+      }
+    };
+
+    startScan();
+
+    return () => {
+      active = false;
+      if (controlsRef.current) {
+        controlsRef.current.stop();
+      }
+      if (codeReader && typeof codeReader.reset === "function") {
+        codeReader.reset();
+      }
+    };
+  }, [onScan, freeze]);
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        position: "relative",
+      }}
+    >
+      <video
+        ref={videoRef}
+        style={{ width: "100%", borderRadius: "1.5rem", background: "#000" }}
+      />
       {freeze && (
         <div
           style={{
@@ -106,15 +136,13 @@ function QRScanZXingComponent({ onScan }) {
           }}
         >
           Verificando QR...
-                        <div
-                          style={{
-                            width: "6px",
-                            height: "6px",
-                            borderRadius: "50%",
-                            background: "#22c55e",
-                          }}
-                        />
+        </div>
+      )}
+    </div>
+  );
+}
 
+const ReservationManager = ({ onLoaded }) => {
   // State
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -132,6 +160,14 @@ function QRScanZXingComponent({ onScan }) {
   const [selectedTableIds, setSelectedTableIds] = useState([]);
   const [qrModal, setQrModal] = useState({ open: false, reservationId: null });
   const [qrError, setQrError] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
+
+  // Track if onLoaded has been called to prevent multiple calls
+  const onLoadedCalled = useRef(false);
+
+  const wsContext = useWebSocketContext();
+  const socket = wsContext ? wsContext.socket : null;
+  const connected = wsContext ? wsContext.connected : false;
 
   const [formData, setFormData] = useState({
     customer_name: "",
@@ -144,20 +180,6 @@ function QRScanZXingComponent({ onScan }) {
   });
 
   const getAuthToken = () => localStorage.getItem("auth_token");
-
-  const showToast = (message, type = "success") => {
-    notification[type]({
-      message:
-        type === "success"
-          ? "Sucesso"
-          : type === "error"
-          ? "Erro"
-          : "Informação",
-      description: message,
-      placement: "topRight",
-      duration: 3,
-    });
-  };
 
   const apiRequest = async (endpoint, options = {}) => {
     const token = getAuthToken();
@@ -176,7 +198,6 @@ function QRScanZXingComponent({ onScan }) {
         const error = await response.json();
         errorMessage = error.error || error.message || errorMessage;
       } catch (e) {
-        // Response is not JSON, use status text
         errorMessage = response.statusText || errorMessage;
       }
       throw new Error(errorMessage);
@@ -187,7 +208,11 @@ function QRScanZXingComponent({ onScan }) {
 
   const fetchReservations = async () => {
     try {
-      setLoading(true);
+      // Don't set loading=true during initial load - global loading handles this
+      // Only set loading=true for refresh cycles
+      if (onLoadedCalled.current) {
+        setLoading(true);
+      }
       const data = await apiRequest("/reservations");
       setReservations(data.reservations || []);
     } catch (error) {
@@ -224,12 +249,18 @@ function QRScanZXingComponent({ onScan }) {
   };
 
   useEffect(() => {
-    fetchReservations();
-    fetchTables();
-    fetchLayouts();
-  }, []);
+    const loadData = async () => {
+      await Promise.all([fetchReservations(), fetchTables(), fetchLayouts()]);
+      // Only call onLoaded once during initial load
+      if (onLoaded && !onLoadedCalled.current) {
+        onLoadedCalled.current = true;
+        onLoaded();
+      }
+    };
+    loadData();
+  }, [onLoaded]);
 
-  // Memoize current layout tables to prevent re-computation on every render
+  // Memoize current layout tables
   const currentLayoutTables = useMemo(() => {
     if (layouts.length > 0 && layouts[selectedLayoutIndex]) {
       return layouts[selectedLayoutIndex].tables || [];
@@ -241,12 +272,10 @@ function QRScanZXingComponent({ onScan }) {
   useEffect(() => {
     if (!socket || !connected) return;
 
-    // Reservation events
     const handleReservationCreated = () => fetchReservations();
     const handleReservationUpdated = () => fetchReservations();
     const handleReservationDeleted = () => fetchReservations();
 
-    // Table events - update state directly without re-fetching
     const handleTableCreated = (table) => {
       console.log("🆕 Table created via WebSocket:", table);
       setTables((prev) => [...prev, table]);
@@ -265,7 +294,6 @@ function QRScanZXingComponent({ onScan }) {
       setSelectedTableIds((prev) => prev.filter((tableId) => tableId !== id));
     };
 
-    // Layout events - update state directly without re-fetching
     const handleLayoutCreated = (layout) => {
       console.log("🆕 Layout created via WebSocket:", layout);
       setLayouts((prev) => [...prev, layout]);
@@ -276,7 +304,6 @@ function QRScanZXingComponent({ onScan }) {
       setLayouts((prev) =>
         prev.map((l) => (l.id === layout.id ? { ...l, ...layout } : l))
       );
-      // Re-fetch tables to get updated layout associations
       fetchTables();
     };
 
@@ -291,36 +318,28 @@ function QRScanZXingComponent({ onScan }) {
       }
     };
 
-    // Register reservation listeners
     socket.on("reservation:created", handleReservationCreated);
     socket.on("reservation:updated", handleReservationUpdated);
     socket.on("reservation:deleted", handleReservationDeleted);
-
-    // Register table listeners
     socket.on("table:created", handleTableCreated);
     socket.on("table:updated", handleTableUpdated);
     socket.on("table:deleted", handleTableDeleted);
-
-    // Register layout listeners
     socket.on("layout:created", handleLayoutCreated);
     socket.on("layout:updated", handleLayoutUpdated);
     socket.on("layout:deleted", handleLayoutDeleted);
 
     return () => {
-      // Cleanup reservation listeners
-      socket.off("reservation:created", handleReservationCreated);
-      socket.off("reservation:updated", handleReservationUpdated);
-      socket.off("reservation:deleted", handleReservationDeleted);
-
-      // Cleanup table listeners
-      socket.off("table:created", handleTableCreated);
-      socket.off("table:updated", handleTableUpdated);
-      socket.off("table:deleted", handleTableDeleted);
-
-      // Cleanup layout listeners
-      socket.off("layout:created", handleLayoutCreated);
-      socket.off("layout:updated", handleLayoutUpdated);
-      socket.off("layout:deleted", handleLayoutDeleted);
+      if (socket) {
+        socket.off("reservation:created", handleReservationCreated);
+        socket.off("reservation:updated", handleReservationUpdated);
+        socket.off("reservation:deleted", handleReservationDeleted);
+        socket.off("table:created", handleTableCreated);
+        socket.off("table:updated", handleTableUpdated);
+        socket.off("table:deleted", handleTableDeleted);
+        socket.off("layout:created", handleLayoutCreated);
+        socket.off("layout:updated", handleLayoutUpdated);
+        socket.off("layout:deleted", handleLayoutDeleted);
+      }
     };
   }, [socket, connected, layouts, selectedLayoutIndex]);
 
@@ -336,19 +355,15 @@ function QRScanZXingComponent({ onScan }) {
         table_ids: selectedTableIds.length > 0 ? selectedTableIds : undefined,
       };
 
-      const response = await apiRequest("/reservations", {
+      await apiRequest("/reservations", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-
-      showToast("Reserva criada com sucesso!", "success");
 
       resetForm();
       fetchReservations();
     } catch (error) {
       console.error("Erro ao criar reserva:", error);
-      showToast(error.message || "Erro ao criar reserva", "error");
-      // Still refresh to check if it was created despite error
       fetchReservations();
     }
   };
@@ -363,11 +378,10 @@ function QRScanZXingComponent({ onScan }) {
       onConfirm: async () => {
         try {
           await apiRequest(`/reservations/${id}`, { method: "DELETE" });
-          showToast("Reserva eliminada");
           fetchReservations();
           setConfirmModal(null);
         } catch (error) {
-          showToast(error.message, "error");
+          // Error handling without toast
         }
       },
       onCancel: () => setConfirmModal(null),
@@ -376,7 +390,6 @@ function QRScanZXingComponent({ onScan }) {
 
   const handleStatusChange = async (id, status) => {
     if (status === "completed") {
-      // Require QR code scan before completing
       setQrModal({ open: true, reservationId: id });
       return;
     }
@@ -385,20 +398,17 @@ function QRScanZXingComponent({ onScan }) {
         method: "PUT",
         body: JSON.stringify({ status }),
       });
-      showToast("Estado atualizado");
       fetchReservations();
     } catch (error) {
-      showToast(error.message, "error");
+      // Error handling without toast
     }
   };
 
-  // QR code scan handler
   const handleQrScan = async (scanned) => {
     setQrError("");
     if (!qrModal.reservationId) return;
     setQrLoading(true);
     try {
-      // Send scanned QR token to backend for verification
       const verifyRes = await apiRequest(
         `/reservations/${qrModal.reservationId}/verify-qr`,
         {
@@ -406,26 +416,15 @@ function QRScanZXingComponent({ onScan }) {
           body: JSON.stringify({ qrToken: scanned }),
         }
       );
-      showToast(
-        verifyRes.message || "Reserva concluída com sucesso!",
-        "success"
-      );
       setQrModal({ open: false, reservationId: null });
-      fetchReservations();
+      setTimeout(() => {
+        fetchReservations();
+      }, 250);
     } catch (err) {
       setQrError(err.message || "QR code inválido ou erro de verificação.");
     } finally {
       setQrLoading(false);
     }
-  };
-
-  const fetchCalendarDays = (value) => {
-    // Placeholder function for calendar panel change
-    setSelectedDate(value);
-  };
-
-  const onPanelChange = (value) => {
-    fetchCalendarDays(value);
   };
 
   const resetForm = () => {
@@ -450,7 +449,6 @@ function QRScanZXingComponent({ onScan }) {
       r.customer_phone?.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || r.status === statusFilter;
 
-    // Filter by tab
     const isCompleted =
       r.status === "completed" ||
       r.status === "cancelled" ||
@@ -553,553 +551,439 @@ function QRScanZXingComponent({ onScan }) {
           <button
             type="button"
             className="reservation-status-badge"
-            style={{
-              background: "#fff",
-              color: "#1e293b",
-              border: "1.5px solid #d1d5db",
-              borderRadius: "1rem",
-              padding: "0.5rem 1.25rem",
-              fontWeight: 700,
-              fontSize: "0.95rem",
-              cursor: nextStatus ? "pointer" : "default",
-              outline: "none",
-              transition: "background 0.2s, border 0.2s, color 0.2s",
-              boxShadow: nextStatus
-                ? "0 2px 8px rgba(16,185,129,0.04)"
-                : undefined,
-              opacity: nextStatus ? 1 : 0.7,
-            }}
-            .then((ctrl) => {
-              controlsRef.current = ctrl;
-            });
-        }
-        return () => {
-          active = false;
-          if (controlsRef.current) controlsRef.current.stop();
-        };
-      }, [onScan, freeze]);
-      return (
-        <div
-          style={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            position: "relative",
-          }}
+            disabled={!nextStatus}
+            onClick={() =>
+              nextStatus && handleStatusChange(record.id, nextStatus)
+            }
+          >
+            {statusConfig ? statusConfig.label : status}
+            {nextStatus && <Check size={14} />}
+          </button>
+        );
+      },
+    },
+    {
+      title: "Ações",
+      key: "actions",
+      align: "center",
+      render: (_, record) => (
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <button
+            onClick={() => handleDelete(record.id)}
+            className="action-btn delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="reservation-manager">
+      {/* Header */}
+      <div className="stock-header-card">
+        <div className="stock-header-card__content">
+          <div className="stock-header-card__left">
+            <h1 className="stock-header-card__title">Gestão de Reservas</h1>
+            <p className="stock-header-card__description">
+              Gerencie as reservas de mesas do restaurante
+            </p>
+            <div className="stock-header-card__actions">
+              <button
+                onClick={fetchReservations}
+                disabled={loading}
+                className="stock-header-card__btn stock-header-card__btn--secondary"
+              >
+                <RefreshCw
+                  size={16}
+                  className={loading ? "animate-spin" : ""}
+                />
+                Atualizar
+              </button>
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowModal(true);
+                }}
+                className="stock-header-card__btn stock-header-card__btn--primary"
+              >
+                <Plus size={16} />
+                Nova Reserva
+              </button>
+            </div>
+          </div>
+          <div className="stock-header-card__right">
+            <div className="stock-header-card__circles">
+              <div className="circle circle-1"></div>
+              <div className="circle circle-2"></div>
+              <div className="circle circle-3"></div>
+              <div className="circle circle-4"></div>
+              <div className="circle circle-5"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="stock-tabs">
+        <button
+          onClick={() => setActiveTab("active")}
+          className={`stock-tab ${activeTab === "active" ? "active" : ""}`}
         >
-          <video
-            ref={videoRef}
-            style={{ width: "100%", borderRadius: "1.5rem", background: "#000" }}
-          />
-          {freeze && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                background: "rgba(0,0,0,0.5)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                fontSize: "1.5rem",
-                zIndex: 2,
-              }}
-            >
-              Verificando QR...
-            </div>
-          )}
-        </div>
-      );
-    <>
-      <div className="reservation-manager">
-        {/* Header */}
-        <div className="stock-header-card">
-          <div className="stock-header-card__content">
-            <div className="stock-header-card__left">
-              <h1 className="stock-header-card__title">Gestão de Reservas</h1>
-              <p className="stock-header-card__description">
-                Gerencie as reservas de mesas do restaurante
-              </p>
-              <div className="stock-header-card__actions">
-                <button
-                  onClick={fetchReservations}
-                  disabled={loading}
-                  className="stock-header-card__btn stock-header-card__btn--secondary"
-                >
-                  <RefreshCw
-                    size={16}
-                    className={loading ? "animate-spin" : ""}
-                  />
-                  Atualizar
-                </button>
-                <button
-                  onClick={() => {
-                    resetForm();
-                    setShowModal(true);
-                  }}
-                  className="stock-header-card__btn stock-header-card__btn--primary"
-                >
-                  <Plus size={16} />
-                  Nova Reserva
-                </button>
-              </div>
-            </div>
-            <div className="stock-header-card__right">
-              <div className="stock-header-card__circles">
-                <div className="circle circle-1"></div>
-                <div className="circle circle-2"></div>
-                <div className="circle circle-3"></div>
-                <div className="circle circle-4"></div>
-                <div className="circle circle-5"></div>
-              </div>
-            </div>
+          <Calendar size={18} />
+          Ativas
+        </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`stock-tab ${activeTab === "history" ? "active" : ""}`}
+        >
+          <Clock size={18} />
+          Histórico
+        </button>
+      </div>
+
+      {/* Controls */}
+      <div className="stock-controls">
+        <div className="stock-controls__left">
+          <div className="search-input-wrapper">
+            <Search size={18} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Pesquisar por nome ou telefone..."
+              className="search-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                className="search-clear"
+                onClick={() => setSearchTerm("")}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </div>
-
-        {/* Tabs */}
-        <div className="stock-tabs">
-          <button
-            onClick={() => setActiveTab("active")}
-            className={`stock-tab ${activeTab === "active" ? "active" : ""}`}
+        <div className="stock-controls__right">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="custom-select"
           >
-            <Calendar size={18} />
-            Ativas
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`stock-tab ${activeTab === "history" ? "active" : ""}`}
-          >
-            <Clock size={18} />
-            Histórico
-          </button>
+            <option value="all">Todos os Estados</option>
+            {STATUS_OPTIONS.filter((s) => {
+              const isCompletedStatus =
+                s.value === "completed" ||
+                s.value === "cancelled" ||
+                s.value === "no-show";
+              return activeTab === "active"
+                ? !isCompletedStatus
+                : isCompletedStatus;
+            }).map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
         </div>
+      </div>
 
-        {/* Controls */}
-        <div className="stock-controls">
-          <div className="stock-controls__left">
-            <div className="search-input-wrapper">
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Pesquisar por nome ou telefone..."
-                className="search-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button
-                  className="search-clear"
-                  onClick={() => setSearchTerm("")}
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
+      {/* Table */}
+      <div className="custom-table-container">
+        {loading ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <p>A carregar reservas...</p>
           </div>
-          <div className="stock-controls__right">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="custom-select"
-            >
-              <option value="all">Todos os Estados</option>
-              {STATUS_OPTIONS.filter((s) => {
-                const isCompletedStatus =
-                  s.value === "completed" ||
-                  s.value === "cancelled" ||
-                  s.value === "no-show";
-                return activeTab === "active"
-                  ? !isCompletedStatus
-                  : isCompletedStatus;
-              }).map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+        ) : filteredReservations.length === 0 ? (
+          <div className="empty-state">
+            <p>Nenhuma reserva encontrada</p>
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="custom-table-container">
-          {loading ? (
-            <div className="loading-state">
-              <div className="loading-spinner"></div>
-              <p>A carregar reservas...</p>
-            </div>
-          ) : filteredReservations.length === 0 ? (
-            <div className="empty-state">
-              <p>Nenhuma reserva encontrada</p>
-            </div>
-          ) : (
-            <>
-              <table className="custom-table">
-                <thead>
-                  <tr>
+        ) : (
+          <>
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      style={{ textAlign: col.align || "left" }}
+                    >
+                      {col.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReservations.map((reservation) => (
+                  <tr key={reservation.id}>
                     {columns.map((col) => (
-                      <th
+                      <td
                         key={col.key}
                         style={{ textAlign: col.align || "left" }}
                       >
-                        {col.title}
-                      </th>
+                        {col.render
+                          ? col.render(reservation[col.dataIndex], reservation)
+                          : reservation[col.dataIndex]}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredReservations.map((reservation) => (
-                    <tr key={reservation.id}>
-                      {columns.map((col) => (
-                        <td
-                          key={col.key}
-                          style={{ textAlign: col.align || "left" }}
-                        >
-                          {col.render
-                            ? col.render(
-                                reservation[col.dataIndex],
-                                reservation
-                              )
-                            : reservation[col.dataIndex]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="table-footer">
-                <span>
-                  {filteredReservations.length} reserva
-                  {filteredReservations.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+            <div className="table-footer">
+              <span>
+                {filteredReservations.length} reserva
+                {filteredReservations.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
 
-        {/* Custom Modal */}
-        {showModal &&
-          createPortal(
-            <div className="modal-overlay">
-              <div className="modal-container">
-                {/* Modal Header */}
-                <div className="modal-header">
-                  <div className="header-text">
-                    <h2>Nova Reserva</h2>
-                    <p>Preencha os dados da nova reserva</p>
-                  </div>
-                  <button onClick={resetForm} className="close-button">
-                    <X size={20} />
-                  </button>
+      {/* New Reservation Modal */}
+      {showModal &&
+        createPortal(
+          <div className="reservation-modal-overlay">
+            <div className="reservation-modal-container">
+              <div className="reservation-modal-header">
+                <div className="header-text">
+                  <h2>Nova Reserva</h2>
+                  <p>Preencha os dados da nova reserva</p>
                 </div>
+                <button onClick={resetForm} className="close-button">
+                  <X size={20} />
+                </button>
+              </div>
 
-                {/* Modal Content */}
-                <div className="modal-content">
-                  <div className="form-grid">
-                    <div className="form-group">
-                      <label>Nome *</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={formData.customer_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            customer_name: e.target.value,
-                          })
-                        }
-                        placeholder="Nome do cliente"
-                      />
-                    </div>
+              <div className="reservation-modal-content">
+                <div className="reservation-form-grid">
+                  <div className="reservation-form-group">
+                    <label>Nome *</label>
+                    <input
+                      type="text"
+                      className="reservation-form-input"
+                      value={formData.customer_name}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          customer_name: e.target.value,
+                        })
+                      }
+                      placeholder="Nome do cliente"
+                    />
+                  </div>
 
-                    <div className="form-group">
-                      <label>Telefone *</label>
-                      <input
-                        type="tel"
-                        className="form-input"
-                        value={formData.customer_phone}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            customer_phone: e.target.value,
-                          })
-                        }
-                        placeholder="Número de telefone"
-                      />
-                    </div>
+                  <div className="reservation-form-group">
+                    <label>Telefone *</label>
+                    <input
+                      type="tel"
+                      className="reservation-form-input"
+                      value={formData.customer_phone}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          customer_phone: e.target.value,
+                        })
+                      }
+                      placeholder="Número de telefone"
+                    />
+                  </div>
 
-                    <div className="form-group">
-                      <label>Email</label>
-                      <input
-                        type="email"
-                        className="form-input"
-                        value={formData.customer_email}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            customer_email: e.target.value,
-                          })
-                        }
-                        placeholder="Email (opcional)"
-                      />
-                    </div>
+                  <div className="reservation-form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      className="reservation-form-input"
+                      value={formData.customer_email}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          customer_email: e.target.value,
+                        })
+                      }
+                      placeholder="Email (opcional)"
+                    />
+                  </div>
 
-                    <div className="form-group">
-                      <label>Data *</label>
-                      <input
-                        type="date"
-                        className="form-input"
-                        value={formData.reservation_date}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            reservation_date: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
+                  <div className="reservation-form-group">
+                    <label>Data *</label>
+                    <input
+                      type="date"
+                      className="reservation-form-input"
+                      value={formData.reservation_date}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          reservation_date: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
 
-                    <div className="form-group">
-                      <label>Hora *</label>
-                      <input
-                        type="time"
-                        className="form-input"
-                        value={formData.reservation_time}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            reservation_time: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
+                  <div className="reservation-form-group">
+                    <label>Hora *</label>
+                    <input
+                      type="time"
+                      className="reservation-form-input"
+                      value={formData.reservation_time}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          reservation_time: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
 
-                    createPortal(
-                      <div className="modal-overlay">
-                        <div className="modal-container">
-                          {/* Modal Header */}
-                          <div className="modal-header">
-                            <div className="header-text">
-                              <h2>Nova Reserva</h2>
-                              <p>Preencha os dados da nova reserva</p>
-                            </div>
-                            <button onClick={resetForm} className="close-button">
-                              <X size={20} />
-                            </button>
-                          </div>
+                  <div className="reservation-form-group">
+                    <label>Número de Pessoas *</label>
+                    <input
+                      type="number"
+                      className="reservation-form-input"
+                      min={1}
+                      value={formData.party_size}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          party_size: parseInt(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
 
-                          {/* Modal Content */}
-                          <div className="modal-content">
-                            <div className="form-grid">
-                              <div className="form-group">
-                                <label>Nome *</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  value={formData.customer_name}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      customer_name: e.target.value,
-                                    })
-                                  }
-                                  placeholder="Nome do cliente"
-                                  required
-                                />
-                              </div>
-
-                              <div className="form-group">
-                                <label>Telefone *</label>
-                                <input
-                                  type="tel"
-                                  className="form-control"
-                                  value={formData.customer_phone}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      customer_phone: e.target.value,
-                                    })
-                                  }
-                                  placeholder="Número de telefone"
-                                  required
-                                />
-                              </div>
-
-                              <div className="form-group">
-                                <label>Email</label>
-                                <input
-                                  type="email"
-                                  className="form-control"
-                                  value={formData.customer_email}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      customer_email: e.target.value,
-                                    })
-                                  }
-                                  placeholder="Email (opcional)"
-                                />
-                              </div>
-
-                              <div className="form-group">
-                                <label>Data *</label>
-                                <input
-                                  type="date"
-                                  className="form-control"
-                                  value={formData.reservation_date}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      reservation_date: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-
-                              <div className="form-group">
-                                <label>Hora *</label>
-                                <input
-                                  type="time"
-                                  className="form-control"
-                                  value={formData.reservation_time}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      reservation_time: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-
-                              <div className="form-group">
-                                <label>Número de Pessoas *</label>
-                                <input
-                                  type="number"
-                                  className="form-control"
-                                  min={1}
-                                  value={formData.party_size}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      party_size: parseInt(e.target.value),
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-
-                              <div className="form-group full-width">
-                                <label>Mesas (Opcional)</label>
-                                {/* ...existing code for table selection... */}
-                              </div>
-
-                              <div className="form-group full-width">
-                                <label>Pedidos Especiais</label>
-                                <textarea
-                                  className="form-control"
-                                  rows={3}
-                                  value={formData.special_requests}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      special_requests: e.target.value,
-                                    })
-                                  }
-                                  placeholder="Alergias, preferências de mesa, etc."
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Modal Footer */}
-                          <div className="modal-footer">
-                            <button className="btn btn--secondary" onClick={resetForm}>
-                              Cancelar
-                            </button>
+                  <div className="reservation-form-group full-width">
+                    <label>Mesas (Opcional)</label>
+                    {layouts.length > 0 ? (
+                      <>
+                        <div className="reservation-layout-tabs">
+                          {layouts.map((layout, index) => (
                             <button
-                              className="btn btn--primary"
-                              onClick={handleSubmit}
+                              key={layout.id}
+                              type="button"
+                              className={`reservation-layout-tab ${
+                                selectedLayoutIndex === index ? "active" : ""
+                              }`}
+                              onClick={() => setSelectedLayoutIndex(index)}
                             >
-                              Criar
+                              {layout.name}
                             </button>
-                          </div>
+                          ))}
                         </div>
-                      </div>,
-                      document.body
-                    )}
-                            }}
-                          ></div>
-                          <span
+                        {currentLayoutTables.length > 0 ? (
+                          <>
+                            <div className="reservation-table-grid">
+                              {currentLayoutTables.map((table) => (
+                                <button
+                                  key={table.id}
+                                  type="button"
+                                  className={`reservation-table-btn ${
+                                    selectedTableIds.includes(table.id)
+                                      ? "selected"
+                                      : ""
+                                  }`}
+                                  onClick={() => {
+                                    setSelectedTableIds((prev) =>
+                                      prev.includes(table.id)
+                                        ? prev.filter((id) => id !== table.id)
+                                        : [...prev, table.id]
+                                    );
+                                  }}
+                                >
+                                  {table.table_number || table.name}
+                                </button>
+                              ))}
+                            </div>
+                            {selectedTableIds.length > 0 && (
+                              <div className="reservation-selected-info">
+                                {selectedTableIds.length} mesa
+                                {selectedTableIds.length > 1 ? "s" : ""}{" "}
+                                selecionada
+                                {selectedTableIds.length > 1 ? "s" : ""}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div
                             style={{
-                              fontSize: "13px",
-                              color: "#166534",
-                              fontWeight: "600",
+                              padding: "1rem",
+                              textAlign: "center",
+                              color: "#6b7280",
+                              fontSize: "14px",
                             }}
                           >
-                            {selectedTableIds.length} mesa
-                            {selectedTableIds.length > 1 ? "s" : ""} selecionada
-                            {selectedTableIds.length > 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                            Nenhuma mesa disponível neste layout
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div
+                        style={{
+                          padding: "1rem",
+                          textAlign: "center",
+                          color: "#6b7280",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Nenhum layout configurado
+                      </div>
+                    )}
+                  </div>
 
-                    <div className="form-group full-width">
-                      <label>Pedidos Especiais</label>
-                      <textarea
-                        className="form-textarea"
-                        rows={3}
-                        value={formData.special_requests}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            special_requests: e.target.value,
-                          })
-                        }
-                        placeholder="Alergias, preferências de mesa, etc."
-                      />
-                    </div>
+                  <div className="reservation-form-group full-width">
+                    <label>Pedidos Especiais</label>
+                    <textarea
+                      className="reservation-form-textarea"
+                      rows={3}
+                      value={formData.special_requests}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          special_requests: e.target.value,
+                        })
+                      }
+                      placeholder="Alergias, preferências de mesa, etc."
+                    />
                   </div>
                 </div>
-
-                {/* Modal Footer */}
-                <div className="modal-footer">
-                  <button className="footer-button cancel" onClick={resetForm}>
-                    Cancelar
-                  </button>
-                  <button
-                    className="footer-button primary"
-                    onClick={handleSubmit}
-                  >
-                    Criar
-                  </button>
-                </div>
               </div>
-            </div>,
-            document.body
-          )}
-      </div>
+
+              <div className="reservation-modal-footer">
+                <button
+                  className="reservation-footer-button cancel"
+                  onClick={resetForm}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="reservation-footer-button primary"
+                  onClick={handleSubmit}
+                >
+                  Criar
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Confirm Modal */}
       {confirmModal &&
         createPortal(
-          <div className="confirm-modal-overlay">
-            <div className="confirm-modal">
+          <div className="reservation-confirm-overlay">
+            <div className="reservation-confirm-modal">
               <h3>{confirmModal.title}</h3>
               <p>{confirmModal.message}</p>
-              <div className="confirm-modal-actions">
+              <div className="reservation-confirm-actions">
                 <button
-                  className="confirm-modal-btn cancel"
+                  className="reservation-confirm-btn cancel"
                   onClick={confirmModal.onCancel}
                 >
                   Cancelar
                 </button>
                 <button
-                  className="confirm-modal-btn confirm"
+                  className="reservation-confirm-btn confirm"
                   onClick={confirmModal.onConfirm}
                 >
                   Eliminar
@@ -1111,121 +995,128 @@ function QRScanZXingComponent({ onScan }) {
         )}
 
       {/* QR Code Scan Modal */}
-      {qrModal.open && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 10000,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-            margin: 0,
-            overflowY: "auto",
-            fontFamily:
-              'Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          }}
-        >
+      {qrModal.open &&
+        createPortal(
           <div
-            className="modal-container"
+            className="modal-overlay"
             style={{
-              maxWidth: 400,
-              minHeight: 320,
-              background: "#fff",
-              borderRadius: "1.5rem",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
-              padding: 32,
-              position: "relative",
-              width: "100%",
-              maxHeight: "90vh",
-              overflow: "auto",
-              border: "1px solid #d1d5db",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              background: "rgba(0,0,0,0.5)",
+              zIndex: 10000,
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
+              justifyContent: "center",
+              padding: 20,
+              margin: 0,
+              overflowY: "auto",
+              fontFamily:
+                'Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             }}
           >
             <div
-              className="modal-header"
+              className="modal-container"
               style={{
+                maxWidth: 400,
+                minHeight: 320,
+                background: "#fff",
+                borderRadius: "1.5rem",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                position: "relative",
                 width: "100%",
+                maxHeight: "90vh",
+                overflow: "auto",
+                border: "1px solid #d1d5db",
                 display: "flex",
-                justifyContent: "space-between",
+                flexDirection: "column",
                 alignItems: "center",
-                marginBottom: 16,
               }}
             >
-              <h2
+              <div
+                className="modal-header"
                 style={{
-                  fontWeight: 700,
-                  fontSize: 22,
-                  color: "#1e293b",
-                  margin: 0,
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 16,
                 }}
               >
-                Scan QR Code
-              </h2>
-              <button
-                onClick={() => setQrModal({ open: false, reservationId: null })}
+                <h2
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 22,
+                    color: "#1e293b",
+                    margin: 0,
+                  }}
+                >
+                  Scan QR Code
+                </h2>
+                <button
+                  onClick={() =>
+                    setQrModal({ open: false, reservationId: null })
+                  }
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 28,
+                    color: "#64748b",
+                    cursor: "pointer",
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="modal-content" style={{ textAlign: "center" }}>
+                <QRScanZXingComponent
+                  onScan={handleQrScan}
+                  freeze={qrLoading}
+                />
+                {qrError && (
+                  <div style={{ color: "#ef4444", marginTop: 8 }}>
+                    {qrError}
+                  </div>
+                )}
+                <div style={{ marginTop: 12, color: "#64748b" }}>
+                  Aponte a câmara para o QR code enviado por email.
+                </div>
+              </div>
+              <div
+                className="modal-footer"
                 style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: 28,
-                  color: "#64748b",
-                  cursor: "pointer",
+                  width: "100%",
+                  marginTop: 24,
+                  display: "flex",
+                  justifyContent: "flex-end",
                 }}
               >
-                &times;
-              </button>
-            </div>
-            <div
-              className="modal-content"
-              style={{ textAlign: "center", width: "100%" }}
-            >
-              {/* QR Scan logic using ZXing */}
-              <QRScanZXingComponent onScan={handleQrScan} freeze={qrLoading} />
-              {qrError && (
-                <div style={{ color: "#ef4444", marginTop: 8 }}>{qrError}</div>
-              )}
-              <div style={{ marginTop: 12, color: "#64748b" }}>
-                Aponte a câmara para o QR code enviado por email.
+                <button
+                  className="footer-button cancel"
+                  style={{
+                    background: "#f3f4f6",
+                    color: "#1e293b",
+                    borderRadius: "1.5rem",
+                    padding: "10px 24px",
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                    border: "1px solid #d1d5db",
+                  }}
+                  onClick={() =>
+                    setQrModal({ open: false, reservationId: null })
+                  }
+                >
+                  Cancelar
+                </button>
               </div>
             </div>
-            <div
-              className="modal-footer"
-              style={{
-                width: "100%",
-                marginTop: 24,
-                display: "flex",
-                justifyContent: "flex-end",
-              }}
-            >
-              <button
-                className="footer-button cancel"
-                style={{
-                  background: "#f3f4f6",
-                  color: "#1e293b",
-                  borderRadius: "1.5rem",
-                  padding: "10px 24px",
-                  fontWeight: 600,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-                onClick={() => setQrModal({ open: false, reservationId: null })}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+          </div>,
+          document.body
+        )}
+    </div>
   );
 };
 

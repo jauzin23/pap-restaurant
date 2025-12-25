@@ -55,7 +55,8 @@ const RestaurantDashboardContent = () => {
   });
   const [staffUsers, setStaffUsers] = useState([]);
   const [staffFetched, setStaffFetched] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingVisible, setLoadingVisible] = useState(false);
   const [username, setUsername] = useState("");
   const [profileImg, setProfileImg] = useState("");
   const [user, setUser] = useState(null);
@@ -64,6 +65,9 @@ const RestaurantDashboardContent = () => {
   const [activeNavItem, setActiveNavItem] = useState("Painel");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Track initial mount to prevent loading on first render
+  const isInitialMount = React.useRef(true);
 
   // Random color for username - refreshed on every load
   const [usernameColor, setUsernameColor] = useState("");
@@ -131,6 +135,29 @@ const RestaurantDashboardContent = () => {
       USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
     setUsernameColor(randomColor);
   }, []);
+
+  // Reset loading state when navigation changes (but not on initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setIsLoading(true);
+  }, [activeNavItem]);
+
+  // Handle loading visibility with animation
+  useEffect(() => {
+    if (isLoading) {
+      setLoadingVisible(true);
+    } else {
+      // Longer delay to cover component layout stabilization
+      const stabilizationTime = 2000; // 2 seconds to allow components to fully stabilize
+      const timer = setTimeout(() => {
+        setLoadingVisible(false);
+      }, stabilizationTime);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   // Mock chart data for manager view - Daily revenue for the week
   const chartData = React.useMemo(
@@ -276,7 +303,7 @@ const RestaurantDashboardContent = () => {
     }));
   };
 
-  if (isLoading) {
+  if (!user) {
     return (
       <div className="dashboard fade-in" style={{ background: "white" }}>
         <div className="loading-screen loading-scale-in">
@@ -370,6 +397,16 @@ const RestaurantDashboardContent = () => {
         profileImg={profileImg}
       />
 
+      {/* Global loading overlay - covers entire viewport */}
+      <div
+        className={`global-loading ${loadingVisible ? "visible" : ""} ${
+          !isLoading && loadingVisible ? "fading" : ""
+        }`}
+      >
+        <div className="spinner" />
+        <p>A carregar...</p>
+      </div>
+
       <div
         className={`dashboard-content ${
           sidebarCollapsed ? "sidebar-collapsed" : ""
@@ -380,10 +417,12 @@ const RestaurantDashboardContent = () => {
           {user && (
             <Suspense
               fallback={
-                <div className="loading-component">
-                  <div className="spinner" />
-                  <p>A carregar...</p>
-                </div>
+                !loadingVisible ? (
+                  <div className="loading-component">
+                    <div className="spinner" />
+                    <p>A carregar...</p>
+                  </div>
+                ) : null
               }
             >
               {(() => {
@@ -393,23 +432,29 @@ const RestaurantDashboardContent = () => {
                 return null;
               })()}
               {activeNavItem === "Ementa" ? (
-                <MenuComponent />
+                <MenuComponent onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "Stock" ? (
-                <StockComponent />
+                <StockComponent onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "Mesas" ? (
-                <TableLayoutManager user={user} />
+                <TableLayoutManager
+                  user={user}
+                  onLoaded={() => setIsLoading(false)}
+                />
               ) : activeNavItem === "Reservas" ? (
-                <ReservationManager />
+                <ReservationManager onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "Presenças" ? (
-                <PresencasComponent />
+                <PresencasComponent onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "AI Insights" ? (
-                <AIInsightsComponent />
+                <AIInsightsComponent onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "Staff" ? (
-                <ManagerStaffView />
+                <ManagerStaffView onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "Pagamentos" ? (
-                <PayOrdersComponent />
+                <PayOrdersComponent onLoaded={() => setIsLoading(false)} />
               ) : activeNavItem === "Gamificação" ? (
-                <GamificationView user={user} />
+                <GamificationView
+                  user={user}
+                  onLoaded={() => setIsLoading(false)}
+                />
               ) : currentView ? (
                 <>
                   {isManager && currentView === "manager" ? (
@@ -423,6 +468,7 @@ const RestaurantDashboardContent = () => {
                       chartData={chartData}
                       chartConfig={chartConfig}
                       user={user}
+                      onLoaded={() => setIsLoading(false)}
                     />
                   ) : (
                     <>
@@ -435,6 +481,7 @@ const RestaurantDashboardContent = () => {
                         profileImg={profileImg}
                         onNavChange={handleNavClick}
                         user={user}
+                        onLoaded={() => setIsLoading(false)}
                       />
                     </>
                   )}

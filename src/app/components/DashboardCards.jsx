@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import {
   TrendingUp,
@@ -28,6 +28,11 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
     kitchenEfficiency: null,
     workedHours: null,
   });
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Track if this is the first render to prevent NumberFlow animation conflicts
+  const firstRenderRef = useRef(true);
 
   // Fetch real data from API (only if customMetrics not provided)
   const { socket, connected } = useWebSocketContext();
@@ -87,6 +92,15 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, [fetchStats]);
+
+  // Delay NumberFlow animation to prevent conflicts with loading screen
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+      firstRenderRef.current = false;
+    }, 800); // Wait longer for loading screen to fully fade out
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!socket || !connected) return;
@@ -203,7 +217,6 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
               key={card.id}
               className="metric-card"
               style={{
-                animationDelay: `${0.2 + index * 0.1}s`,
                 flex: "1 1 0",
                 minWidth: "0",
               }}
@@ -228,7 +241,8 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
                 <div className="metric-card__title">{card.title}</div>
                 <div className="metric-card__value">
                   <NumberFlow
-                    value={card.value || 0}
+                    key={`numberflow-${card.id}`}
+                    value={isMounted ? card.value || 0 : 0}
                     format={{
                       minimumFractionDigits:
                         card.format === "currency" || card.format === "time"

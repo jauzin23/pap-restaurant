@@ -12,6 +12,7 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  position: relative;
 
   // Global scrollbar styling for all children
   * {
@@ -49,43 +50,42 @@
     transition: transform 0.2s ease;
     animation: cardFadeIn 0.5s ease forwards;
 
-    &:hover {
-      border-color: #9ca3af;
-      background: #f9fafb;
+    @media (max-width: 1024px) {
+      padding: 1.25rem;
     }
 
-    &:focus {
-      outline: none;
-      border-color: #6b7280;
-      box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+    @media (max-width: 640px) {
+      padding: 1rem;
+      border-radius: 1rem;
     }
-
-    &:focus::after {
-      border-top-color: #374151;
-    }
-
-    @media (max-width: 480px) {
-      padding: 0.625rem 0.875rem;
-      font-size: 0.875rem;
-    }
-    p {
-      font-size: 0.875rem;
-      color: #64748b;
-      margin: 0;
-      font-weight: 500;
-    }
-  }
-
-  @media (max-width: 640px) {
-    padding: 1.25rem;
 
     .header-title-group {
       h1 {
-        font-size: 1.25rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: hsl(var(--card-foreground));
+        margin: 0 0 0.5rem 0;
       }
 
       p {
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        margin: 0;
+        font-weight: 500;
+      }
+    }
+
+    @media (max-width: 640px) {
+      padding: 1.25rem;
+
+      .header-title-group {
+        h1 {
+          font-size: 1.25rem;
+        }
+
+        p {
+          font-size: 0.8125rem;
+        }
       }
     }
   }
@@ -116,7 +116,7 @@
 .card {
   padding: 1.5rem !important;
   border-radius: 1.5rem !important;
-  border: 1px solid #d1d5db !important;
+  border: 1px solid #d1d5db;
   background: white !important;
   transition: transform 0.2s ease;
   width: 100% !important;
@@ -182,7 +182,7 @@
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 1.5rem;
+    border-radius: 0.75rem;
     color: hsl(var(--muted-foreground));
     flex-shrink: 0;
 
@@ -225,6 +225,21 @@
       }
     }
   }
+
+  .custom-select {
+    flex-shrink: 0;
+    max-width: 200px;
+
+    @media (max-width: 768px) {
+      flex-shrink: 0;
+      max-width: 150px;
+    }
+
+    @media (max-width: 480px) {
+      flex-shrink: 0;
+      max-width: 120px;
+    }
+  }
 }
 
 // Month Select Container
@@ -232,7 +247,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   height: fit-content;
 
   // Remove all custom select styles to avoid conflict with AntD Select
@@ -250,7 +265,7 @@
 
   .generate-info {
     .generate-description {
-      font-size: 0.9375rem;
+      font-size: 1rem;
       color: #64748b;
       margin-bottom: 1.5rem;
       line-height: 1.5;
@@ -275,11 +290,11 @@
         display: flex;
         align-items: center;
         gap: 0.625rem;
-        font-size: 0.875rem;
+        font-size: 1rem;
         color: #64748b;
         font-weight: 500;
         border-radius: 1.5rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid #e2e8f0;
         padding: 1rem 2rem;
 
         svg {
@@ -302,7 +317,7 @@
 
     background: transparent;
     color: #6b7280;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e2e8f0;
     font-weight: 500;
     font-size: 13px;
     transition: all 0.2s ease;
@@ -344,7 +359,7 @@
 
   .insight-item {
     background: #fafafa;
-    border: 1.5px solid #e5e7eb;
+    border: 1.5px solid #e2e8f0;
     border-radius: 1rem;
     padding: 1rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -456,7 +471,7 @@
 
           background: transparent;
           color: #6b7280;
-          border: 1px solid #e5e7eb;
+          border: 1px solid #e2e8f0;
           font-weight: 500;
           font-size: 13px;
           transition: all 0.2s ease;
@@ -528,14 +543,14 @@
   }
 
   h4 {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: #1e293b;
     margin: 0;
   }
 
   p {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #64748b;
     margin: 0;
     max-width: 300px;
@@ -561,7 +576,7 @@
   }
 
   p {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #64748b;
     margin: 0;
     font-weight: 500;
@@ -588,7 +603,7 @@
   }
 
   h3 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: #1e293b;
     margin: 0;
@@ -597,7 +612,7 @@
   p {
     color: #64748b;
     margin: 0;
-    font-size: 0.9375rem;
+    font-size: 1rem;
     max-width: 400px;
   }
 }
@@ -641,7 +656,7 @@
 
     .insight-modal-header {
       padding: 1.5rem 2rem;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -786,7 +801,7 @@
   }
 
   .insights-list .insight-item .insight-info h4 {
-    font-size: 0.875rem;
+    font-size: 1rem;
   }
 }
 
@@ -912,14 +927,13 @@ body > .insight-modal-overlay {
 
 .insight-modal-header {
   padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
 
   h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: 1.5rem;
     color: #1e293b;
     margin: 0;
     display: flex;
@@ -1034,7 +1048,7 @@ body > .insight-modal-overlay {
       text-align: center;
       margin-bottom: 2rem;
       padding: 0 0 1rem 0;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e2e8f0;
 
       h3 {
         display: flex;
@@ -1146,4 +1160,18 @@ body > .insight-modal-overlay {
     max-height: 400px;
     overflow-y: auto;
   }
+}
+
+// Loading state overlay
+.loading-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
 }

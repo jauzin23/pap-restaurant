@@ -14,7 +14,7 @@ import DevicesPanel from "../presencas/components/DevicesPanel";
 import CardEnrollment from "../presencas/components/CardEnrollment";
 import AttendanceStats from "../presencas/components/AttendanceStats";
 
-export default function PresencasComponent() {
+export default function PresencasComponent({ onLoaded }) {
   const router = useRouter();
   const { socket, connected } = useWebSocketContext();
 
@@ -36,6 +36,9 @@ export default function PresencasComponent() {
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Track if onLoaded has been called to prevent multiple calls
+  const onLoadedCalled = React.useRef(false);
 
   // Carregar presenças de hoje
   const loadPresencasHoje = async () => {
@@ -166,8 +169,16 @@ export default function PresencasComponent() {
   useEffect(() => {
     if (!user) return;
 
-    loadPresencasHoje();
-    loadDispositivos();
+    const loadData = async () => {
+      await Promise.all([loadPresencasHoje(), loadDispositivos()]);
+      // Only call onLoaded once during initial load
+      if (onLoaded && !onLoadedCalled.current) {
+        onLoadedCalled.current = true;
+        onLoaded();
+      }
+    };
+
+    loadData();
 
     // Refresh a cada 30 segundos
     const interval = setInterval(() => {
@@ -176,7 +187,7 @@ export default function PresencasComponent() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, onLoaded]);
 
   // WebSocket: Escutar atualizações de presenças
   useEffect(() => {
@@ -251,17 +262,6 @@ export default function PresencasComponent() {
     setSelectedDevice(device);
     setShowEnrollmentModal(true);
   };
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="presencas-component">
-        <div style={{ textAlign: "center", padding: "3rem" }}>
-          <p>A carregar...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Unauthorized - should not happen due to redirect, but just in case
   if (!user) {

@@ -68,7 +68,7 @@ const apiRequest = async (endpoint, options = {}) => {
   return response.json();
 };
 
-export default function MenuComponent() {
+export default function MenuComponent({ onLoaded }) {
   const { socket, connected } = useWebSocketContext();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +83,9 @@ export default function MenuComponent() {
   const [filterIngredient, setFilterIngredient] = useState("");
   const [sortBy, setSortBy] = useState("created"); // created, name, price-asc, price-desc
   const [pageSize, setPageSize] = useState(10);
+
+  // Track if onLoaded has been called to prevent multiple calls
+  const onLoadedCalled = useRef(false);
 
   // Collections data
   const [availableTags, setAvailableTags] = useState([]);
@@ -156,7 +159,11 @@ export default function MenuComponent() {
   }, []);
 
   const fetchMenu = useCallback(async () => {
-    setLoading(true);
+    // Don't set loading=true during initial load - global loading handles this
+    // Only set loading=true for refresh cycles
+    if (onLoadedCalled.current) {
+      setLoading(true);
+    }
     try {
       const data = await apiRequest("/menu");
       if (data) {
@@ -171,7 +178,12 @@ export default function MenuComponent() {
       setMenuItems([]);
     }
     setLoading(false);
-  }, []);
+    // Only call onLoaded once during initial load
+    if (onLoaded && !onLoadedCalled.current) {
+      onLoadedCalled.current = true;
+      onLoaded();
+    }
+  }, [onLoaded]);
 
   // Function to get image URL for menu item
   const getImageUrl = useCallback((imageId) => {
@@ -831,10 +843,6 @@ export default function MenuComponent() {
               Tentar Novamente
             </button>
           </div>
-        ) : loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>A carregar...
-          </div>
         ) : menuItems.length === 0 ? (
           <div
             style={{
@@ -866,7 +874,10 @@ export default function MenuComponent() {
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 onSearch={(value) => setSearchText(value)}
-                style={{ flex: "1 1 300px", minWidth: "250px" }}
+                style={{
+                  flex: "1 1 300px",
+                  minWidth: "250px",
+                }}
                 allowClear
               />
               <Select

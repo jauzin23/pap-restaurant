@@ -25,7 +25,14 @@ import "./StaffView.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-const StaffView = ({ username, userLabels, profileImg, onNavChange, user }) => {
+const StaffView = ({
+  username,
+  userLabels,
+  profileImg,
+  onNavChange,
+  user,
+  onLoaded,
+}) => {
   const { socket, connected } = useWebSocketContext();
 
   // Mock data for staff view
@@ -46,6 +53,8 @@ const StaffView = ({ username, userLabels, profileImg, onNavChange, user }) => {
     status: "offline",
     isWorking: false,
   });
+
+  const [loading, setLoading] = useState(true);
 
   // Fetch staff attendance data
   const fetchStaffData = React.useCallback(async () => {
@@ -202,9 +211,14 @@ const StaffView = ({ username, userLabels, profileImg, onNavChange, user }) => {
 
   // Simulate real-time updates
   useEffect(() => {
-    fetchStaffData();
-    fetchLatestOrders();
-    fetchCurrentUserShift();
+    const loadData = async () => {
+      await Promise.all([fetchStaffData(), fetchLatestOrders()]);
+      await fetchCurrentUserShift();
+      setLoading(false);
+      if (onLoaded) onLoaded();
+    };
+
+    loadData();
 
     const interval = setInterval(() => {
       setStaffStats((prev) => ({
@@ -223,7 +237,7 @@ const StaffView = ({ username, userLabels, profileImg, onNavChange, user }) => {
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, [fetchStaffData, fetchLatestOrders, fetchCurrentUserShift]);
+  }, [fetchStaffData, fetchLatestOrders, fetchCurrentUserShift, onLoaded]);
 
   // Update shift duration in real-time
   useEffect(() => {
@@ -289,6 +303,11 @@ const StaffView = ({ username, userLabels, profileImg, onNavChange, user }) => {
 
   return (
     <div className="staff-view">
+      {loading && (
+        <div className="loading-state">
+          <div className="spinner"></div>
+        </div>
+      )}
       {/* Section Header */}
       <div className="manager-section-header">
         <div className="header-title-group">

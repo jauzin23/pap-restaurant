@@ -77,7 +77,7 @@ const apiCall = async (endpoint, options = {}) => {
   return response.json();
 };
 
-export default function StockComponent() {
+export default function StockComponent({ onLoaded }) {
   // Tab state
   const [activeTab, setActiveTab] = useState("items"); // "items" | "warehouses" | "suppliers"
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
@@ -179,6 +179,9 @@ export default function StockComponent() {
   const [croppedImageBlob, setCroppedImageBlob] = useState(null);
   const cropperRef = useRef(null);
   const [editingItemImageId, setEditingItemImageId] = useState(null); // Track which item we're editing image for
+
+  // Track if onLoaded has been called to prevent multiple calls
+  const onLoadedCalled = useRef(false);
 
   // Background removal states
   const [removingBackground, setRemovingBackground] = useState(false);
@@ -733,9 +736,11 @@ export default function StockComponent() {
   }, []);
 
   const fetchStock = useCallback(async () => {
-    if (loading) return;
-
-    setLoading(true);
+    // Don't set loading=true during initial load - global loading handles this
+    // Only set loading=true for refresh cycles
+    if (onLoadedCalled.current) {
+      setLoading(true);
+    }
     try {
       const response = await apiCall("/stock/items");
       setStockItems(response.documents || []);
@@ -745,8 +750,13 @@ export default function StockComponent() {
       setStockItems([]);
     } finally {
       setLoading(false);
+      // Only call onLoaded once during initial load
+      if (onLoaded && !onLoadedCalled.current) {
+        onLoadedCalled.current = true;
+        onLoaded();
+      }
     }
-  }, [loading]);
+  }, [onLoaded]);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -1620,6 +1630,12 @@ export default function StockComponent() {
 
   return (
     <div className="stock-component">
+      {loading && (
+        <div className="loading-state">
+          <RefreshCw className="animate-spin" size={32} />
+          <p>A carregar...</p>
+        </div>
+      )}
       {/* Main Container */}
       <div className="stock-container">
         {/* Header Card */}
@@ -2717,12 +2733,7 @@ export default function StockComponent() {
                 </div>
 
                 <div className="warehouse-inventory-content">
-                  {loading ? (
-                    <div className="loading-state">
-                      <RefreshCw className="animate-spin" size={32} />
-                      <p>A carregar inventário...</p>
-                    </div>
-                  ) : warehouseInventory.length === 0 ? (
+                  {warehouseInventory.length === 0 ? (
                     <div className="empty-state">
                       <Package size={64} />
                       <h3>Sem items neste armazém</h3>
@@ -4039,8 +4050,6 @@ export default function StockComponent() {
                           height: "80px",
                           borderRadius: "8px",
                           objectFit: "contain",
-                          border: "1px solid #e5e7eb",
-                          backgroundColor: "white",
                         }}
                       />
                     ) : (

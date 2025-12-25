@@ -47,11 +47,6 @@
     font-weight: 700;
     margin-bottom: 1rem;
 
-    opacity: 0;
-    transform: translateY(10px);
-    animation: fadeInUp 0.5s ease forwards;
-    animation-delay: 0.15s;
-
     @media (max-width: 1400px) {
       font-size: 1.25rem;
       line-height: 1.75rem;
@@ -83,9 +78,6 @@
   border-radius: 1.5rem;
   border: 1px solid #d1d5db;
   transition: transform 0.2s ease;
-  opacity: 0;
-  transform: translateY(10px);
-  animation: fadeInUp 0.5s ease forwards;
 
   &:hover {
     transform: translateY(-2px);
@@ -197,28 +189,5 @@
     @media (max-width: 480px) {
       font-size: 0.65rem;
     }
-  }
-}
-
-// Animations
-@keyframes cardFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }

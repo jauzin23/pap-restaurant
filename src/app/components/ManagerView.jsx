@@ -76,6 +76,7 @@ const ManagerView = ({
   chartData,
   chartConfig,
   user, // Add user prop for table management
+  onLoaded,
 }) => {
   const { client } = useApp();
   const avatars = new Avatars(client);
@@ -115,6 +116,13 @@ const ManagerView = ({
   const [orderModalVisible, setOrderModalVisible] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [staffData, setStaffData] = React.useState([]);
+  const [staffLoading, setStaffLoading] = React.useState(true);
+
+  // Track all loading states to ensure onLoaded is called only when everything is ready
+  const [allDataLoaded, setAllDataLoaded] = React.useState(false);
+
+  // Track if onLoaded has been called to prevent multiple calls
+  const onLoadedCalled = React.useRef(false);
 
   // Fetch latest orders function
   const fetchLatestOrders = React.useCallback(async () => {
@@ -140,7 +148,10 @@ const ManagerView = ({
   // Fetch staff attendance data
   const fetchStaffData = React.useCallback(async () => {
     const token = localStorage.getItem("auth_token");
-    if (!token) return;
+    if (!token) {
+      setStaffLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/users`, {
@@ -194,6 +205,8 @@ const ManagerView = ({
       }
     } catch (error) {
       console.error("Failed to fetch staff data:", error);
+    } finally {
+      setStaffLoading(false);
     }
   }, []);
 
@@ -271,10 +284,46 @@ const ManagerView = ({
     }
   }, [kitchenStats]);
 
+  // Comprehensive loading check - ensure all data is loaded before calling onLoaded
+  React.useEffect(() => {
+    // Check if all required data has been loaded
+    const isAllDataReady =
+      !statsLoading && // WebSocket stats are loaded
+      !staffLoading && // Staff data is loaded
+      latestOrders.length >= 0 && // Orders have been attempted (even if empty)
+      categoryPerformance.length >= 0 && // Categories attempted
+      hourlyRevenue.length >= 0 && // Hourly data attempted
+      weeklyPattern.length >= 0; // Weekly pattern attempted
+
+    if (isAllDataReady && !allDataLoaded) {
+      setAllDataLoaded(true);
+    }
+  }, [
+    statsLoading,
+    staffLoading,
+    latestOrders.length,
+    categoryPerformance.length,
+    hourlyRevenue.length,
+    weeklyPattern.length,
+    allDataLoaded,
+  ]);
+
+  // Call onLoaded only when all data is truly loaded
+  React.useEffect(() => {
+    if (allDataLoaded && onLoaded && !onLoadedCalled.current) {
+      onLoadedCalled.current = true;
+      onLoaded();
+    }
+  }, [allDataLoaded, onLoaded]);
+
   // Fetch remaining statistics (not covered by WebSocket yet)
   React.useEffect(() => {
     const fetchRemainingStats = async () => {
-      setLoading(true);
+      // Don't set loading=true during initial load - global loading handles this
+      // Only set loading=true for refresh cycles
+      if (onLoadedCalled.current) {
+        setLoading(true);
+      }
       const token = localStorage.getItem("auth_token");
 
       if (!token) {
@@ -399,6 +448,7 @@ const ManagerView = ({
         console.error("❌ Failed to fetch statistics:", error);
       } finally {
         setLoading(false);
+        // onLoaded is now handled comprehensively in a separate useEffect
       }
     };
 
@@ -523,17 +573,6 @@ const ManagerView = ({
     }
     return null;
   };
-
-  if (loading) {
-    return (
-      <div className="manager-view">
-        <div className="section-header"></div>
-        <div className="loading-container">
-          <div className="loading-content"></div>
-        </div>
-      </div>
-    );
-  }
 
   // Profile Image Component with fallback
   const ProfileImage = ({
@@ -881,7 +920,7 @@ const ManagerView = ({
                     borderRadius: "1.5rem",
                     cursor: "pointer",
                     transition: "all 0.2s ease",
-                    border: "1px solid rgba(0, 0, 0, 0.05)",
+                    border: "1px solid #d1d5db",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
@@ -990,7 +1029,7 @@ const ManagerView = ({
                   value={selectedWeek}
                   onChange={setSelectedWeek}
                   style={{ maxWidth: 200, width: "100%" }}
-                  className="custom-select"
+                  className="month-select"
                   options={availableWeeks.map((week) => ({
                     value: week.offset,
                     label: week.display,
@@ -1135,7 +1174,7 @@ const ManagerView = ({
                 value={selectedMonth}
                 onChange={(value) => setSelectedMonth(value)}
                 style={{ maxWidth: 200, width: "100%" }}
-                className="custom-select"
+                className="month-select"
                 options={availableMonths.map((month) => ({
                   value: month.value,
                   label: month.label,

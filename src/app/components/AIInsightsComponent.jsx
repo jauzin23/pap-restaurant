@@ -23,7 +23,7 @@ import "./AIInsightsComponent.scss";
 import ComponentRenderer from "../restaurant-analysis/ComponentRenderer";
 import "../restaurant-analysis/restaurant-analysis.scss";
 
-const AIInsightsComponent = () => {
+const AIInsightsComponent = ({ onLoaded }) => {
   const [months, setMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [insights, setInsights] = useState([]);
@@ -38,6 +38,9 @@ const AIInsightsComponent = () => {
     open: false,
     insight: null,
   });
+
+  // Track if onLoaded has been called to prevent multiple calls
+  const onLoadedCalled = React.useRef(false);
 
   // Memoize WebSocket callbacks to prevent re-renders
   const handleInsightCreated = useCallback(
@@ -123,13 +126,22 @@ const AIInsightsComponent = () => {
 
   const fetchMonths = async () => {
     try {
-      setLoading(true);
+      // Don't set loading=true during initial load - global loading handles this
+      // Only set loading=true for refresh cycles
+      if (onLoadedCalled.current) {
+        setLoading(true);
+      }
       const response = await apiRequest("/api/ia/meses-disponiveis");
       setMonths(response);
     } catch (error) {
       console.error("Erro ao buscar meses:", error);
     } finally {
       setLoading(false);
+      // Only call onLoaded once during initial load
+      if (onLoaded && !onLoadedCalled.current) {
+        onLoadedCalled.current = true;
+        onLoaded();
+      }
     }
   };
 
@@ -294,7 +306,7 @@ const AIInsightsComponent = () => {
       <div className="manager-section-header">
         <div className="header-title-group">
           <h1>Inteligência Artificial</h1>
-          <p>Analise os dados do seu restaurante com insights gerados por IA</p>
+          <p>Analise os dados do seu restaurante com Inteligência Artificial</p>
         </div>
       </div>
 
@@ -310,7 +322,7 @@ const AIInsightsComponent = () => {
               </div>
               <div className="card-header-text">
                 <h3>Selecionar Período</h3>
-                <p>Escolha o mês para visualizar ou gerar insights de IA</p>
+                <p>Escolha o mês para visualizar ou gerar análises</p>
               </div>
             </div>
 
@@ -527,8 +539,7 @@ const AIInsightsComponent = () => {
                   <FileText size={20} />
                 </div>
                 <div className="card-header-text">
-                  <h3>Insights</h3>
-                  <p>Selecione um mês para visualizar os insights</p>
+                  <h3>Análises</h3>
                 </div>
               </div>
 
@@ -538,7 +549,7 @@ const AIInsightsComponent = () => {
                 </div>
                 <h4>Selecione um período</h4>
                 <p>
-                  Escolha um mês no painel lateral para ver os insights
+                  Escolha um mês no painel lateral para ver as análises
                   disponíveis
                 </p>
               </div>

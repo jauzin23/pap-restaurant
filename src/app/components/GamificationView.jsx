@@ -46,7 +46,7 @@ import {
 } from "recharts";
 import "./GamificationView.scss";
 
-const GamificationView = ({ user }) => {
+const GamificationView = ({ user, onLoaded }) => {
   const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState("week");
   const [selectedMonth, setSelectedMonth] = useState(null);
@@ -54,6 +54,7 @@ const GamificationView = ({ user }) => {
   const [isManager] = useState(
     () => user?.labels?.includes("manager") || false
   );
+  const [dataLoaded, setDataLoaded] = useState(false);
   const { leaderboard, globalStats, loading } = usePointsData(
     null,
     selectedPeriod,
@@ -72,27 +73,11 @@ const GamificationView = ({ user }) => {
 
   // Debug logging
   useEffect(() => {
-    if (!analyticsLoading) {
-      console.log("📊 Analytics Data:", {
-        timeline: timeline?.length,
-        topActions: topActions?.length,
-        activeDays: activeDays?.length,
-        velocity: velocity?.length,
-        hourlyPattern: hourlyPattern?.length,
-        rankHistory: rankHistory?.length,
-        milestones: milestones?.length,
-      });
+    if (!analyticsLoading && !loading) {
+      setDataLoaded(true);
+      if (onLoaded && !dataLoaded) onLoaded();
     }
-  }, [
-    analyticsLoading,
-    timeline,
-    topActions,
-    activeDays,
-    velocity,
-    hourlyPattern,
-    rankHistory,
-    milestones,
-  ]);
+  }, [analyticsLoading, loading, onLoaded, dataLoaded]);
 
   const periods = [
     { value: "day", label: "Hoje" },
@@ -182,17 +167,6 @@ const GamificationView = ({ user }) => {
     }
     return null;
   };
-
-  if (loading || analyticsLoading) {
-    return (
-      <div className="gamification-view">
-        <div className="loading-container">
-          <div className="spinner" />
-          <p>A carregar dashboard...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="gamification-view">

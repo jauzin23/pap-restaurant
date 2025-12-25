@@ -42,6 +42,7 @@ import {
 import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import { throttle } from "../../lib/throttle";
 import NumberFlow from "@number-flow/react";
+import { BrowserQRCodeReader } from "@zxing/browser";
 import "./TableLayout.scss";
 
 /**
@@ -105,6 +106,7 @@ interface Layout {
 interface TableLayoutManagerProps {
   user: any;
   onOrderCreate?: () => void;
+  onLoaded?: () => void;
 }
 
 const useOptimizedDrag = (
@@ -360,6 +362,7 @@ const convertDbLayoutToComponent = (dbLayout: any): Layout => {
 const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   user,
   onOrderCreate,
+  onLoaded,
 }) => {
   const router = useRouter();
   const { socket, connected } = useWebSocketContext();
@@ -402,6 +405,13 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [showTakeawayModal, setShowTakeawayModal] = useState(false);
+  const [qrModal, setQrModal] = useState({
+    open: false,
+    takeawayId: null,
+    success: false,
+  });
+  const [qrError, setQrError] = useState("");
+  const [qrLoading, setQrLoading] = useState(false);
   const [tableAnimations, setTableAnimations] = useState<
     Record<string, "entering" | "moving" | "exiting" | null>
   >({});
@@ -431,10 +441,16 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
   // Load layouts from API on component mount
   useEffect(() => {
-    loadLayouts();
-    loadAllTablesAndOrders();
-    loadMenuItems();
-  }, []);
+    const loadData = async () => {
+      await Promise.all([
+        loadLayouts(),
+        loadAllTablesAndOrders(),
+        loadMenuItems(),
+      ]);
+      if (onLoaded) onLoaded();
+    };
+    loadData();
+  }, [onLoaded]);
 
   // Close modal if selected table has no active orders after ordersData updates
   useEffect(() => {
@@ -775,6 +791,61 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     } else {
       setIsCreatingOrder(true);
       router.push("/order/takeaway");
+    }
+  };
+
+  // Handle QR scan for takeaway delivery
+  const handleQrScan = async (scanned: string) => {
+    setQrError("");
+    if (!qrModal.takeawayId) return;
+    setQrLoading(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE_URL}/takeaway/${qrModal.takeawayId}/verify-qr`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ qrToken: scanned }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        // Show success state
+        setQrModal((prev) => ({ ...prev, success: true }));
+        setQrLoading(false);
+
+        // Update local state
+        setTakeawayOrders((prev) =>
+          prev.filter((o) => (o.id || o.$id) !== qrModal.takeawayId)
+        );
+
+        // Close modals after 2 seconds
+        setTimeout(() => {
+          setQrModal({ open: false, takeawayId: null, success: false });
+          // Close takeaway modal if no orders left
+          if (takeawayOrders.length <= 1) {
+            setShowTakeawayModal(false);
+          }
+          // Refetch to ensure sync
+          loadAllTablesAndOrders();
+        }, 2000);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setQrError(
+          errorData.error || "QR code inválido ou erro de verificação."
+        );
+      }
+    } catch (err) {
+      setQrError(
+        err instanceof Error ? err.message : "Erro de rede. Tente novamente."
+      );
+    } finally {
+      setQrLoading(false);
     }
   };
 
@@ -1631,13 +1702,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
   return (
     <div className="table-layout-manager">
-      {isLoading && (
-        <div className="loading-overlay">
-          <Loader2 className="spinner" size={32} />
-          <span>A carregar layouts...</span>
-        </div>
-      )}
-
       {isCreatingOrder && (
         <div className="loading-overlay">
           <Loader2 className="spinner" size={32} />
@@ -2555,24 +2619,12 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                                 ) : (
                                   <button
                                     className="action-btn complete-btn"
-                                    onClick={async () => {
-                                      try {
-                                        await takeawayApi.complete(
-                                          order.id || order.$id
-                                        );
-                                        setTakeawayOrders((prev) =>
-                                          prev.filter(
-                                            (o) =>
-                                              (o.id || o.$id) !==
-                                              (order.id || order.$id)
-                                          )
-                                        );
-                                      } catch (error) {
-                                        console.error(
-                                          "Failed to complete takeaway order:",
-                                          error
-                                        );
-                                      }
+                                    onClick={() => {
+                                      setQrModal({
+                                        open: true,
+                                        takeawayId: order.id || order.$id,
+                                        success: false,
+                                      });
                                     }}
                                   >
                                     <Check size={14} />
@@ -2603,6 +2655,20 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                 document.body
               )
             : null}
+          {/* QR Scan Modal for Takeaway Delivery */}
+          {qrModal.open && (
+            <QRScanModal
+              open={qrModal.open}
+              onClose={() => {
+                setQrModal({ open: false, takeawayId: null, success: false });
+                setQrError("");
+              }}
+              onScan={handleQrScan}
+              errorText={qrError}
+              loading={qrLoading}
+              success={qrModal.success}
+            />
+          )}
           {/* Order Details Modal - Rendered via Portal to bypass stacking context */}
           {showOrderModal &&
           typeof window !== "undefined" &&
@@ -3555,6 +3621,121 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     </div>
   );
 };
+
+// QR Scan Modal Component for Takeaway Delivery
+interface QRScanModalProps {
+  open: boolean;
+  onClose: () => void;
+  onScan: (scanned: string) => void;
+  errorText: string;
+  loading: boolean;
+  success?: boolean;
+}
+
+const QRScanModal: React.FC<QRScanModalProps> = ({
+  open,
+  onClose,
+  onScan,
+  errorText,
+  loading,
+  success = false,
+}) => {
+  if (!open) return null;
+
+  return createPortal(
+    <div className="qr-scan-modal-overlay">
+      <div className="qr-scan-modal-content">
+        {success ? (
+          // Success state
+          <div className="qr-scan-modal-body qr-scan-success">
+            <div className="qr-scan-success-icon">
+              <Check size={48} />
+            </div>
+            <h3>Pedido Confirmado!</h3>
+            <p>O pedido takeaway foi entregue com sucesso.</p>
+          </div>
+        ) : (
+          // Scanning state
+          <>
+            <div className="qr-scan-modal-header">
+              <h2>Verificar QR Code - Entrega Takeaway</h2>
+              <button onClick={onClose} className="qr-scan-modal-close">
+                &times;
+              </button>
+            </div>
+            <div className="qr-scan-modal-body">
+              <QRScanZXingComponent onScan={onScan} freeze={loading} />
+              {errorText && <div className="qr-scan-error">{errorText}</div>}
+              <div className="qr-scan-instructions">
+                Aponte a câmera para o QR code enviado por email ao cliente.
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// QR Reader Component using ZXing
+interface QRScanZXingComponentProps {
+  onScan: (scanned: string) => void;
+  freeze: boolean;
+}
+
+function QRScanZXingComponent({ onScan, freeze }: QRScanZXingComponentProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsRef = useRef<any>(null);
+
+  useEffect(() => {
+    let codeReader: BrowserQRCodeReader | undefined;
+    let active = true;
+
+    const startScan = async () => {
+      if (videoRef.current && !freeze) {
+        try {
+          codeReader = new BrowserQRCodeReader();
+          const controls = await codeReader.decodeFromVideoDevice(
+            undefined,
+            videoRef.current,
+            (result, err) => {
+              if (result && active) {
+                onScan(result.getText());
+                active = false;
+                if (controlsRef.current) {
+                  controlsRef.current.stop();
+                }
+              }
+            }
+          );
+          controlsRef.current = controls;
+        } catch (error) {
+          console.error("QR Scanner error:", error);
+        }
+      }
+    };
+
+    startScan();
+
+    return () => {
+      active = false;
+      if (controlsRef.current) {
+        controlsRef.current.stop();
+      }
+      // Note: BrowserQRCodeReader doesn't have a reset method
+    };
+  }, [onScan, freeze]);
+
+  return (
+    <div className="qr-scan-video-container">
+      <video ref={videoRef} className="qr-scan-video" />
+      {freeze && (
+        <div className="qr-scan-freeze-overlay">Verificando QR...</div>
+      )}
+    </div>
+  );
+}
 
 interface TableComponentProps {
   table: Table;

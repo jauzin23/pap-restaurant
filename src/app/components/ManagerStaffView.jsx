@@ -25,7 +25,7 @@ import "./ManagerStaffView.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-const ManagerStaffView = () => {
+const ManagerStaffView = ({ onLoaded }) => {
   // WebSocket context
   const { socket, connected } = useWebSocketContext();
 
@@ -135,25 +135,28 @@ const ManagerStaffView = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const loadCurrentUser = async () => {
-      try {
-        const user = await auth.get();
-        setCurrentUser(user);
-        const userIsManager =
-          user.labels?.includes("manager") ||
-          user.labels?.includes("Manager") ||
-          user.labels?.includes("gerente") ||
-          user.labels?.includes("Gerente");
-        setIsManager(userIsManager);
-      } catch (error) {
-        console.error("Error loading current user:", error);
-      }
-    };
-
-    loadCurrentUser();
-    loadStaffData();
+  const loadCurrentUser = useCallback(async () => {
+    try {
+      const user = await auth.get();
+      setCurrentUser(user);
+      const userIsManager =
+        user.labels?.includes("manager") ||
+        user.labels?.includes("Manager") ||
+        user.labels?.includes("gerente") ||
+        user.labels?.includes("Gerente");
+      setIsManager(userIsManager);
+    } catch (error) {
+      console.error("Error loading current user:", error);
+    }
   }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      await Promise.all([loadCurrentUser(), loadStaffData()]);
+      if (onLoaded) onLoaded();
+    };
+    loadData();
+  }, [onLoaded, loadCurrentUser, loadStaffData]);
 
   // WebSocket real-time updates
   useEffect(() => {
@@ -485,17 +488,6 @@ const ManagerStaffView = () => {
       ),
     },
   ];
-
-  if (isLoading) {
-    return (
-      <div className="manager-staff-view">
-        <div className="loading-state">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">A carregar equipa...</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="manager-staff-view">
