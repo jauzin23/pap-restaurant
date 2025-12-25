@@ -49,7 +49,9 @@ export function useAIInsightsWebSocket(callbacks = {}) {
     });
 
     // Remove existing listeners to prevent duplicates
-    Object.values(listenersRef.current).forEach(removeListener => removeListener());
+    Object.values(listenersRef.current).forEach((removeListener) =>
+      removeListener()
+    );
     listenersRef.current = {};
 
     // Connection events
@@ -65,14 +67,16 @@ export function useAIInsightsWebSocket(callbacks = {}) {
       onDisconnected?.(reason);
     };
     socket.on("disconnect", disconnectListener);
-    listenersRef.current.disconnect = () => socket.off("disconnect", disconnectListener);
+    listenersRef.current.disconnect = () =>
+      socket.off("disconnect", disconnectListener);
 
     const errorListener = (error) => {
       console.error("[AIInsightsWebSocket] Connection error:", error.message);
       onError?.(error);
     };
     socket.on("connect_error", errorListener);
-    listenersRef.current.connect_error = () => socket.off("connect_error", errorListener);
+    listenersRef.current.connect_error = () =>
+      socket.off("connect_error", errorListener);
 
     // AI Insights events
     const insightGeneratedListener = (insight) => {
@@ -80,21 +84,24 @@ export function useAIInsightsWebSocket(callbacks = {}) {
       onInsightCreated?.(insight);
     };
     socket.on("insight:generated", insightGeneratedListener);
-    listenersRef.current["insight:generated"] = () => socket.off("insight:generated", insightGeneratedListener);
+    listenersRef.current["insight:generated"] = () =>
+      socket.off("insight:generated", insightGeneratedListener);
 
     const insightUpdatedListener = (insight) => {
       console.log("[AIInsightsWebSocket] 🔄 Insight updated:", insight.id);
       onInsightUpdated?.(insight);
     };
     socket.on("insight:updated", insightUpdatedListener);
-    listenersRef.current["insight:updated"] = () => socket.off("insight:updated", insightUpdatedListener);
+    listenersRef.current["insight:updated"] = () =>
+      socket.off("insight:updated", insightUpdatedListener);
 
     const insightDeletedListener = (data) => {
       console.log("[AIInsightsWebSocket] 🗑️ Insight deleted:", data.id);
       onInsightDeleted?.(data);
     };
     socket.on("insight:deleted", insightDeletedListener);
-    listenersRef.current["insight:deleted"] = () => socket.off("insight:deleted", insightDeletedListener);
+    listenersRef.current["insight:deleted"] = () =>
+      socket.off("insight:deleted", insightDeletedListener);
 
     socketRef.current = socket;
   }, [
@@ -110,7 +117,9 @@ export function useAIInsightsWebSocket(callbacks = {}) {
 
   const disconnect = useCallback(() => {
     // Remove all listeners
-    Object.values(listenersRef.current).forEach(removeListener => removeListener());
+    Object.values(listenersRef.current).forEach((removeListener) =>
+      removeListener()
+    );
     listenersRef.current = {};
 
     if (socketRef.current) {
