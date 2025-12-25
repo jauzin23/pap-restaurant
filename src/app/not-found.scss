@@ -1,0 +1,91 @@
+.notfound-root {
+  min-height: 100vh;
+  width: 100vw;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  overflow: hidden;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
+}
+
+.notfound-content {
+  z-index: 2;
+  background: #fff;
+  border-radius: 2rem;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  padding: 3rem 2.5rem 2.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: cardFadeIn 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.icon-wrapper {
+  background: #f1f5f9;
+  border-radius: 50%;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notfound-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+
+.notfound-subtitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 1.25rem 0;
+  text-align: center;
+}
+
+.notfound-desc {
+  color: #64748b;
+  font-size: 1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.notfound-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  border-radius: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.notfound-btn:hover {
+  border: 1px solid #cbd5e1;
+}
+
+@media (max-width: 600px) {
+  .notfound-content {
+    padding: 2rem 1rem 1.5rem 1rem;
+    border-radius: 1rem;
+  }
+  .notfound-title {
+    font-size: 2.2rem;
+  }
+}

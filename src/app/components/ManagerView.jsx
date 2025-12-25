@@ -878,7 +878,7 @@ const ManagerView = ({
                     padding: "1rem",
                     marginBottom: "0.75rem",
                     background: "rgba(0, 0, 0, 0.02)",
-                    borderRadius: "12px",
+                    borderRadius: "1.5rem",
                     cursor: "pointer",
                     transition: "all 0.2s ease",
                     border: "1px solid rgba(0, 0, 0, 0.05)",

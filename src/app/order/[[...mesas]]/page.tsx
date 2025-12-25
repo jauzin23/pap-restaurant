@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -400,7 +401,7 @@ function PedidoPageContent({
 
       setOrderSuccess(true);
       setTimeout(() => {
-        router.push("/pagina-teste-new");
+        router.push("/");
       }, 2000);
     } catch (error) {
       console.error("Error creating order:", error);
@@ -409,7 +410,7 @@ function PedidoPageContent({
   };
 
   const cancelOrder = () => {
-    router.push("/pagina-teste-new ");
+    router.push("/ ");
   };
 
   if (loading || isLoading) {
@@ -524,7 +525,20 @@ function PedidoPageContent({
                       >
                         <div className="menu-card-image">
                           {imageUrl ? (
-                            <img src={imageUrl} alt={item.nome} />
+                            <Image
+                              src={imageUrl}
+                              alt={item.nome}
+                              width={180}
+                              height={140}
+                              placeholder="blur"
+                              blurDataURL="data:image/svg+xml,%3Csvg width='180' height='140' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='180' height='140' fill='%23f3f3f3'/%3E%3C/svg%3E"
+                              className="menu-img-blur"
+                              style={{
+                                objectFit: "contain",
+                                width: "100%",
+                                height: "100%",
+                              }}
+                            />
                           ) : (
                             <div className="no-image">
                               <UtensilsCrossed size={32} />
@@ -589,7 +603,20 @@ function PedidoPageContent({
                       <div key={item.orderItemId} className="order-item">
                         <div className="order-item-image">
                           {imageUrl ? (
-                            <img src={imageUrl} alt={item.nome} />
+                            <Image
+                              src={imageUrl}
+                              alt={item.nome}
+                              width={60}
+                              height={60}
+                              placeholder="blur"
+                              blurDataURL="data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='60' height='60' fill='%23f3f3f3'/%3E%3C/svg%3E"
+                              className="menu-img-blur"
+                              style={{
+                                objectFit: "contain",
+                                width: "100%",
+                                height: "100%",
+                              }}
+                            />
                           ) : (
                             <div className="no-image-small">
                               <UtensilsCrossed size={20} />

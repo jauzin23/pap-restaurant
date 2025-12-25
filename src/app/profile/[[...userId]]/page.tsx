@@ -364,7 +364,7 @@ function ProfilePageContent({
   };
 
   const goBack = () => {
-    router.push("/pagina-teste-new");
+    router.push("/");
   };
 
   const handleDeleteUser = async () => {
@@ -384,7 +384,7 @@ function ProfilePageContent({
       if (response.ok) {
         showToast("Utilizador eliminado com sucesso", "success");
         setTimeout(() => {
-          router.push("/pagina-teste-new");
+          router.push("/");
         }, 1500);
       } else {
         const error = await response.json();
@@ -1003,13 +1003,6 @@ function ProfilePageContent({
                               </>
                             )}
                           </button>
-                          <button
-                            onClick={handleCancel}
-                            className="cancel-button"
-                            disabled={isSaving}
-                          >
-                            <X size={16} />
-                          </button>
                           {canEditManagerFields && !isOwnProfile && (
                             <button
                               onClick={() => setShowDeleteConfirm(true)}
@@ -1020,6 +1013,13 @@ function ProfilePageContent({
                               Eliminar
                             </button>
                           )}
+                          <button
+                            onClick={handleCancel}
+                            className="cancel-button"
+                            disabled={isSaving}
+                          >
+                            <X size={16} />
+                          </button>
                         </>
                       ) : (
                         <>
@@ -1386,7 +1386,7 @@ function ProfilePageContent({
           {!isEditing && profileUser && (
             <div style={{ marginTop: "8px", width: "100%" }}>
               <UserPersonalStats userId={profileUser.$id || profileUser.id} />
-              <div style={{ marginTop: "2rem" }}>
+              <div style={{ marginTop: "0.5rem" }}>
                 <ClockHistory userId={profileUser.$id || profileUser.id} />
               </div>
             </div>

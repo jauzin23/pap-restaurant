@@ -147,9 +147,31 @@ const GamificationView = ({ user }) => {
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      // Format the label (date) properly
+      let formattedLabel = label;
+      try {
+        let date;
+        if (typeof label === "string") {
+          const cleanLabel = label.replace(/TZ$/, "");
+          date = new Date(cleanLabel);
+        } else {
+          date = new Date(label);
+        }
+
+        if (!isNaN(date.getTime())) {
+          formattedLabel = date.toLocaleDateString("pt-PT", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        }
+      } catch (error) {
+        console.warn("Tooltip date parsing error:", error, label);
+      }
+
       return (
         <div className="custom-tooltip">
-          <p className="label">{label}</p>
+          <p className="label">{formattedLabel}</p>
           {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color }}>
               {entry.name}: {entry.value}
@@ -246,7 +268,9 @@ const GamificationView = ({ user }) => {
                     value={globalStats.totals?.total_points_distributed || 0}
                   />
                 </div>
-                <div className="stat-description">Total de pontos atribuídos</div>
+                <div className="stat-description">
+                  Total de pontos atribuídos
+                </div>
               </div>
 
               <div className="global-stat-card">
@@ -255,11 +279,11 @@ const GamificationView = ({ user }) => {
                   <Medal className="stat-icon" />
                 </div>
                 <div className="stat-value">
-                  <NumberFlow
-                    value={globalStats.totals?.total_actions || 0}
-                  />
+                  <NumberFlow value={globalStats.totals?.total_actions || 0} />
                 </div>
-                <div className="stat-description">Ações realizadas no período</div>
+                <div className="stat-description">
+                  Ações realizadas no período
+                </div>
               </div>
 
               <div className="global-stat-card">
@@ -369,11 +393,30 @@ const GamificationView = ({ user }) => {
                       dataKey="date"
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return date.toLocaleDateString("pt-PT", {
-                          day: "2-digit",
-                          month: "short",
-                        });
+                        try {
+                          // Handle different date formats
+                          let date;
+                          if (typeof value === "string") {
+                            // Remove timezone suffix if present (e.g., "2025-11-17T00:00:000TZ" -> "2025-11-17T00:00:00")
+                            const cleanValue = value.replace(/TZ$/, "");
+                            date = new Date(cleanValue);
+                          } else {
+                            date = new Date(value);
+                          }
+
+                          // Check if date is valid
+                          if (isNaN(date.getTime())) {
+                            return value; // Return original value if parsing fails
+                          }
+
+                          return date.toLocaleDateString("pt-PT", {
+                            day: "2-digit",
+                            month: "short",
+                          });
+                        } catch (error) {
+                          console.warn("Date parsing error:", error, value);
+                          return value;
+                        }
                       }}
                     />
                     <YAxis tick={{ fontSize: 12 }} />

@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  Brain,
+  Sparkles,
 } from "lucide-react";
 
 /**
@@ -202,6 +204,26 @@ export const getNotificationTemplate = (eventType, data) => {
           };
         }
         return null;
+
+      case "ai:insight:generated":
+        return {
+          type: "ai",
+          icon: <Sparkles size={24} color="#8b5cf6" />,
+          color: "#8b5cf6",
+          title: "Nova Análise IA",
+          message: `Análise ${
+            data.title || data.insight_title || "gerada"
+          } disponível`,
+        };
+
+      case "ai:insight:deleted":
+        return {
+          type: "ai",
+          icon: <Brain size={24} color="#ef4444" />,
+          color: "#ef4444",
+          title: "Análise Removida",
+          message: `Análise ${data.title || data.insight_title || "removida"}`,
+        };
 
       case "table:updated":
         // Only show for status changes (occupied/available)

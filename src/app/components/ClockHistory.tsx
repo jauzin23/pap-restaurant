@@ -137,7 +137,7 @@ const ClockHistory: React.FC<ClockHistoryProps> = ({ userId }) => {
       const dateFrom = new Date();
       dateFrom.setDate(dateFrom.getDate() - parseInt(selectedPeriod));
 
-      const data = await apiRequest<HistoryData>(
+      const data = await apiRequest(
         `/api/presencas/intervals/${userId}?date_from=${
           dateFrom.toISOString().split("T")[0]
         }&date_to=${dateTo.toISOString().split("T")[0]}&limit=50`

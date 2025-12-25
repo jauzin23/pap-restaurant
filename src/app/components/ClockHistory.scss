@@ -1,3 +1,37 @@
+// Empty state styling for no presence records
+.clock-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background: #fff;
+  border-radius: 1.5rem;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+
+  .empty-icon {
+    color: #cbd5e1;
+    margin-bottom: 1rem;
+    width: 48px;
+    height: 48px;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+    text-align: center;
+  }
+
+  p {
+    color: #64748b;
+    font-size: 1rem;
+    text-align: center;
+    margin: 0;
+  }
+}
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
 
 .clock-history {

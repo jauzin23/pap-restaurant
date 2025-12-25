@@ -4,7 +4,9 @@
 import "@ant-design/v5-patch-for-react-19";
 
 import React from "react";
+import { Toaster } from "sonner";
 import { AppProvider } from "../contexts/AppContext";
+import { NotificationProvider } from "../contexts/NotificationContext";
 import { WebSocketProvider } from "../contexts/WebSocketContext";
 
 interface ClientLayoutProps {
@@ -14,7 +16,18 @@ interface ClientLayoutProps {
 export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <AppProvider>
-      <WebSocketProvider>{children}</WebSocketProvider>
+      <NotificationProvider>
+        <WebSocketProvider>
+          {children}
+          <Toaster
+            position="top-right"
+            closeButton
+            duration={4000}
+            theme="dark"
+            className="custom-toaster"
+          />
+        </WebSocketProvider>
+      </NotificationProvider>
     </AppProvider>
   );
 }

@@ -36,7 +36,7 @@ const AccordionComponent = ({ items = [] }) => {
           </button>
 
           {openItems.includes(item.id) && (
-            <div className="accordion-content">
+            <div className={`accordion-content expanded`}>
               {item.content.map((component, index) => (
                 <ComponentRenderer key={index} component={component} />
               ))}

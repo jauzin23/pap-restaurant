@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { createPortal } from "react-dom";
 import { notification } from "antd";
 import dayjs from "dayjs";
@@ -33,12 +39,81 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pendente", color: "#f59e0b" },
   { value: "completed", label: "Concluída", color: "#10b981" },
-  { value: "cancelled", label: "Cancelada", color: "#ef4444" },
-  { value: "no-show", label: "Não Compareceu", color: "#dc2626" },
 ];
 
-const ReservationManager = () => {
-  const { socket, connected } = useWebSocketContext();
+const getStatusColor = (status) => {
+  switch (status) {
+    case "pending":
+      return "#f59e0b";
+    case "completed":
+      return "#10b981";
+    default:
+      return "#6b7280";
+  }
+};
+
+const getNextStatus = (currentStatus) => {
+  const workflow = ["pending", "completed"];
+  const idx = workflow.indexOf(currentStatus);
+  if (idx === -1 || idx === workflow.length - 1) return null;
+  return workflow[idx + 1];
+};
+
+// QR Reader Component using react-qr-reader
+
+// (removed duplicate import)
+import { BrowserQRCodeReader } from "@zxing/browser";
+
+function QRScanZXingComponent({ onScan }) {
+  const videoRef = useRef(null);
+  const controlsRef = useRef(null);
+  useEffect(() => {
+    let codeReader;
+    let active = true;
+    if (videoRef.current && !freeze) {
+      codeReader = new BrowserQRCodeReader();
+      codeReader
+        .decodeFromVideoDevice(
+          null,
+          videoRef.current,
+          (result, err, controls) => {
+            if (!controlsRef.current) controlsRef.current = controls;
+            if (result && active) {
+              onScan(result.getText());
+              active = false;
+              if (controlsRef.current) controlsRef.current.stop();
+            }
+          }
+        )
+        .then((ctrl) => {
+          controlsRef.current = ctrl;
+        });
+      {freeze && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
+            fontSize: "1.5rem",
+            zIndex: 2,
+          }}
+        >
+          Verificando QR...
+                        <div
+                          style={{
+                            width: "6px",
+                            height: "6px",
+                            borderRadius: "50%",
+                            background: "#22c55e",
+                          }}
+                        />
 
   // State
   const [reservations, setReservations] = useState([]);
@@ -55,6 +130,8 @@ const ReservationManager = () => {
   const [layouts, setLayouts] = useState([]);
   const [selectedLayoutIndex, setSelectedLayoutIndex] = useState(0);
   const [selectedTableIds, setSelectedTableIds] = useState([]);
+  const [qrModal, setQrModal] = useState({ open: false, reservationId: null });
+  const [qrError, setQrError] = useState("");
 
   const [formData, setFormData] = useState({
     customer_name: "",
@@ -298,6 +375,11 @@ const ReservationManager = () => {
   };
 
   const handleStatusChange = async (id, status) => {
+    if (status === "completed") {
+      // Require QR code scan before completing
+      setQrModal({ open: true, reservationId: id });
+      return;
+    }
     try {
       await apiRequest(`/reservations/${id}`, {
         method: "PUT",
@@ -307,6 +389,33 @@ const ReservationManager = () => {
       fetchReservations();
     } catch (error) {
       showToast(error.message, "error");
+    }
+  };
+
+  // QR code scan handler
+  const handleQrScan = async (scanned) => {
+    setQrError("");
+    if (!qrModal.reservationId) return;
+    setQrLoading(true);
+    try {
+      // Send scanned QR token to backend for verification
+      const verifyRes = await apiRequest(
+        `/reservations/${qrModal.reservationId}/verify-qr`,
+        {
+          method: "POST",
+          body: JSON.stringify({ qrToken: scanned }),
+        }
+      );
+      showToast(
+        verifyRes.message || "Reserva concluída com sucesso!",
+        "success"
+      );
+      setQrModal({ open: false, reservationId: null });
+      fetchReservations();
+    } catch (err) {
+      setQrError(err.message || "QR code inválido ou erro de verificação.");
+    } finally {
+      setQrLoading(false);
     }
   };
 
@@ -439,39 +548,71 @@ const ReservationManager = () => {
       key: "status",
       render: (status, record) => {
         const statusConfig = STATUS_OPTIONS.find((s) => s.value === status);
+        const nextStatus = getNextStatus(status);
         return (
-          <select
-            value={status}
-            onChange={(e) => handleStatusChange(record.id, e.target.value)}
-            className="status-select"
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        );
-      },
-    },
-    {
-      title: "Ações",
-      key: "actions",
-      align: "right",
-      render: (_, record) => (
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
-            className="action-btn action-btn--danger"
-            onClick={() => handleDelete(record.id)}
-          >
-            <Trash2 size={16} />
-          </button>
+            type="button"
+            className="reservation-status-badge"
+            style={{
+              background: "#fff",
+              color: "#1e293b",
+              border: "1.5px solid #d1d5db",
+              borderRadius: "1rem",
+              padding: "0.5rem 1.25rem",
+              fontWeight: 700,
+              fontSize: "0.95rem",
+              cursor: nextStatus ? "pointer" : "default",
+              outline: "none",
+              transition: "background 0.2s, border 0.2s, color 0.2s",
+              boxShadow: nextStatus
+                ? "0 2px 8px rgba(16,185,129,0.04)"
+                : undefined,
+              opacity: nextStatus ? 1 : 0.7,
+            }}
+            .then((ctrl) => {
+              controlsRef.current = ctrl;
+            });
+        }
+        return () => {
+          active = false;
+          if (controlsRef.current) controlsRef.current.stop();
+        };
+      }, [onScan, freeze]);
+      return (
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            position: "relative",
+          }}
+        >
+          <video
+            ref={videoRef}
+            style={{ width: "100%", borderRadius: "1.5rem", background: "#000" }}
+          />
+          {freeze && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: "1.5rem",
+                zIndex: 2,
+              }}
+            >
+              Verificando QR...
+            </div>
+          )}
         </div>
-      ),
-    },
-  ];
-
-  return (
+      );
     <>
       <div className="reservation-manager">
         {/* Header */}
@@ -735,156 +876,161 @@ const ReservationManager = () => {
                       />
                     </div>
 
-                    <div className="form-group">
-                      <label>Número de Pessoas *</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        min={1}
-                        value={formData.party_size}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            party_size: parseInt(e.target.value),
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="form-group full-width">
-                      <label>Mesas (Opcional)</label>
-
-                      {/* Layout Tabs */}
-                      {layouts.length > 0 && (
-                        <div
-                          className="layout-tabs"
-                          style={{
-                            marginBottom: "12px",
-                            display: "flex",
-                            gap: "8px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {layouts.map((layout, index) => (
-                            <button
-                              key={layout.id}
-                              type="button"
-                              className={`layout-tab ${
-                                selectedLayoutIndex === index ? "active" : ""
-                              }`}
-                              onClick={() => setSelectedLayoutIndex(index)}
-                              style={{
-                                padding: "8px 16px",
-                                border:
-                                  selectedLayoutIndex === index
-                                    ? "1px solid #1f2937"
-                                    : "1px solid #d1d5db",
-                                background:
-                                  selectedLayoutIndex === index
-                                    ? "#1f2937"
-                                    : "white",
-                                borderRadius: "1.5rem",
-                                fontSize: "13px",
-                                fontWeight: "600",
-                                color:
-                                  selectedLayoutIndex === index
-                                    ? "white"
-                                    : "#374151",
-                                cursor: "pointer",
-                                transition: "all 0.2s ease",
-                                fontFamily:
-                                  "Nunito, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                                outline: "none",
-                                lineHeight: "1.2",
-                              }}
-                            >
-                              {layout.name}
+                    createPortal(
+                      <div className="modal-overlay">
+                        <div className="modal-container">
+                          {/* Modal Header */}
+                          <div className="modal-header">
+                            <div className="header-text">
+                              <h2>Nova Reserva</h2>
+                              <p>Preencha os dados da nova reserva</p>
+                            </div>
+                            <button onClick={resetForm} className="close-button">
+                              <X size={20} />
                             </button>
-                          ))}
+                          </div>
+
+                          {/* Modal Content */}
+                          <div className="modal-content">
+                            <div className="form-grid">
+                              <div className="form-group">
+                                <label>Nome *</label>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={formData.customer_name}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      customer_name: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Nome do cliente"
+                                  required
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Telefone *</label>
+                                <input
+                                  type="tel"
+                                  className="form-control"
+                                  value={formData.customer_phone}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      customer_phone: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Número de telefone"
+                                  required
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Email</label>
+                                <input
+                                  type="email"
+                                  className="form-control"
+                                  value={formData.customer_email}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      customer_email: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Email (opcional)"
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Data *</label>
+                                <input
+                                  type="date"
+                                  className="form-control"
+                                  value={formData.reservation_date}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      reservation_date: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Hora *</label>
+                                <input
+                                  type="time"
+                                  className="form-control"
+                                  value={formData.reservation_time}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      reservation_time: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Número de Pessoas *</label>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  min={1}
+                                  value={formData.party_size}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      party_size: parseInt(e.target.value),
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+
+                              <div className="form-group full-width">
+                                <label>Mesas (Opcional)</label>
+                                {/* ...existing code for table selection... */}
+                              </div>
+
+                              <div className="form-group full-width">
+                                <label>Pedidos Especiais</label>
+                                <textarea
+                                  className="form-control"
+                                  rows={3}
+                                  value={formData.special_requests}
+                                  onChange={(e) =>
+                                    setFormData({
+                                      ...formData,
+                                      special_requests: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Alergias, preferências de mesa, etc."
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Modal Footer */}
+                          <div className="modal-footer">
+                            <button className="btn btn--secondary" onClick={resetForm}>
+                              Cancelar
+                            </button>
+                            <button
+                              className="btn btn--primary"
+                              onClick={handleSubmit}
+                            >
+                              Criar
+                            </button>
+                          </div>
                         </div>
-                      )}
-
-                      {/* Tables Grid */}
-                      <div
-                        className="table-selection-grid"
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fill, minmax(80px, 1fr))",
-                          gap: "8px",
-                          marginTop: "8px",
-                        }}
-                      >
-                        {currentLayoutTables.length > 0 ? (
-                          currentLayoutTables.map((table) => (
-                            <button
-                              key={table.id}
-                              type="button"
-                              className={`table-selection-btn ${
-                                selectedTableIds.includes(table.id)
-                                  ? "selected"
-                                  : ""
-                              }`}
-                              onClick={() => {
-                                setSelectedTableIds((prev) =>
-                                  prev.includes(table.id)
-                                    ? prev.filter((id) => id !== table.id)
-                                    : [...prev, table.id]
-                                );
-                              }}
-                              style={{
-                                padding: "10px",
-                                border: selectedTableIds.includes(table.id)
-                                  ? "1px solid #1f2937"
-                                  : "1px solid #d1d5db",
-                                background: selectedTableIds.includes(table.id)
-                                  ? "#1f2937"
-                                  : "white",
-                                borderRadius: "1.5rem",
-                                fontSize: "13px",
-                                fontWeight: "600",
-                                color: selectedTableIds.includes(table.id)
-                                  ? "white"
-                                  : "#374151",
-                                cursor: "pointer",
-                                transition: "all 0.2s ease",
-                                fontFamily:
-                                  "Nunito, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                                outline: "none",
-                                minHeight: "40px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              {table.table_number}
-                            </button>
-                          ))
-                        ) : (
-                          <p style={{ color: "#6b7280", fontSize: "14px" }}>
-                            Nenhuma mesa disponível
-                          </p>
-                        )}
-                      </div>
-                      {selectedTableIds.length > 0 && (
-                        <div
-                          style={{
-                            marginTop: "12px",
-                            padding: "10px 16px",
-                            background: "#f0fdf4",
-                            border: "1px solid #86efac",
-                            borderRadius: "1rem",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: "6px",
-                              height: "6px",
-                              borderRadius: "50%",
-                              background: "#22c55e",
+                      </div>,
+                      document.body
+                    )}
                             }}
                           ></div>
                           <span
@@ -963,6 +1109,122 @@ const ReservationManager = () => {
           </div>,
           document.body
         )}
+
+      {/* QR Code Scan Modal */}
+      {qrModal.open && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            margin: 0,
+            overflowY: "auto",
+            fontFamily:
+              'Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          }}
+        >
+          <div
+            className="modal-container"
+            style={{
+              maxWidth: 400,
+              minHeight: 320,
+              background: "#fff",
+              borderRadius: "1.5rem",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+              padding: 32,
+              position: "relative",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              border: "1px solid #d1d5db",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <div
+              className="modal-header"
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <h2
+                style={{
+                  fontWeight: 700,
+                  fontSize: 22,
+                  color: "#1e293b",
+                  margin: 0,
+                }}
+              >
+                Scan QR Code
+              </h2>
+              <button
+                onClick={() => setQrModal({ open: false, reservationId: null })}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 28,
+                  color: "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div
+              className="modal-content"
+              style={{ textAlign: "center", width: "100%" }}
+            >
+              {/* QR Scan logic using ZXing */}
+              <QRScanZXingComponent onScan={handleQrScan} freeze={qrLoading} />
+              {qrError && (
+                <div style={{ color: "#ef4444", marginTop: 8 }}>{qrError}</div>
+              )}
+              <div style={{ marginTop: 12, color: "#64748b" }}>
+                Aponte a câmara para o QR code enviado por email.
+              </div>
+            </div>
+            <div
+              className="modal-footer"
+              style={{
+                width: "100%",
+                marginTop: 24,
+                display: "flex",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                className="footer-button cancel"
+                style={{
+                  background: "#f3f4f6",
+                  color: "#1e293b",
+                  borderRadius: "1.5rem",
+                  padding: "10px 24px",
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                onClick={() => setQrModal({ open: false, reservationId: null })}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

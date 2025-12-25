@@ -452,6 +452,16 @@
   // Content Controls
   .content-controls {
     margin-bottom: clamp(1rem, 2vw, 1.5rem);
+
+    input {
+      padding: 0.5rem 1rem !important;
+    }
+
+    .ant-input-affix-wrapper {
+      .ant-input-prefix {
+        padding-left: 8px;
+      }
+    }
   }
 
   // Loading & Empty States

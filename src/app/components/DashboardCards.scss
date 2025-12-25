@@ -84,8 +84,8 @@
   border: 1px solid #d1d5db;
   transition: transform 0.2s ease;
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
-  animation: cardFadeIn 0.5s ease forwards;
+  transform: translateY(10px);
+  animation: fadeInUp 0.5s ease forwards;
 
   &:hover {
     transform: translateY(-2px);

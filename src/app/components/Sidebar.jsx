@@ -19,6 +19,7 @@ import {
   Calendar,
   Clock,
   Bell,
+  Brain,
 } from "lucide-react";
 import { logout } from "../../lib/auth";
 import { getImageUrl } from "../../lib/api";
@@ -62,6 +63,7 @@ const Sidebar = ({
     { id: "Presenças", label: "Presenças", icon: Clock },
     { id: "Pagamentos", label: "Pagamentos", icon: CreditCard },
     { id: "Gamificação", label: "Gamificação", icon: Trophy },
+    { id: "AI Insights", label: "AI Insights", icon: Brain },
     { id: "Staff", label: "Pessoal", icon: Users },
   ];
 
@@ -143,7 +145,7 @@ const Sidebar = ({
 
   // Filter menu items based on user role
   const filteredMenuItems = menuItems.filter((item) => {
-    if (item.id === "Presenças") {
+    if (item.id === "Presenças" || item.id === "AI Insights") {
       return isManager;
     }
     return true;

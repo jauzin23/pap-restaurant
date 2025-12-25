@@ -13,6 +13,7 @@ import { NotificationProvider } from "../../contexts/NotificationContext";
 import { useNotifications } from "../../hooks/useNotifications";
 import NotificationErrorBoundary from "../../components/NotificationErrorBoundary";
 import { useIsMobile } from "../../hooks/use-mobile";
+import GlobalWebSocketListeners from "../../components/GlobalWebSocketListeners";
 
 // Lazy load heavy components for better performance
 const ManagerView = lazy(() => import("../components/ManagerView"));
@@ -30,6 +31,9 @@ const ReservationManager = lazy(() =>
 );
 const PresencasComponent = lazy(() =>
   import("../components/PresencasComponent")
+);
+const AIInsightsComponent = lazy(() =>
+  import("../components/AIInsightsComponent")
 );
 
 // Component that initializes notifications (must be inside NotificationProvider)
@@ -171,6 +175,7 @@ const RestaurantDashboardContent = () => {
       navItem !== "Mesas" &&
       navItem !== "Staff" &&
       navItem !== "Pagamentos" &&
+      navItem !== "AI Insights" &&
       currentView
     ) {
       // Keep the current view type but show dashboard
@@ -341,7 +346,8 @@ const RestaurantDashboardContent = () => {
   }
 
   return (
-    <div className="dashboard fade-in">
+    <div className="pagina-teste-new dashboard fade-in">
+      <GlobalWebSocketListeners />
       {/* Background Beams with Overlay - Only on desktop for performance */}
       {!isMobile && (
         <div className="background-beams-container">
@@ -396,6 +402,8 @@ const RestaurantDashboardContent = () => {
                 <ReservationManager />
               ) : activeNavItem === "Presenças" ? (
                 <PresencasComponent />
+              ) : activeNavItem === "AI Insights" ? (
+                <AIInsightsComponent />
               ) : activeNavItem === "Staff" ? (
                 <ManagerStaffView />
               ) : activeNavItem === "Pagamentos" ? (

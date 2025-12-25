@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useWebSocketContext } from "../../contexts/WebSocketContext";
 import {
   TrendingUp,
   HandCoins,
@@ -29,68 +30,81 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
   });
 
   // Fetch real data from API (only if customMetrics not provided)
-  useEffect(() => {
+  const { socket, connected } = useWebSocketContext();
+
+  const fetchStats = useCallback(async () => {
     if (customMetrics) {
       setMetrics(customMetrics);
       return;
     }
-
-    const fetchStats = async () => {
-      try {
-        const token = localStorage.getItem("auth_token");
-        if (!token) {
-          console.warn("No auth token found");
-          return;
-        }
-
-        // Get today's date in YYYY-MM-DD format
-        const today = new Date().toISOString().split("T")[0];
-        const todayStart = `${today} 00:00:00`;
-        const todayEnd = `${today} 23:59:59`;
-
-        const [statsResponse, workedHoursResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/stats/live`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(
-            `${API_BASE_URL}/api/presencas/resumo?date_from=${encodeURIComponent(
-              todayStart
-            )}&date_to=${encodeURIComponent(todayEnd)}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          ),
-        ]);
-
-        let workedHours = null;
-        if (workedHoursResponse.ok) {
-          const workedData = await workedHoursResponse.json();
-          workedHours = workedData.resumo?.total_horas || 0;
-        }
-
-        if (statsResponse.ok) {
-          const data = await statsResponse.json();
-          setMetrics({
-            dailyRevenue: data.current?.revenue_today || 0,
-            monthlyRevenue: data.current?.revenue_month || 0,
-            activeOrders: data.current?.orders_in_progress || 0,
-            todayReservations: data.current?.orders_today || 0,
-            kitchenEfficiency: null,
-            workedHours: workedHours,
-          });
-        } else {
-          console.error("Stats API response not OK:", statsResponse.status);
-        }
-      } catch (error) {
-        console.error("Failed to fetch dashboard stats:", error);
+    try {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        console.warn("No auth token found");
+        return;
       }
-    };
+      const today = new Date().toISOString().split("T")[0];
+      const todayStart = `${today} 00:00:00`;
+      const todayEnd = `${today} 23:59:59`;
+      const [statsResponse, workedHoursResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/stats/live`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(
+          `${API_BASE_URL}/api/presencas/resumo?date_from=${encodeURIComponent(
+            todayStart
+          )}&date_to=${encodeURIComponent(todayEnd)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        ),
+      ]);
+      let workedHours = null;
+      if (workedHoursResponse.ok) {
+        const workedData = await workedHoursResponse.json();
+        workedHours = workedData.resumo?.total_horas || 0;
+      }
+      if (statsResponse.ok) {
+        const data = await statsResponse.json();
+        setMetrics({
+          dailyRevenue: data.current?.revenue_today || 0,
+          monthlyRevenue: data.current?.revenue_month || 0,
+          activeOrders: data.current?.orders_in_progress || 0,
+          todayReservations: data.current?.orders_today || 0,
+          kitchenEfficiency: null,
+          workedHours: workedHours,
+        });
+      } else {
+        console.error("Stats API response not OK:", statsResponse.status);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats:", error);
+    }
+  }, [customMetrics]);
 
+  useEffect(() => {
     fetchStats();
-    // Refresh every 30 seconds
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, [customMetrics]);
+  }, [fetchStats]);
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+    const refreshEvents = [
+      "order:paid",
+      "order:created",
+      "order:updated",
+      "order:deleted",
+    ];
+    refreshEvents.forEach((event) => {
+      socket.on(event, fetchStats);
+    });
+    return () => {
+      refreshEvents.forEach((event) => {
+        socket.off(event, fetchStats);
+      });
+    };
+  }, [socket, connected, fetchStats]);
 
   const allCards = [
     {

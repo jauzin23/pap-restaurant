@@ -61,7 +61,8 @@ export const determinePriority = (type, data) => {
   if (
     type === "order" ||
     type === "takeaway" ||
-    (type === "reservation" && data.status === "confirmed")
+    (type === "reservation" && data.status === "confirmed") ||
+    type === "ai"
   ) {
     return NotificationPriority.HIGH;
   }

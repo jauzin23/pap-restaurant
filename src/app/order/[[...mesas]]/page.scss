@@ -1,3 +1,11 @@
+/* Blur-up effect for menu images */
+.menu-img-blur {
+  filter: blur(8px);
+  transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.menu-img-blur[src] {
+  filter: blur(0);
+}
 // Order Page - Scoped Styles
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
 
