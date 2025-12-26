@@ -27,5 +27,6 @@ TICKET MÉDIO - VALOR MÉDIO DE VENDAS
 
 disable CONFIRMAR botao na pagina order se a informacao do cliente nao estiver preenchida
 o tem a certeza que deseja eleminar o armazém aparece em baixo do modal wtf.
+no payorders, no modal, o change section não tem style
 
 fiquei aqui: under #file:ManagerView.jsx , there are 3 selects that i need u to fix style wise, the one on Padrão Semanal card , Padrão Mensal and Valor Médio Diário. copy the style from #file:AIInsightsComponent.jsx 's custom select, that select is god. change #file:ManagerView.jsx and #file:ManagerView.scss as long as the select is the same

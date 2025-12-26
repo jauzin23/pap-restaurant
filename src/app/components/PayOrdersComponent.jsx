@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import ReactDOM from "react-dom";
 import {
   Search,
   CreditCard,
@@ -770,330 +771,337 @@ export default function PayOrdersComponent({ onLoaded }) {
       </div>
 
       {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="modal-backdrop" onClick={closePaymentModal}>
-          <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
-            {paymentSuccess ? (
-              <div className="payment-success">
-                <CheckCircle size={64} className="success-icon" />
-                <h2>Pagamento Concluído!</h2>
-                <p>O pagamento foi processado com sucesso.</p>
-              </div>
-            ) : (
-              <>
-                <div className="modal-header">
-                  <h2>Processar Pagamento</h2>
-                  <button className="close-btn" onClick={closePaymentModal}>
-                    <X size={24} />
-                  </button>
+      {showPaymentModal &&
+        ReactDOM.createPortal(
+          <div className="modal-backdrop" onClick={closePaymentModal}>
+            <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
+              {paymentSuccess ? (
+                <div className="payment-success">
+                  <CheckCircle size={64} className="success-icon" />
+                  <h2>Pagamento Concluído!</h2>
+                  <p>O pagamento foi processado com sucesso.</p>
                 </div>
-
-                <div className="modal-content">
-                  {/* Selected Orders */}
-                  <div className="payment-section">
-                    <h3>
-                      <Receipt size={16} /> Itens Selecionados
-                    </h3>
-                    <div className="selected-orders-list">
-                      {selectedOrdersTotal.orders.map((order) => {
-                        const menuItem = menuItems.find(
-                          (item) => item.id === order.menu_item_id
-                        );
-                        const imageUrl = menuItem?.image_id
-                          ? getImageUrl(menuItem.image_id)
-                          : null;
-                        const itemName =
-                          order.item_name ||
-                          order.menu_info?.nome ||
-                          menuItem?.nome ||
-                          "Item";
-
-                        return (
-                          <div key={order.id} className="selected-order-item">
-                            {imageUrl && (
-                              <img
-                                src={imageUrl}
-                                alt={itemName}
-                                className="order-item-image"
-                                onError={(e) => {
-                                  e.target.style.display = "none";
-                                }}
-                              />
-                            )}
-                            <div className="order-item-info">
-                              <span className="item-name">
-                                {itemName}{" "}
-                                {order.quantity > 1 && `x${order.quantity}`}
-                              </span>
-                              {order.notes && (
-                                <span className="item-notes">
-                                  {order.notes}
-                                </span>
-                              )}
-                            </div>
-                            <span className="item-price">
-                              €
-                              {parseFloat(
-                                order.total_price || order.price || 0
-                              ).toFixed(2)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+              ) : (
+                <>
+                  <div className="modal-header">
+                    <h2>Processar Pagamento</h2>
+                    <button className="close-btn" onClick={closePaymentModal}>
+                      <X size={24} />
+                    </button>
                   </div>
 
-                  {/* Payment Method */}
-                  <div className="payment-section">
-                    <h3>
-                      <CreditCard size={16} /> Método de Pagamento
-                    </h3>
-                    <div className="payment-methods">
-                      <button
-                        type="button"
-                        className={`payment-method-btn ${
-                          paymentMethod === "cash" ? "active" : ""
-                        }`}
-                        onClick={() => setPaymentMethod("cash")}
-                      >
-                        <Banknote size={24} />
-                        Numerário
-                      </button>
-                      <button
-                        type="button"
-                        className={`payment-method-btn ${
-                          paymentMethod === "card" ? "active" : ""
-                        }`}
-                        onClick={() => setPaymentMethod("card")}
-                      >
-                        <CreditCard size={24} />
-                        Cartão
-                      </button>
-                      <button
-                        type="button"
-                        className={`payment-method-btn ${
-                          paymentMethod === "mbway" ? "active" : ""
-                        }`}
-                        onClick={() => setPaymentMethod("mbway")}
-                      >
-                        <Smartphone size={24} />
-                        MB Way
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Discount */}
-                  <div className="payment-section">
-                    <h3>Desconto</h3>
-                    <div className="discount-controls">
-                      <Select
-                        className="discount-type custom-select"
-                        value={discount.type}
-                        onChange={(value) =>
-                          setDiscount({ ...discount, type: value })
-                        }
-                        style={{ width: 150 }}
-                        options={[
-                          { value: "percentage", label: "Percentagem" },
-                          { value: "fixed", label: "Valor Fixo" },
-                        ]}
-                      />
-
-                      <div className="input-group">
-                        <span>
-                          {discount.type === "percentage" ? "%" : "€"}
-                        </span>
-                        <input
-                          type="number"
-                          placeholder="0"
-                          step={discount.type === "percentage" ? "1" : "0.01"}
-                          min="0"
-                          max={
-                            discount.type === "percentage" ? "100" : undefined
-                          }
-                          value={discount.value || ""}
-                          onChange={(e) =>
-                            setDiscount({
-                              ...discount,
-                              value: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Change Calculator (Cash only) */}
-                  {paymentMethod === "cash" && (
+                  <div className="modal-content">
+                    {/* Selected Orders */}
                     <div className="payment-section">
                       <h3>
-                        <Euro size={16} /> Valor Recebido
+                        <Receipt size={16} /> Itens Selecionados
                       </h3>
+                      <div className="selected-orders-list">
+                        {selectedOrdersTotal.orders.map((order) => {
+                          const menuItem = menuItems.find(
+                            (item) => item.id === order.menu_item_id
+                          );
+                          const imageUrl = menuItem?.image_id
+                            ? getImageUrl(menuItem.image_id)
+                            : null;
+                          const itemName =
+                            order.item_name ||
+                            order.menu_info?.nome ||
+                            menuItem?.nome ||
+                            "Item";
 
-                      <div className="input-group">
-                        <Euro size={18} />
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          step="0.01"
-                          min="0"
-                          value={cashReceived}
-                          onChange={(e) => setCashReceived(e.target.value)}
+                          return (
+                            <div key={order.id} className="selected-order-item">
+                              {imageUrl && (
+                                <img
+                                  src={imageUrl}
+                                  alt={itemName}
+                                  className="order-item-image"
+                                  onError={(e) => {
+                                    e.target.style.display = "none";
+                                  }}
+                                />
+                              )}
+                              <div className="order-item-info">
+                                <span className="item-name">
+                                  {itemName}{" "}
+                                  {order.quantity > 1 && `x${order.quantity}`}
+                                </span>
+                                {order.notes && (
+                                  <span className="item-notes">
+                                    {order.notes}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="item-price">
+                                €
+                                {parseFloat(
+                                  order.total_price || order.price || 0
+                                ).toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Payment Method */}
+                    <div className="payment-section">
+                      <h3>
+                        <CreditCard size={16} /> Método de Pagamento
+                      </h3>
+                      <div className="payment-methods">
+                        <button
+                          type="button"
+                          className={`payment-method-btn ${
+                            paymentMethod === "cash" ? "active" : ""
+                          }`}
+                          onClick={() => setPaymentMethod("cash")}
+                        >
+                          <Banknote size={24} />
+                          Numerário
+                        </button>
+                        <button
+                          type="button"
+                          className={`payment-method-btn ${
+                            paymentMethod === "card" ? "active" : ""
+                          }`}
+                          onClick={() => setPaymentMethod("card")}
+                        >
+                          <CreditCard size={24} />
+                          Cartão
+                        </button>
+                        <button
+                          type="button"
+                          className={`payment-method-btn ${
+                            paymentMethod === "mbway" ? "active" : ""
+                          }`}
+                          onClick={() => setPaymentMethod("mbway")}
+                        >
+                          <Smartphone size={24} />
+                          MB Way
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Discount */}
+                    <div className="payment-section">
+                      <h3>Desconto</h3>
+                      <div className="discount-controls">
+                        <Select
+                          className="discount-type custom-select"
+                          value={discount.type}
+                          onChange={(value) =>
+                            setDiscount({ ...discount, type: value })
+                          }
+                          style={{ width: 150 }}
+                          options={[
+                            { value: "percentage", label: "Percentagem" },
+                            { value: "fixed", label: "Valor Fixo" },
+                          ]}
                         />
+
+                        <div className="input-group">
+                          <span>
+                            {discount.type === "percentage" ? "%" : "€"}
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            step={discount.type === "percentage" ? "1" : "0.01"}
+                            min="0"
+                            max={
+                              discount.type === "percentage" ? "100" : undefined
+                            }
+                            value={discount.value || ""}
+                            onChange={(e) =>
+                              setDiscount({
+                                ...discount,
+                                value: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Change Calculator (Cash only) */}
+                    {paymentMethod === "cash" && (
+                      <div className="payment-section">
+                        <h3>
+                          <Euro size={16} /> Valor Recebido
+                        </h3>
+
+                        <div className="input-group">
+                          <Euro size={18} />
+                          <input
+                            type="number"
+                            placeholder="0.00"
+                            step="0.01"
+                            min="0"
+                            value={cashReceived}
+                            onChange={(e) => setCashReceived(e.target.value)}
+                          />
+                        </div>
+
+                        {parseFloat(cashReceived) >
+                          selectedOrdersTotal.total && (
+                          <div className="change-breakdown">
+                            <div className="change-header">
+                              <Coins size={20} />
+                              <span>
+                                Troco:{" "}
+                                <strong>
+                                  €
+                                  {(
+                                    parseFloat(cashReceived) -
+                                    selectedOrdersTotal.total
+                                  ).toFixed(2)}
+                                </strong>
+                              </span>
+                            </div>
+
+                            {(() => {
+                              const changeAmount =
+                                parseFloat(cashReceived) -
+                                selectedOrdersTotal.total;
+                              const breakdown =
+                                calculateChangeBreakdown(changeAmount);
+
+                              return (
+                                (breakdown.notas.length > 0 ||
+                                  breakdown.moedas.length > 0) && (
+                                  <div className="change-details">
+                                    {breakdown.notas.length > 0 && (
+                                      <div className="change-section">
+                                        <h4>
+                                          <Banknote size={14} /> Notas
+                                        </h4>
+                                        <div className="denominations">
+                                          {breakdown.notas.map((item, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="denomination-item nota"
+                                            >
+                                              <img
+                                                src={`/euro-currency/${item.value}.png`}
+                                                alt={item.label}
+                                                className="currency-image"
+                                              />
+                                              <span className="denomination-count">
+                                                ×{item.count}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {breakdown.moedas.length > 0 && (
+                                      <div className="change-section">
+                                        <h4>
+                                          <Coins size={14} /> Moedas
+                                        </h4>
+                                        <div className="denominations">
+                                          {breakdown.moedas.map((item, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="denomination-item moeda"
+                                            >
+                                              <img
+                                                src={`/euro-currency/${item.value}.png`}
+                                                alt={item.label}
+                                                className="currency-image"
+                                              />
+                                              <span className="denomination-count">
+                                                ×{item.count}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    <div className="payment-section">
+                      <h3>Notas</h3>
+                      <textarea
+                        placeholder="Adicionar notas ao pagamento..."
+                        value={paymentNote}
+                        onChange={(e) => setPaymentNote(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Payment Summary */}
+                    <div className="payment-summary">
+                      <div className="summary-row">
+                        <span>Subtotal:</span>
+                        <span>€{selectedOrdersTotal.subtotal.toFixed(2)}</span>
                       </div>
 
-                      {parseFloat(cashReceived) > selectedOrdersTotal.total && (
-                        <div className="change-breakdown">
-                          <div className="change-header">
-                            <Coins size={20} />
-                            <span>
-                              Troco:{" "}
-                              <strong>
-                                €
-                                {(
-                                  parseFloat(cashReceived) -
-                                  selectedOrdersTotal.total
-                                ).toFixed(2)}
-                              </strong>
-                            </span>
-                          </div>
-
-                          {(() => {
-                            const changeAmount =
-                              parseFloat(cashReceived) -
-                              selectedOrdersTotal.total;
-                            const breakdown =
-                              calculateChangeBreakdown(changeAmount);
-
-                            return (
-                              (breakdown.notas.length > 0 ||
-                                breakdown.moedas.length > 0) && (
-                                <div className="change-details">
-                                  {breakdown.notas.length > 0 && (
-                                    <div className="change-section">
-                                      <h4>
-                                        <Banknote size={14} /> Notas
-                                      </h4>
-                                      <div className="denominations">
-                                        {breakdown.notas.map((item, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="denomination-item nota"
-                                          >
-                                            <img
-                                              src={`/euro-currency/${item.value}.png`}
-                                              alt={item.label}
-                                              className="currency-image"
-                                            />
-                                            <span className="denomination-count">
-                                              ×{item.count}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {breakdown.moedas.length > 0 && (
-                                    <div className="change-section">
-                                      <h4>
-                                        <Coins size={14} /> Moedas
-                                      </h4>
-                                      <div className="denominations">
-                                        {breakdown.moedas.map((item, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="denomination-item moeda"
-                                          >
-                                            <img
-                                              src={`/euro-currency/${item.value}.png`}
-                                              alt={item.label}
-                                              className="currency-image"
-                                            />
-                                            <span className="denomination-count">
-                                              ×{item.count}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            );
-                          })()}
+                      {selectedOrdersTotal.discountAmount > 0 && (
+                        <div className="summary-row discount">
+                          <span>Desconto:</span>
+                          <span>
+                            -€{selectedOrdersTotal.discountAmount.toFixed(2)}
+                          </span>
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* Notes */}
-                  <div className="payment-section">
-                    <h3>Notas</h3>
-                    <textarea
-                      placeholder="Adicionar notas ao pagamento..."
-                      value={paymentNote}
-                      onChange={(e) => setPaymentNote(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Payment Summary */}
-                  <div className="payment-summary">
-                    <div className="summary-row">
-                      <span>Subtotal:</span>
-                      <span>€{selectedOrdersTotal.subtotal.toFixed(2)}</span>
+                      <div className="summary-row total">
+                        <span>Total a Pagar:</span>
+                        <span>€{selectedOrdersTotal.total.toFixed(2)}</span>
+                      </div>
                     </div>
 
-                    {selectedOrdersTotal.discountAmount > 0 && (
-                      <div className="summary-row discount">
-                        <span>Desconto:</span>
-                        <span>
-                          -€{selectedOrdersTotal.discountAmount.toFixed(2)}
-                        </span>
+                    {paymentError && (
+                      <div className="payment-error">
+                        <AlertCircle size={20} />
+                        <span>{paymentError}</span>
                       </div>
                     )}
-
-                    <div className="summary-row total">
-                      <span>Total a Pagar:</span>
-                      <span>€{selectedOrdersTotal.total.toFixed(2)}</span>
-                    </div>
                   </div>
 
-                  {paymentError && (
-                    <div className="payment-error">
-                      <AlertCircle size={20} />
-                      <span>{paymentError}</span>
-                    </div>
-                  )}
-                </div>
+                  <div className="modal-footer">
+                    <button
+                      className="btn-secondary"
+                      onClick={closePaymentModal}
+                    >
+                      Cancelar
+                    </button>
 
-                <div className="modal-footer">
-                  <button className="btn-secondary" onClick={closePaymentModal}>
-                    Cancelar
-                  </button>
-
-                  <button
-                    className="btn-primary"
-                    onClick={handlePayment}
-                    disabled={isProcessing || selectedOrders.length === 0}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 size={18} className="spinner" />A processar...
-                      </>
-                    ) : (
-                      <>
-                        <Check size={18} />
-                        Confirmar Pagamento
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+                    <button
+                      className="btn-primary"
+                      onClick={handlePayment}
+                      disabled={isProcessing || selectedOrders.length === 0}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 size={18} className="spinner" />A
+                          processar...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={18} />
+                          Confirmar Pagamento
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
