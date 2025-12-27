@@ -17,6 +17,15 @@ export const usePointsAnalytics = (period = "week", month = null) => {
     setLoading(true);
     setError(null);
 
+    // Clear previous data to prevent showing stale data
+    setTimeline([]);
+    setTopActions([]);
+    setActiveDays([]);
+    setVelocity([]);
+    setHourlyPattern([]);
+    setRankHistory([]);
+    setMilestones([]);
+
     try {
       const token = localStorage.getItem("auth_token");
       if (!token) {
@@ -53,7 +62,7 @@ export const usePointsAnalytics = (period = "week", month = null) => {
           { headers }
         ),
         fetch(
-          `${API_BASE_URL}/api/points/analytics/velocity?period=${period}`,
+          `${API_BASE_URL}/api/points/analytics/velocity?period=${period}${monthParam}`,
           { headers }
         ),
         fetch(
@@ -61,10 +70,13 @@ export const usePointsAnalytics = (period = "week", month = null) => {
           { headers }
         ),
         fetch(
-          `${API_BASE_URL}/api/points/analytics/rank-history?days=30&top=10`,
+          `${API_BASE_URL}/api/points/analytics/rank-history?period=${period}${monthParam}&top=10`,
           { headers }
         ),
-        fetch(`${API_BASE_URL}/api/points/analytics/milestones`, { headers }),
+        fetch(
+          `${API_BASE_URL}/api/points/analytics/milestones?period=${period}${monthParam}`,
+          { headers }
+        ),
       ]);
 
       if (timelineRes.ok) {

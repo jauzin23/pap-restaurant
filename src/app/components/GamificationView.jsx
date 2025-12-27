@@ -22,6 +22,7 @@ import { usePointsData } from "@/hooks/usePointsData";
 import { usePointsAnalytics } from "@/hooks/usePointsAnalytics";
 import NumberFlow from "@number-flow/react";
 import PointsConfigManager from "./PointsConfigManager";
+import { Select } from "antd";
 import {
   LineChart,
   Line,
@@ -48,8 +49,8 @@ import "./GamificationView.scss";
 
 const GamificationView = ({ user, onLoaded }) => {
   const router = useRouter();
-  const [selectedPeriod, setSelectedPeriod] = useState("week");
-  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState("all");
+  const [availableMonths, setAvailableMonths] = useState([]);
   const [showPointsConfig, setShowPointsConfig] = useState(false);
   const [isManager] = useState(
     () => user?.labels?.includes("manager") || false
@@ -57,8 +58,8 @@ const GamificationView = ({ user, onLoaded }) => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const { leaderboard, globalStats, loading } = usePointsData(
     null,
-    selectedPeriod,
-    selectedMonth
+    selectedPeriod === "all" ? "all" : "month",
+    selectedPeriod === "all" ? null : selectedPeriod
   );
   const {
     timeline,
@@ -69,42 +70,96 @@ const GamificationView = ({ user, onLoaded }) => {
     rankHistory,
     milestones,
     loading: analyticsLoading,
-  } = usePointsAnalytics(selectedPeriod, selectedMonth);
+  } = usePointsAnalytics(
+    selectedPeriod === "all" ? "all" : "month",
+    selectedPeriod === "all" ? null : selectedPeriod
+  );
 
-  // Debug logging
+  // Clear velocity data when period changes to prevent showing stale data
   useEffect(() => {
-    if (!analyticsLoading && !loading) {
+    // This will cause velocity badges to disappear until new data loads
+    // preventing display of incorrect velocity data from previous period
+  }, [selectedPeriod]);
+
+  // Set dataLoaded when all data has finished loading
+  useEffect(() => {
+    if (!analyticsLoading && !loading && !dataLoaded) {
       setDataLoaded(true);
-      if (onLoaded && !dataLoaded) onLoaded();
+      if (onLoaded) onLoaded();
     }
-  }, [analyticsLoading, loading, onLoaded, dataLoaded]);
+  }, [analyticsLoading, loading, onLoaded]);
 
-  const periods = [
-    { value: "day", label: "Hoje" },
-    { value: "week", label: "Semana" },
-    { value: "month", label: "Mês" },
-    { value: "all", label: "Histórico" },
-  ];
+  // Fetch available months on component mount
+  useEffect(() => {
+    const fetchAvailableMonths = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) return;
 
-  // Generate list of available months (last 12 months)
-  const getAvailableMonths = () => {
-    const months = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}`;
-      const label = date.toLocaleDateString("pt-PT", {
-        month: "long",
-        year: "numeric",
-      });
-      months.push({ value, label });
-    }
-    return months;
+        const response = await fetch(
+          `${
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+          }/api/points/analytics/available-months`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const months = data.months || [];
+          setAvailableMonths(months);
+
+          // Set default to current month if available
+          const currentMonth = `${new Date().getFullYear()}-${String(
+            new Date().getMonth() + 1
+          ).padStart(2, "0")}`;
+          const hasCurrentMonth = months.some(
+            (month) => month.value === currentMonth
+          );
+          if (hasCurrentMonth) {
+            setSelectedPeriod(currentMonth);
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao buscar meses disponíveis:", error);
+      }
+    };
+
+    fetchAvailableMonths();
+  }, []);
+
+  // Helper function to format month name
+  const formatMonthName = (monthStr) => {
+    const [year, month] = monthStr.split("-");
+    const monthNames = [
+      "Janeiro",
+      "Fevereiro",
+      "Março",
+      "Abril",
+      "Maio",
+      "Junho",
+      "Julho",
+      "Agosto",
+      "Setembro",
+      "Outubro",
+      "Novembro",
+      "Dezembro",
+    ];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
   };
 
-  const availableMonths = getAvailableMonths();
+  // Helper function to get period label
+  const getPeriodLabel = () => {
+    if (selectedPeriod === "all") {
+      return "Todo o Período";
+    }
+    const month = availableMonths.find((m) => m.value === selectedPeriod);
+    return month ? month.label : "Período Selecionado";
+  };
 
   // Chart colors
   const COLORS = {
@@ -194,6 +249,24 @@ const GamificationView = ({ user, onLoaded }) => {
                 <p className="stock-header-card__description">
                   Análise completa de pontos, rankings e desempenho da equipa
                 </p>
+                <div className="period-selector-header">
+                  <Select
+                    className="period-select"
+                    style={{ width: 250 }}
+                    placeholder="Selecionar período..."
+                    value={selectedPeriod || undefined}
+                    onChange={setSelectedPeriod}
+                    options={[
+                      { value: "all", label: "Todo o Período" },
+                      ...availableMonths.map((month) => ({
+                        value: month.value,
+                        label: formatMonthName(month.value),
+                      })),
+                    ]}
+                    showSearch
+                    optionFilterProp="label"
+                  />
+                </div>
                 <div className="stock-header-card__actions">
                   {isManager && (
                     <button
@@ -278,39 +351,6 @@ const GamificationView = ({ user, onLoaded }) => {
             </div>
           )}
 
-          {/* Tab Navigation */}
-          <div className="leaderboard-tabs">
-            {periods.map((p) => (
-              <button
-                key={p.value}
-                className={`leaderboard-tab ${
-                  selectedPeriod === p.value ? "active" : ""
-                }`}
-                onClick={() => {
-                  setSelectedPeriod(p.value);
-                  setSelectedMonth(null);
-                }}
-              >
-                <Trophy size={18} />
-                {p.label}
-              </button>
-            ))}
-            <div className="month-selector">
-              <select
-                value={selectedMonth || ""}
-                onChange={(e) => setSelectedMonth(e.target.value || null)}
-                className="month-dropdown"
-              >
-                <option value="">Por Período</option>
-                {availableMonths.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           {/* Analytics Grid */}
           <div className="analytics-grid">
             {/* Graph 1: Points Distribution Over Time - FULL WIDTH */}
@@ -318,7 +358,7 @@ const GamificationView = ({ user, onLoaded }) => {
               <div className="chart-header">
                 <div className="chart-title">
                   <Activity size={20} />
-                  Distribuição de Pontos ao Longo do Tempo
+                  Distribuição de Pontos - {getPeriodLabel()}
                 </div>
               </div>
               <div className="chart-content">
@@ -485,65 +525,69 @@ const GamificationView = ({ user, onLoaded }) => {
             </div>
 
             {/* Graph 4: Velocity (Growth) - FULL WIDTH */}
-            <div className="chart-card full-width">
-              <div className="chart-header">
-                <div className="chart-title">
-                  <TrendingUp size={20} />
-                  Velocidade de Crescimento (Top 15)
+            {velocity.length > 0 && (
+              <div className="chart-card full-width">
+                <div className="chart-header">
+                  <div className="chart-title">
+                    <TrendingUp size={20} />
+                    Velocidade de Crescimento - {getPeriodLabel()}
+                  </div>
                 </div>
-              </div>
-              <div className="chart-content">
-                <div className="velocity-list">
-                  {velocity.slice(0, 15).map((user, index) => {
-                    const isPositive = user.percentage_change >= 0;
-                    return (
-                      <div
-                        key={user.user_id}
-                        className="velocity-item"
-                        onClick={() => router.push(`/profile/${user.user_id}`)}
-                      >
-                        <div className="velocity-rank">#{index + 1}</div>
-                        <div className="velocity-user">
-                          {user.profile_image ? (
-                            <img
-                              src={user.profile_image}
-                              alt={user.name}
-                              className="velocity-avatar"
-                            />
-                          ) : (
-                            <div className="velocity-avatar-placeholder">
-                              {user.name.charAt(0)}
-                            </div>
-                          )}
-                          <span className="velocity-name">{user.name}</span>
-                        </div>
-                        <div className="velocity-stats">
-                          <span className="velocity-points">
-                            <NumberFlow value={user.current_points} /> pts
-                          </span>
-                          <div
-                            className={`velocity-change ${
-                              isPositive ? "positive" : "negative"
-                            }`}
-                          >
-                            {isPositive ? (
-                              <TrendingUp size={16} />
+                <div className="chart-content">
+                  <div className="velocity-list">
+                    {velocity.slice(0, 15).map((user, index) => {
+                      const isPositive = user.percentage_change >= 0;
+                      return (
+                        <div
+                          key={user.user_id}
+                          className="velocity-item"
+                          onClick={() =>
+                            router.push(`/profile/${user.user_id}`)
+                          }
+                        >
+                          <div className="velocity-rank">#{index + 1}</div>
+                          <div className="velocity-user">
+                            {user.profile_image ? (
+                              <img
+                                src={user.profile_image}
+                                alt={user.name}
+                                className="velocity-avatar"
+                              />
                             ) : (
-                              <TrendingDown size={16} />
+                              <div className="velocity-avatar-placeholder">
+                                {user.name.charAt(0)}
+                              </div>
                             )}
-                            <NumberFlow
-                              value={Math.abs(user.percentage_change)}
-                              format={{ minimumFractionDigits: 1 }}
-                            />
-                            %
+                            <span className="velocity-name">{user.name}</span>
+                          </div>
+                          <div className="velocity-stats">
+                            <span className="velocity-points">
+                              <NumberFlow value={user.current_points} /> pts
+                            </span>
+                            <div
+                              className={`velocity-change ${
+                                isPositive ? "positive" : "negative"
+                              }`}
+                            >
+                              {isPositive ? (
+                                <TrendingUp size={16} />
+                              ) : (
+                                <TrendingDown size={16} />
+                              )}
+                              <NumberFlow
+                                value={Math.abs(user.percentage_change)}
+                                format={{ minimumFractionDigits: 1 }}
+                              />
+                              %
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Graph 7: Active Days Comparison */}
             <div className="chart-card">
@@ -744,7 +788,7 @@ const GamificationView = ({ user, onLoaded }) => {
               <div className="chart-header">
                 <div className="chart-title">
                   <Trophy size={20} />
-                  Classificação Geral
+                  Classificação Geral - {getPeriodLabel()}
                 </div>
               </div>
               <div className="chart-content">

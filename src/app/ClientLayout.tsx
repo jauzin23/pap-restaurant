@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { AppProvider } from "../contexts/AppContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { WebSocketProvider } from "../contexts/WebSocketContext";
+import { StyleProvider } from "@ant-design/cssinjs";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -15,19 +16,21 @@ interface ClientLayoutProps {
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
-    <AppProvider>
-      <NotificationProvider>
-        <WebSocketProvider>
-          {children}
-          <Toaster
-            position="top-right"
-            closeButton
-            duration={4000}
-            theme="dark"
-            className="custom-toaster"
-          />
-        </WebSocketProvider>
-      </NotificationProvider>
-    </AppProvider>
+    <StyleProvider hashPriority="high">
+      <AppProvider>
+        <NotificationProvider>
+          <WebSocketProvider>
+            {children}
+            <Toaster
+              position="top-right"
+              closeButton
+              duration={4000}
+              theme="dark"
+              className="custom-toaster"
+            />
+          </WebSocketProvider>
+        </NotificationProvider>
+      </AppProvider>
+    </StyleProvider>
   );
 }
