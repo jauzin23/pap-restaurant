@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Socket } from "socket.io-client";
@@ -467,7 +473,15 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   }, [ordersData, showOrderModal, selectedTable, tableStatuses]);
 
   // Refresh orders when switching to view mode OR when layout changes
+  const isInitialMount = useRef(true);
+
   useEffect(() => {
+    // Skip the very first render
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     if (mode === "view" && layouts.length > 0) {
       loadAllTablesAndOrders();
     }
@@ -710,11 +724,11 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       console.log("Multi-table groups:", multiTableGroups.length);
       setTableStatuses(statuses);
     },
-    [layouts]
+    []
   );
   useEffect(() => {
     const layout = layouts[currentLayoutIndex];
-    if (layout && allTables.length > 0 && ordersData.length >= 0) {
+    if (layout && allTables.length > 0) {
       console.log("=== RECALCULATING TABLE STATUSES ===");
       console.log("Layout ID:", layout.id);
       console.log("Orders count:", ordersData.length);

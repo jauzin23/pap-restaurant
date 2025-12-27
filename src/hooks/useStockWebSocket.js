@@ -25,6 +25,9 @@ export function useStockWebSocket(callbacks = {}) {
     onLocationCreated,
     onLocationUpdated,
     onLocationDeleted,
+    onWarehouseCreated,
+    onWarehouseUpdated,
+    onWarehouseDeleted,
     onInventoryUpdated,
     onInventoryDeleted,
     onStockTransferred,
@@ -160,6 +163,22 @@ export function useStockWebSocket(callbacks = {}) {
       onAlert?.(alert);
     });
 
+    // Warehouse events
+    socket.on('stock:warehouse:created', (warehouse) => {
+      console.log('[StockWebSocket] 🏭 Warehouse created:', warehouse.name);
+      onWarehouseCreated?.(warehouse);
+    });
+
+    socket.on('stock:warehouse:updated', (warehouse) => {
+      console.log('[StockWebSocket] 🏭 Warehouse updated:', warehouse.name);
+      onWarehouseUpdated?.(warehouse);
+    });
+
+    socket.on('stock:warehouse:deleted', (data) => {
+      console.log('[StockWebSocket] 🏭 Warehouse deleted:', data.id);
+      onWarehouseDeleted?.(data);
+    });
+
     // Ping/Pong to keep connection alive
     const pingInterval = setInterval(() => {
       if (socket.connected) {
@@ -189,6 +208,9 @@ export function useStockWebSocket(callbacks = {}) {
     onLocationCreated,
     onLocationUpdated,
     onLocationDeleted,
+    onWarehouseCreated,
+    onWarehouseUpdated,
+    onWarehouseDeleted,
     onInventoryUpdated,
     onInventoryDeleted,
     onStockTransferred,

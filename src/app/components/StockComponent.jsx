@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  memo,
+  useContext,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   Button,
@@ -8,7 +16,6 @@ import {
   Tag,
   Image as AntImage,
   Input as AntInput,
-  message,
   Modal,
   Select,
 } from "antd";
@@ -47,6 +54,8 @@ import NumberFlow from "@number-flow/react";
 import "./StockComponent.scss";
 
 import { getAuthToken } from "@/lib/api";
+import { NotificationContext } from "@/contexts/NotificationContext";
+import { getNotificationTemplate } from "@/lib/notificationTemplates";
 
 import { useStockWebSocket } from "@/hooks/useStockWebSocket";
 
@@ -78,6 +87,7 @@ const apiCall = async (endpoint, options = {}) => {
 };
 
 export default function StockComponent({ onLoaded }) {
+  const { addNotification } = useContext(NotificationContext);
   // Tab state
   const [activeTab, setActiveTab] = useState("items"); // "items" | "warehouses" | "suppliers"
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
@@ -137,6 +147,7 @@ export default function StockComponent({ onLoaded }) {
 
   // Warehouse edit modal
   const [editWarehouseModalOpen, setEditWarehouseModalOpen] = useState(false);
+  const [warehouseDeleteMode, setWarehouseDeleteMode] = useState(false);
 
   // Warehouse dropdown for items table
   const [openWarehouseDropdown, setOpenWarehouseDropdown] = useState(null);
@@ -207,6 +218,10 @@ export default function StockComponent({ onLoaded }) {
     address: "",
     notes: "",
   });
+  const [isDeleteSupplierModalOpen, setIsDeleteSupplierModalOpen] =
+    useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
+  const [deleteSupplierError, setDeleteSupplierError] = useState(null);
 
   // WebSocket connection state
   const [wsConnected, setWsConnected] = useState(false);
@@ -241,13 +256,12 @@ export default function StockComponent({ onLoaded }) {
     // Validate file type and size
     const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      message.warning("Por favor selecione uma imagem válida (PNG, JPG, WEBP)");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       // 5MB
-      message.warning("A imagem não pode exceder 5MB");
+
       return;
     }
 
@@ -307,7 +321,6 @@ export default function StockComponent({ onLoaded }) {
   // Background removal function
   const removeBackground = async () => {
     if (!imagePreview) {
-      message.warning("Por favor, selecione uma imagem primeiro");
       return;
     }
 
@@ -386,11 +399,8 @@ export default function StockComponent({ onLoaded }) {
       setImagePreview(previewUrl);
       setCroppedImageBlob(blob);
       setBackgroundRemovalPreview(previewUrl);
-
-      message.success("Fundo removido com sucesso!");
     } catch (error) {
       console.error("Error removing background:", error);
-      message.error("Erro ao remover fundo da imagem");
     } finally {
       setRemovingBackground(false);
     }
@@ -606,7 +616,7 @@ export default function StockComponent({ onLoaded }) {
     (transfer) => {
       console.log("[Stock] Stock transferred via WebSocket:", transfer);
 
-      // Update warehouse inventory for transfers affecting the current warehouse
+      // Only update warehouse inventory for transfers affecting the current warehouse
       if (selectedWarehouse) {
         const warehouseId = String(selectedWarehouse.$id);
         const isSourceWarehouse =
@@ -615,11 +625,9 @@ export default function StockComponent({ onLoaded }) {
           String(transfer.to_warehouse_id) === warehouseId;
 
         if (isSourceWarehouse || isDestinationWarehouse) {
-          // Update the item in the warehouse inventory
           setWarehouseInventory((prev) => {
             return prev.map((item) => {
               if (String(item.$id) === String(transfer.stock_item_id)) {
-                // Calculate new quantity based on transfer
                 let newQty = item.warehouse_qty;
                 if (isSourceWarehouse) {
                   newQty -= transfer.qty;
@@ -627,7 +635,6 @@ export default function StockComponent({ onLoaded }) {
                 if (isDestinationWarehouse) {
                   newQty += transfer.qty;
                 }
-
                 return {
                   ...item,
                   warehouse_qty: Math.max(0, newQty),
@@ -642,6 +649,26 @@ export default function StockComponent({ onLoaded }) {
     [selectedWarehouse]
   );
 
+  const handleWarehouseCreated = useCallback((warehouse) => {
+    setWarehouses((prev) => {
+      // Check if warehouse already exists (avoid duplicates)
+      if (prev.some((w) => w.$id === warehouse.$id)) {
+        return prev;
+      }
+      return [...prev, warehouse].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, []);
+
+  const handleWarehouseUpdated = useCallback((warehouse) => {
+    setWarehouses((prev) =>
+      prev.map((w) => (w.$id === warehouse.$id ? warehouse : w))
+    );
+  }, []);
+
+  const handleWarehouseDeleted = useCallback((data) => {
+    setWarehouses((prev) => prev.filter((w) => w.$id !== data.id));
+  }, []);
+
   // Initialize WebSocket connection
   const { socket, isConnected } = useStockWebSocket({
     onItemCreated: handleItemCreated,
@@ -653,6 +680,9 @@ export default function StockComponent({ onLoaded }) {
     onSupplierCreated: handleSupplierCreated,
     onSupplierUpdated: handleSupplierUpdated,
     onSupplierDeleted: handleSupplierDeleted,
+    onWarehouseCreated: handleWarehouseCreated,
+    onWarehouseUpdated: handleWarehouseUpdated,
+    onWarehouseDeleted: handleWarehouseDeleted,
     onInventoryUpdated: handleInventoryUpdated,
     onInventoryDeleted: handleInventoryDeleted,
     onStockTransferred: handleStockTransferred,
@@ -746,7 +776,7 @@ export default function StockComponent({ onLoaded }) {
       setStockItems(response.documents || []);
     } catch (err) {
       console.error("Error fetching stock:", err);
-      message.error("Erro ao carregar stock. Verifique se está autenticado.");
+
       setStockItems([]);
     } finally {
       setLoading(false);
@@ -821,7 +851,7 @@ export default function StockComponent({ onLoaded }) {
       setWarehouses(response.documents || []);
     } catch (err) {
       console.error("Error fetching warehouses:", err);
-      message.error("Erro ao carregar armazéns.");
+
       setWarehouses([]);
     } finally {
       setWarehousesLoading(false);
@@ -874,7 +904,7 @@ export default function StockComponent({ onLoaded }) {
       setWarehouseInventory(inventoryItems);
     } catch (err) {
       console.error("Error fetching warehouse inventory:", err);
-      message.error("Erro ao carregar inventário do armazém.");
+
       setWarehouseInventory([]);
     } finally {
       setLoading(false);
@@ -943,7 +973,6 @@ export default function StockComponent({ onLoaded }) {
         }));
       } catch (err) {
         console.error("Error fetching item warehouse details:", err);
-        message.error("Erro ao carregar detalhes dos armazéns.");
       } finally {
         setWarehouseDropdownLoading(false);
       }
@@ -1256,10 +1285,10 @@ export default function StockComponent({ onLoaded }) {
 
   // Fetch warehouses when transfer modal opens
   useEffect(() => {
-    if (transferModalOpen && warehouses.length === 0) {
+    if (transferModalOpen) {
       fetchWarehouses();
     }
-  }, [transferModalOpen, warehouses.length, fetchWarehouses]);
+  }, [transferModalOpen, fetchWarehouses]);
 
   // Debug transfer modal data
   useEffect(() => {
@@ -1293,7 +1322,6 @@ export default function StockComponent({ onLoaded }) {
       // Validate name is not empty
       const trimmedName = edits.name?.trim();
       if (!trimmedName) {
-        message.warning("Nome do produto é obrigatório");
         return;
       }
 
@@ -1318,10 +1346,8 @@ export default function StockComponent({ onLoaded }) {
         });
 
         await fetchStock();
-        message.success("Item atualizado com sucesso!");
       } catch (err) {
         console.error("Error updating item:", err);
-        message.error("Erro ao atualizar item. Tente novamente.");
       } finally {
         setLoading(false);
       }
@@ -2947,9 +2973,7 @@ export default function StockComponent({ onLoaded }) {
                                               }
                                             );
                                           } catch (err) {
-                                            message.error(
-                                              `Erro: ${err.message}`
-                                            );
+                                            // Error handling removed notification
                                           }
                                         }}
                                         title="Adicionar +1"
@@ -2961,9 +2985,7 @@ export default function StockComponent({ onLoaded }) {
                                         className="action-btn"
                                         onClick={async () => {
                                           if (item.warehouse_qty <= 0) {
-                                            message.warning(
-                                              "Quantidade já está em 0"
-                                            );
+                                            // Error handling removed notification
                                             return;
                                           }
                                           try {
@@ -2982,9 +3004,7 @@ export default function StockComponent({ onLoaded }) {
                                               }
                                             );
                                           } catch (err) {
-                                            message.error(
-                                              `Erro: ${err.message}`
-                                            );
+                                            // Error handling removed notification
                                           }
                                         }}
                                         title="Remover -1"
@@ -3024,9 +3044,7 @@ export default function StockComponent({ onLoaded }) {
                                             });
                                             setTransferModalOpen(true);
                                           } catch (err) {
-                                            message.error(
-                                              `Erro ao carregar detalhes: ${err.message}`
-                                            );
+                                            // Error handling removed notification
                                           }
                                         }}
                                         title="Transferir"
@@ -3301,30 +3319,9 @@ export default function StockComponent({ onLoaded }) {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    Modal.confirm({
-                                      title: "Eliminar Fornecedor",
-                                      content: `Tem certeza que deseja eliminar o fornecedor "${supplier.name}"?\n\nNota: Não será possível eliminar se houver items associados.`,
-                                      okText: "Eliminar",
-                                      okType: "danger",
-                                      cancelText: "Cancelar",
-                                      onOk: async () => {
-                                        try {
-                                          await deleteSupplier(supplier.$id);
-                                          message.success(
-                                            "Fornecedor eliminado com sucesso!"
-                                          );
-                                        } catch (err) {
-                                          console.error(
-                                            "Error deleting supplier:",
-                                            err
-                                          );
-                                          message.error(
-                                            err.message ||
-                                              "Erro ao eliminar fornecedor. Verifique se não há items associados."
-                                          );
-                                        }
-                                      },
-                                    });
+                                    setSupplierToDelete(supplier);
+                                    setDeleteSupplierError(null);
+                                    setIsDeleteSupplierModalOpen(true);
                                   }}
                                   style={{
                                     padding: "6px 12px",
@@ -3495,9 +3492,7 @@ export default function StockComponent({ onLoaded }) {
                     className="warehouse-btn warehouse-btn-submit"
                     onClick={async () => {
                       if (!warehouseForm.name.trim()) {
-                        message.warning(
-                          "Por favor insira um nome para o armazém"
-                        );
+                        // Error handling removed notification
                         return;
                       }
 
@@ -3519,11 +3514,7 @@ export default function StockComponent({ onLoaded }) {
                           is_active: true,
                         });
                       } catch (err) {
-                        message.error(
-                          `Erro ao ${
-                            editingWarehouse ? "atualizar" : "criar"
-                          } armazém: ${err.message}`
-                        );
+                        // Error handling removed notification
                       }
                     }}
                     disabled={!warehouseForm.name.trim()}
@@ -3546,6 +3537,7 @@ export default function StockComponent({ onLoaded }) {
               onClick={() => {
                 setEditWarehouseModalOpen(false);
                 setEditingWarehouse(null);
+                setWarehouseDeleteMode(false);
               }}
             >
               <div
@@ -3553,12 +3545,17 @@ export default function StockComponent({ onLoaded }) {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="warehouse-modal-header">
-                  <h2>Editar Armazém</h2>
+                  <h2>
+                    {warehouseDeleteMode
+                      ? "Eliminar Armazém"
+                      : "Editar Armazém"}
+                  </h2>
                   <button
                     className="warehouse-close-btn"
                     onClick={() => {
                       setEditWarehouseModalOpen(false);
                       setEditingWarehouse(null);
+                      setWarehouseDeleteMode(false);
                     }}
                   >
                     <X size={20} />
@@ -3566,90 +3563,120 @@ export default function StockComponent({ onLoaded }) {
                 </div>
 
                 <div className="warehouse-modal-body">
-                  <div className="warehouse-form-group">
-                    <label htmlFor="edit-warehouse-name">
-                      Nome do Armazém *
-                    </label>
-                    <input
-                      id="edit-warehouse-name"
-                      type="text"
-                      className="warehouse-input"
-                      placeholder="Ex: Armazém Principal"
-                      value={editingWarehouse.name}
-                      onChange={(e) =>
-                        setEditingWarehouse({
-                          ...editingWarehouse,
-                          name: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="warehouse-form-group">
-                    <label htmlFor="edit-warehouse-description">
-                      Descrição
-                    </label>
-                    <textarea
-                      id="edit-warehouse-description"
-                      className="warehouse-textarea"
-                      placeholder="Descrição do armazém..."
-                      value={editingWarehouse.description || ""}
-                      onChange={(e) =>
-                        setEditingWarehouse({
-                          ...editingWarehouse,
-                          description: e.target.value,
-                        })
-                      }
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="warehouse-form-group">
-                    <label htmlFor="edit-warehouse-address">Morada</label>
-                    <input
-                      id="edit-warehouse-address"
-                      type="text"
-                      className="warehouse-input"
-                      placeholder="Rua, Cidade, País"
-                      value={editingWarehouse.address || ""}
-                      onChange={(e) =>
-                        setEditingWarehouse({
-                          ...editingWarehouse,
-                          address: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="warehouse-form-group">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={editingWarehouse.is_active}
-                        onChange={(e) =>
-                          setEditingWarehouse({
-                            ...editingWarehouse,
-                            is_active: e.target.checked,
-                          })
-                        }
-                        style={{ marginRight: "8px" }}
+                  {warehouseDeleteMode ? (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "20px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <AlertTriangle
+                        size={48}
+                        color="#f56565"
+                        style={{ marginBottom: "16px" }}
                       />
-                      Armazém Ativo
-                    </label>
-                  </div>
+                      <p style={{ fontSize: "16px", marginBottom: "8px" }}>
+                        Tem certeza que deseja eliminar o armazém{" "}
+                        <strong>"{editingWarehouse.name}"</strong>?
+                      </p>
+                      <p style={{ fontSize: "14px", color: "#6b7280" }}>
+                        Esta ação não pode ser desfeita. Não será possível
+                        eliminar se houver inventário associado.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="warehouse-form-group">
+                        <label htmlFor="edit-warehouse-name">
+                          Nome do Armazém *
+                        </label>
+                        <input
+                          id="edit-warehouse-name"
+                          type="text"
+                          className="warehouse-input"
+                          placeholder="Ex: Armazém Principal"
+                          value={editingWarehouse.name}
+                          onChange={(e) =>
+                            setEditingWarehouse({
+                              ...editingWarehouse,
+                              name: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div className="warehouse-form-group">
+                        <label htmlFor="edit-warehouse-description">
+                          Descrição
+                        </label>
+                        <textarea
+                          id="edit-warehouse-description"
+                          className="warehouse-textarea"
+                          placeholder="Descrição do armazém..."
+                          value={editingWarehouse.description || ""}
+                          onChange={(e) =>
+                            setEditingWarehouse({
+                              ...editingWarehouse,
+                              description: e.target.value,
+                            })
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="warehouse-form-group">
+                        <label htmlFor="edit-warehouse-address">Morada</label>
+                        <input
+                          id="edit-warehouse-address"
+                          type="text"
+                          className="warehouse-input"
+                          placeholder="Rua, Cidade, País"
+                          value={editingWarehouse.address || ""}
+                          onChange={(e) =>
+                            setEditingWarehouse({
+                              ...editingWarehouse,
+                              address: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div className="warehouse-form-group">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={editingWarehouse.is_active}
+                            onChange={(e) =>
+                              setEditingWarehouse({
+                                ...editingWarehouse,
+                                is_active: e.target.checked,
+                              })
+                            }
+                            style={{ marginRight: "8px" }}
+                          />
+                          Armazém Ativo
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="warehouse-modal-footer">
-                  <button
-                    className="warehouse-btn warehouse-btn-delete"
-                    onClick={() => {
-                      Modal.confirm({
-                        title: "Eliminar Armazém",
-                        content: `Tem certeza que deseja eliminar o armazém "${editingWarehouse.name}"?\n\nNota: Não será possível eliminar se houver inventário associado.`,
-                        okText: "Eliminar",
-                        okType: "danger",
-                        cancelText: "Cancelar",
-                        onOk: async () => {
+                  {warehouseDeleteMode ? (
+                    <>
+                      <button
+                        className="warehouse-btn warehouse-btn-cancel"
+                        onClick={() => setWarehouseDeleteMode(false)}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        className="warehouse-btn warehouse-btn-delete-confirm"
+                        onClick={async () => {
                           try {
                             await apiCall(
                               `/stock/warehouses/${editingWarehouse.$id}`,
@@ -3657,62 +3684,68 @@ export default function StockComponent({ onLoaded }) {
                                 method: "DELETE",
                               }
                             );
-                            message.success("Armazém eliminado com sucesso!");
+                            setEditWarehouseModalOpen(false);
+                            setEditingWarehouse(null);
+                            setWarehouseDeleteMode(false);
+                            await fetchWarehouses();
+                          } catch (err) {
+                            console.error("Error deleting warehouse:", err);
+                            // Error handling removed notification
+                          }
+                        }}
+                      >
+                        <Trash2 size={16} />
+                        Sim, Eliminar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="warehouse-btn warehouse-btn-delete"
+                        onClick={() => setWarehouseDeleteMode(true)}
+                      >
+                        <Trash2 size={16} />
+                        Eliminar Armazém
+                      </button>
+                      <button
+                        className="warehouse-btn warehouse-btn-create"
+                        onClick={async () => {
+                          if (!editingWarehouse.name.trim()) {
+                            // Error handling removed notification
+                            return;
+                          }
+
+                          try {
+                            await apiCall(
+                              `/stock/warehouses/${editingWarehouse.$id}`,
+                              {
+                                method: "PUT",
+                                body: JSON.stringify({
+                                  name: editingWarehouse.name.trim(),
+                                  description:
+                                    editingWarehouse.description?.trim() ||
+                                    null,
+                                  address:
+                                    editingWarehouse.address?.trim() || null,
+                                  is_active: editingWarehouse.is_active,
+                                }),
+                              }
+                            );
                             setEditWarehouseModalOpen(false);
                             setEditingWarehouse(null);
                             await fetchWarehouses();
                           } catch (err) {
-                            console.error("Error deleting warehouse:", err);
-                            message.error(
-                              err.message ||
-                                "Erro ao eliminar armazém. Verifique se não há inventário associado."
-                            );
+                            console.error("Error updating warehouse:", err);
+                            // Error handling removed notification
                           }
-                        },
-                      });
-                    }}
-                  >
-                    <Trash2 size={16} />
-                    Eliminar Armazém
-                  </button>
-                  <button
-                    className="warehouse-btn warehouse-btn-create"
-                    onClick={async () => {
-                      if (!editingWarehouse.name.trim()) {
-                        message.warning("Por favor, insira o nome do armazém");
-                        return;
-                      }
-
-                      try {
-                        await apiCall(
-                          `/stock/warehouses/${editingWarehouse.$id}`,
-                          {
-                            method: "PUT",
-                            body: JSON.stringify({
-                              name: editingWarehouse.name.trim(),
-                              description:
-                                editingWarehouse.description?.trim() || null,
-                              address: editingWarehouse.address?.trim() || null,
-                              is_active: editingWarehouse.is_active,
-                            }),
-                          }
-                        );
-                        message.success("Armazém atualizado com sucesso!");
-                        setEditWarehouseModalOpen(false);
-                        setEditingWarehouse(null);
-                        await fetchWarehouses();
-                      } catch (err) {
-                        console.error("Error updating warehouse:", err);
-                        message.error(
-                          "Erro ao atualizar armazém. Tente novamente."
-                        );
-                      }
-                    }}
-                    disabled={!editingWarehouse.name.trim()}
-                  >
-                    <Save size={16} />
-                    Guardar Alterações
-                  </button>
+                        }}
+                        disabled={!editingWarehouse.name.trim()}
+                      >
+                        <Save size={16} />
+                        Guardar Alterações
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>,
@@ -3933,13 +3966,10 @@ export default function StockComponent({ onLoaded }) {
                     className="transfer-btn transfer-btn-submit"
                     onClick={async () => {
                       if (!addToWarehouseForm.item_id) {
-                        message.warning("Por favor selecione um item");
                         return;
                       }
                       if (addToWarehouseForm.qty <= 0) {
-                        message.warning(
-                          "Por favor insira uma quantidade válida"
-                        );
+                        // Error handling removed notification
                         return;
                       }
 
@@ -3958,12 +3988,8 @@ export default function StockComponent({ onLoaded }) {
                           min_qty: 0,
                           position: "",
                         });
-                        message.success(
-                          "Item adicionado ao armazém com sucesso!"
-                        );
-                      } catch (err) {
-                        message.error(`Erro ao adicionar item: ${err.message}`);
-                      }
+                        // Success notification removed
+                      } catch (err) {}
                     }}
                     disabled={
                       !addToWarehouseForm.item_id || addToWarehouseForm.qty <= 0
@@ -4200,10 +4226,7 @@ export default function StockComponent({ onLoaded }) {
                         setWarehouseItemEditModalOpen(false);
                         setEditingWarehouseItem(null);
                         setWarehouseItemEditState({});
-                        message.success("Item atualizado com sucesso!");
-                      } catch (err) {
-                        message.error(`Erro ao atualizar: ${err.message}`);
-                      }
+                      } catch (err) {}
                     }}
                   >
                     <Save size={16} />
@@ -4307,37 +4330,68 @@ export default function StockComponent({ onLoaded }) {
 
                       <div className="transfer-form-group">
                         <label htmlFor="transfer-to">Para (Armazém) *</label>
-                        <Select
-                          id="transfer-to"
-                          value={transferForm.to_warehouse_id || undefined}
-                          onChange={(value) =>
-                            setTransferForm({
-                              ...transferForm,
-                              to_warehouse_id: value || null,
-                            })
-                          }
-                          placeholder="Selecione o armazém de destino"
-                          showSearch
-                          allowClear
-                          optionFilterProp="children"
-                          filterOption={(input, option) =>
-                            (option?.label ?? "")
-                              .toLowerCase()
-                              .includes(input.toLowerCase())
-                          }
-                          style={{ width: "100%", height: "44px" }}
-                          className="custom-select"
-                          options={warehouses
-                            .filter(
-                              (w) =>
-                                String(w.$id) !==
-                                String(transferForm.from_warehouse_id)
-                            )
-                            .map((warehouse) => ({
-                              value: warehouse.$id,
-                              label: warehouse.name,
-                            }))}
-                        />
+                        {warehousesLoading ? (
+                          <div style={{ padding: "8px 0", color: "#6b7280" }}>
+                            A carregar armazéns...
+                          </div>
+                        ) : (
+                          <Select
+                            className="month-select"
+                            style={{
+                              width: "100%",
+                              height: "40px",
+                              fontSize: "16px",
+                            }}
+                            placeholder={
+                              warehouses.length === 0
+                                ? "Nenhum armazém disponível"
+                                : "Selecione o armazém de destino"
+                            }
+                            value={transferForm.to_warehouse_id || undefined}
+                            onChange={(value) =>
+                              setTransferForm({
+                                ...transferForm,
+                                to_warehouse_id: value || null,
+                              })
+                            }
+                            disabled={
+                              warehousesLoading ||
+                              warehouses.filter(
+                                (w) =>
+                                  String(w.$id) !==
+                                  String(transferForm.from_warehouse_id)
+                              ).length === 0
+                            }
+                            showSearch
+                            optionFilterProp="label"
+                            options={warehouses
+                              .filter(
+                                (w) =>
+                                  String(w.$id) !==
+                                  String(transferForm.from_warehouse_id)
+                              )
+                              .map((warehouse) => ({
+                                value: warehouse.$id,
+                                label: warehouse.name,
+                              }))}
+                          />
+                        )}
+                        {!warehousesLoading &&
+                          warehouses.filter(
+                            (w) =>
+                              String(w.$id) !==
+                              String(transferForm.from_warehouse_id)
+                          ).length === 0 && (
+                            <div
+                              style={{
+                                color: "#92400e",
+                                fontSize: "13px",
+                                marginTop: "6px",
+                              }}
+                            >
+                              Nenhum armazém de destino disponível
+                            </div>
+                          )}
                       </div>
 
                       <div className="transfer-form-group">
@@ -4410,21 +4464,15 @@ export default function StockComponent({ onLoaded }) {
                         !transferForm.from_warehouse_id ||
                         !transferForm.to_warehouse_id
                       ) {
-                        message.warning(
-                          "Por favor selecione os armazéns de origem e destino"
-                        );
+                        // Error handling removed notification
                         return;
                       }
                       if (transferForm.qty <= 0) {
-                        message.warning(
-                          "Por favor insira uma quantidade válida"
-                        );
+                        // Error handling removed notification
                         return;
                       }
                       if (transferForm.qty > maxQty) {
-                        message.warning(
-                          `Quantidade excede o disponível (${maxQty} unidades)`
-                        );
+                        // Error handling removed notification
                         return;
                       }
 
@@ -4442,11 +4490,8 @@ export default function StockComponent({ onLoaded }) {
                           to_warehouse_id: null,
                           qty: 0,
                         });
-                        message.success("Transferência realizada com sucesso!");
                       } catch (err) {
-                        message.error(
-                          `Erro ao transferir stock: ${err.message}`
-                        );
+                        // Error handling removed notification
                       }
                     }}
                     disabled={
@@ -4746,9 +4791,7 @@ export default function StockComponent({ onLoaded }) {
                     className="transfer-btn transfer-btn-submit"
                     onClick={async () => {
                       if (bulkQtyForm.qty <= 0) {
-                        message.warning(
-                          "Por favor insira uma quantidade válida"
-                        );
+                        // Error handling removed notification
                         return;
                       }
 
@@ -4756,9 +4799,7 @@ export default function StockComponent({ onLoaded }) {
                         bulkQtyForm.action === "remove" &&
                         bulkQtyForm.qty > bulkQtyForm.item.warehouse_qty
                       ) {
-                        message.warning(
-                          `Quantidade excede o disponível (${bulkQtyForm.item.warehouse_qty} unidades)`
-                        );
+                        // Error handling removed notification
                         return;
                       }
 
@@ -4784,11 +4825,8 @@ export default function StockComponent({ onLoaded }) {
 
                         setBulkQtyModalOpen(false);
                         setBulkQtyForm({ item: null, action: "add", qty: 0 });
-                        message.success("Quantidade atualizada com sucesso!");
                       } catch (err) {
-                        message.error(
-                          `Erro ao atualizar quantidade: ${err.message}`
-                        );
+                        // Error handling removed notification
                       }
                     }}
                     disabled={bulkQtyForm.qty <= 0}
@@ -5443,13 +5481,9 @@ export default function StockComponent({ onLoaded }) {
                                           `/stock/items/${editingItem.$id}`
                                         );
                                         setEditingItem(updatedItem);
-                                        message.success(
-                                          "Stock removido do armazém com sucesso!"
-                                        );
+                                        // Success notification removed
                                       } catch (err) {
-                                        message.error(
-                                          `Erro ao remover stock: ${err.message}`
-                                        );
+                                        // Error handling removed notification
                                       }
                                     },
                                   });
@@ -5511,7 +5545,6 @@ export default function StockComponent({ onLoaded }) {
                             await deleteItem(editingItem.$id);
                             setIsEditModalOpen(false);
                             setEditingItem(null);
-                            message.success("Item eliminado com sucesso!");
                           } catch (err) {
                             message.error(
                               `Erro ao eliminar item: ${err.message}`
@@ -5834,9 +5867,8 @@ export default function StockComponent({ onLoaded }) {
                     className="warehouse-btn warehouse-btn-create"
                     onClick={async () => {
                       if (!newSupplier.name.trim()) {
-                        message.warning(
-                          "Por favor, insira o nome do fornecedor"
-                        );
+                        console.warn("Por favor, insira o nome do fornecedor");
+                        // Optionally, use a custom notification system here
                         return;
                       }
 
@@ -5846,10 +5878,12 @@ export default function StockComponent({ onLoaded }) {
                             editingSupplier.$id,
                             newSupplier
                           );
-                          message.success("Fornecedor atualizado com sucesso!");
+                          console.log("Fornecedor atualizado com sucesso!");
+                          // Optionally, use a custom notification system here
                         } else {
                           await createSupplier(newSupplier);
-                          message.success("Fornecedor criado com sucesso!");
+                          console.log("Fornecedor criado com sucesso!");
+                          // Optionally, use a custom notification system here
                         }
                         setIsAddSupplierModalOpen(false);
                         setEditingSupplier(null);
@@ -5863,12 +5897,7 @@ export default function StockComponent({ onLoaded }) {
                         });
                       } catch (err) {
                         console.error("Error saving supplier:", err);
-                        message.error(
-                          err.message ||
-                            `Erro ao ${
-                              editingSupplier ? "atualizar" : "criar"
-                            } fornecedor. Tente novamente.`
-                        );
+                        // Optionally, use a custom notification system here
                       }
                     }}
                     disabled={!newSupplier.name.trim()}
@@ -6170,6 +6199,83 @@ export default function StockComponent({ onLoaded }) {
                 )}
               </div>
             )}
+          </div>,
+          document.body
+        )}
+      {isDeleteSupplierModalOpen &&
+        createPortal(
+          <div className="warehouse-modal-overlay">
+            <div className="warehouse-modal-container">
+              <div className="warehouse-modal-header">
+                <h2>Eliminar Fornecedor</h2>
+                <button
+                  className="warehouse-close-btn"
+                  onClick={() => setIsDeleteSupplierModalOpen(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="warehouse-modal-body">
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "20px 0",
+                    fontSize: "16px",
+                    lineHeight: "1.5",
+                    color: "#374151",
+                  }}
+                >
+                  <p style={{ margin: "0 0 16px 0", fontWeight: "500" }}>
+                    Tem certeza que deseja eliminar o fornecedor{" "}
+                    <strong>"{supplierToDelete?.name}"</strong>?
+                  </p>
+                  <p
+                    style={{ margin: "0", fontSize: "14px", color: "#6b7280" }}
+                  >
+                    Nota: Não será possível eliminar se houver items associados.
+                  </p>
+                  {deleteSupplierError && (
+                    <div
+                      style={{
+                        marginTop: "16px",
+                        padding: "12px",
+                        backgroundColor: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: "8px",
+                        color: "#dc2626",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                      }}
+                    >
+                      <strong>Erro:</strong> {deleteSupplierError}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="warehouse-modal-footer">
+                <button
+                  className="warehouse-btn warehouse-btn--cancel"
+                  onClick={() => setIsDeleteSupplierModalOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="warehouse-btn warehouse-btn--danger"
+                  onClick={async () => {
+                    try {
+                      await deleteSupplier(supplierToDelete.$id);
+                      setIsDeleteSupplierModalOpen(false);
+                    } catch (err) {
+                      setDeleteSupplierError(
+                        err.message || "Erro desconhecido"
+                      );
+                    }
+                  }}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
           </div>,
           document.body
         )}

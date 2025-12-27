@@ -42,6 +42,16 @@ const formatDateTime = (date) => {
 export const getNotificationTemplate = (eventType, data) => {
   const template = (() => {
     switch (eventType) {
+      case "stock:transfer":
+        return {
+          type: "stock",
+          icon: <Package size={24} color="#0ea5e9" />,
+          color: "#0ea5e9",
+          title: "Transferência de Stock",
+          message: `${data.qty || 0} unidade${data.qty === 1 ? "" : "s"} de ${
+            data.from_warehouse_name || "Origem"
+          } para ${data.to_warehouse_name || "Destino"}`,
+        };
       case "order:created":
         // Use table_number if available, otherwise fall back to table_id
         let tableDisplay = data.table_number || "N/A";
@@ -151,6 +161,17 @@ export const getNotificationTemplate = (eventType, data) => {
           }`,
         };
 
+      case "stock:inventory:updated":
+        return {
+          type: "stock",
+          icon: <Package size={24} color="#64748b" />,
+          color: "#64748b",
+          title: "Stock Atualizado",
+          message: `${data.item_name || data.name || "Item"} - ${
+            data.warehouse_name || "Armazém"
+          }: ${data.qty} unidades`,
+        };
+
       case "order:updated":
         // Only show for important status changes
         const orderStatus = data.status || data.order_status;
@@ -258,6 +279,32 @@ export const getNotificationTemplate = (eventType, data) => {
         }
         return null;
 
+      case "stock:supplier:created":
+        return {
+          type: "stock",
+          icon: <Package size={24} color="#0ea5e9" />,
+          color: "#0ea5e9",
+          title: "Novo Fornecedor",
+          message: `Fornecedor "${data.name}" criado com sucesso.`,
+        };
+      case "stock:supplier:updated":
+        return {
+          type: "stock",
+          icon: <CheckCircle size={24} color="#22c55e" />,
+          color: "#22c55e",
+          title: "Fornecedor Atualizado",
+          message: `Fornecedor "${data.name}" atualizado.`,
+        };
+      case "stock:supplier:deleted":
+        return {
+          type: "stock",
+          icon: <XCircle size={24} color="#ef4444" />,
+          color: "#ef4444",
+          title: "Fornecedor Removido",
+          message: `Fornecedor "${
+            data.name || data.supplier || data.supplier_name || ""
+          }" removido.`,
+        };
       default:
         return {
           type: "default",

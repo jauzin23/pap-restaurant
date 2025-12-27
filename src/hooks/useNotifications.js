@@ -135,6 +135,21 @@ export const useNotifications = () => {
       });
     };
 
+    const handleStockInventoryUpdated = (inventory) => {
+      debouncer(`stock:inventory:updated:${inventory.stock_item_id}`, () => {
+        console.log("🔔 Stock Inventory Updated:", inventory);
+        try {
+          const template = getNotificationTemplate(
+            "stock:inventory:updated",
+            inventory
+          );
+          addNotification(template);
+        } catch (error) {
+          console.error("Error creating stock inventory notification:", error);
+        }
+      });
+    };
+
     // ==================== ORDER UPDATE EVENTS ====================
     const handleOrderUpdated = (order) => {
       // Only notify for important status changes
@@ -233,6 +248,7 @@ export const useNotifications = () => {
     socket.on("menu:created", handleMenuCreated);
     socket.on("presenca:registada", handlePresencaRegistada);
     socket.on("stock:alert:created", handleStockAlert);
+    socket.on("stock:inventory:updated", handleStockInventoryUpdated);
     socket.on("payment:created", handlePaymentCreated);
     socket.on("table:updated", handleTableUpdated);
 
@@ -248,6 +264,7 @@ export const useNotifications = () => {
       socket.off("menu:created", handleMenuCreated);
       socket.off("presenca:registada", handlePresencaRegistada);
       socket.off("stock:alert:created", handleStockAlert);
+      socket.off("stock:inventory:updated", handleStockInventoryUpdated);
       socket.off("payment:created", handlePaymentCreated);
       socket.off("table:updated", handleTableUpdated);
     };
