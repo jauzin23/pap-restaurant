@@ -57,6 +57,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      border: 1px solid #d1d5db;
 
       &:hover {
         background: #e5e7eb;
@@ -211,28 +212,38 @@
         gap: 0.75rem;
         align-items: center;
 
-        .discount-type {
-          // Remove all native select styling - let Ant Design handle it
-          padding: 0 !important;
-          border: none !important;
-          border-radius: 0 !important;
-          background: none !important;
-          font-size: inherit !important;
-          font-weight: inherit !important;
-          color: inherit !important;
-          cursor: inherit !important;
-          min-width: auto !important;
-          appearance: none !important;
-          background-image: none !important;
-          background-repeat: unset !important;
-          background-position: unset !important;
-          background-size: unset !important;
-          height: auto !important;
+        .custom-select-wrapper {
+          position: relative;
+          min-width: 150px;
 
-          &:focus {
-            outline: none !important;
-            border-color: transparent !important;
-            background-color: transparent !important;
+          .custom-discount-select {
+            width: 100%;
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 1.5rem;
+            font-size: 0.9375rem;
+            color: #1a1a1a;
+            cursor: pointer;
+            transition: all 0.2s;
+            appearance: none;
+            outline: none;
+            font-family: inherit;
+            font-weight: 500;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 16px;
+
+            &:hover {
+              border-color: #dee2e6;
+              background-color: white;
+            }
+
+            &:focus {
+              border-color: #1a73e8;
+              background-color: white;
+            }
           }
         }
 
@@ -970,17 +981,13 @@
 
     .group-header {
       background: #f8f9fa;
-      padding: 1rem 1.25rem;
+      padding: 0.75rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
       user-select: none;
       transition: background 0.2s;
-
-      &:hover {
-        background: #f1f3f5;
-      }
 
       .group-header-left {
         display: flex;
@@ -1071,6 +1078,7 @@
     }
 
     .group-orders {
+      border-top: 1px solid #d1d5db;
       display: flex;
       flex-direction: column;
       background: white;
@@ -1082,7 +1090,7 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    padding: 0.75rem;
     border-bottom: 1px solid #f8f9fa;
     cursor: pointer;
     transition: all 0.2s;

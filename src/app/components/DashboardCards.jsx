@@ -222,12 +222,7 @@ const DashboardCards = ({ customMetrics = null, showAllMetrics = false }) => {
               }}
             >
               <div className="metric-card__header">
-                <div
-                  className="metric-card__icon-wrapper"
-                  style={{
-                    backgroundColor: `${card.color}15`,
-                  }}
-                >
+                <div className="metric-card__icon-wrapper">
                   <Icon
                     size={24}
                     strokeWidth={2}

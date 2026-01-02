@@ -86,7 +86,7 @@ const apiCall = async (endpoint, options = {}) => {
   return response.json();
 };
 
-export default function StockComponent({ onLoaded }) {
+export default function StockComponent({ onLoaded, setGlobalLoading }) {
   const { addNotification } = useContext(NotificationContext);
   // Tab state
   const [activeTab, setActiveTab] = useState("items"); // "items" | "warehouses" | "suppliers"
@@ -556,14 +556,12 @@ export default function StockComponent({ onLoaded }) {
   }, []);
 
   const handleAlert = useCallback((alert) => {
-    console.log("[Stock Alert]", alert.status, alert.message);
+    // Alert received
   }, []);
 
   // Handle real-time inventory updates from WebSocket
   const handleInventoryUpdated = useCallback(
     (inventory) => {
-      console.log("[Stock] Inventory updated via WebSocket:", inventory);
-
       // Update warehouse inventory if viewing the affected warehouse
       setWarehouseInventory((prev) => {
         if (!selectedWarehouse) return prev;
@@ -592,8 +590,6 @@ export default function StockComponent({ onLoaded }) {
 
   const handleInventoryDeleted = useCallback(
     (data) => {
-      console.log("[Stock] Inventory deleted via WebSocket:", data);
-
       // Remove from warehouse inventory if viewing the affected warehouse
       setWarehouseInventory((prev) => {
         if (!selectedWarehouse) return prev;
@@ -614,8 +610,6 @@ export default function StockComponent({ onLoaded }) {
 
   const handleStockTransferred = useCallback(
     (transfer) => {
-      console.log("[Stock] Stock transferred via WebSocket:", transfer);
-
       // Only update warehouse inventory for transfers affecting the current warehouse
       if (selectedWarehouse) {
         const warehouseId = String(selectedWarehouse.$id);
@@ -900,7 +894,6 @@ export default function StockComponent({ onLoaded }) {
         })
         .filter(Boolean); // Remove items not in this warehouse
 
-      console.log("Warehouse inventory loaded:", inventoryItems);
       setWarehouseInventory(inventoryItems);
     } catch (err) {
       console.error("Error fetching warehouse inventory:", err);
@@ -1260,6 +1253,21 @@ export default function StockComponent({ onLoaded }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update global loading when warehousesLoading changes
+  useEffect(() => {
+    setGlobalLoading(warehousesLoading);
+  }, [warehousesLoading, setGlobalLoading]);
+
+  // Update global loading when loading changes
+  useEffect(() => {
+    setGlobalLoading(loading);
+  }, [loading, setGlobalLoading]);
+
+  // Update global loading when dropdownsLoading changes
+  useEffect(() => {
+    setGlobalLoading(dropdownsLoading);
+  }, [dropdownsLoading, setGlobalLoading]);
+
   // Fetch dropdown data when add modal opens or when first item is being edited
   useEffect(() => {
     const isEditing = Object.keys(editingRows).length > 0;
@@ -1293,10 +1301,7 @@ export default function StockComponent({ onLoaded }) {
   // Debug transfer modal data
   useEffect(() => {
     if (transferModalOpen) {
-      console.log("Transfer Modal Open - Debug Info:");
-      console.log("- Warehouses:", warehouses.length, warehouses);
-      console.log("- Transfer Form:", transferForm);
-      console.log("- Item warehouses:", transferForm.item?.warehouses);
+      // Transfer modal opened
     }
   }, [transferModalOpen, warehouses, transferForm]);
 
@@ -1396,7 +1401,6 @@ export default function StockComponent({ onLoaded }) {
       setIsAddModalOpen(false);
 
       await fetchStock();
-      console.log("Item adicionado com sucesso!");
     } catch (err) {
       console.error("Error adding new item:", err);
       alert("Erro ao adicionar produto. Verifique os dados e tente novamente.");
@@ -1656,12 +1660,6 @@ export default function StockComponent({ onLoaded }) {
 
   return (
     <div className="stock-component">
-      {loading && (
-        <div className="loading-state">
-          <RefreshCw className="animate-spin" size={32} />
-          <p>A carregar...</p>
-        </div>
-      )}
       {/* Main Container */}
       <div className="stock-container">
         {/* Header Card */}
@@ -2659,12 +2657,7 @@ export default function StockComponent({ onLoaded }) {
               /* Warehouse Grid View */
               <div className="warehouse-grid-container">
                 <div className="warehouse-grid">
-                  {warehousesLoading ? (
-                    <div className="loading-state">
-                      <RefreshCw className="animate-spin" size={32} />
-                      <p>A carregar armazéns...</p>
-                    </div>
-                  ) : warehouses.length === 0 ? (
+                  {warehouses.length === 0 ? (
                     <div className="empty-state">
                       <Warehouse size={64} />
                       <h3>Nenhum armazém criado</h3>
@@ -3108,12 +3101,7 @@ export default function StockComponent({ onLoaded }) {
 
               {/* Suppliers Grid */}
               <div className="suppliers-grid">
-                {dropdownsLoading ? (
-                  <div className="loading-state">
-                    <RefreshCw className="animate-spin" size={32} />
-                    <p>A carregar fornecedores...</p>
-                  </div>
-                ) : filteredSuppliers.length === 0 ? (
+                {filteredSuppliers.length === 0 ? (
                   <div className="empty-state">
                     <ShoppingCart size={64} />
                     <h3>
@@ -3818,7 +3806,6 @@ export default function StockComponent({ onLoaded }) {
                       id="add-item-select"
                       value={addToWarehouseForm.item_id || undefined}
                       onChange={(value) => {
-                        console.log("Selected item:", value);
                         setAddToWarehouseForm({
                           ...addToWarehouseForm,
                           item_id: value || null,
@@ -5867,8 +5854,6 @@ export default function StockComponent({ onLoaded }) {
                     className="warehouse-btn warehouse-btn-create"
                     onClick={async () => {
                       if (!newSupplier.name.trim()) {
-                        console.warn("Por favor, insira o nome do fornecedor");
-                        // Optionally, use a custom notification system here
                         return;
                       }
 
@@ -5878,12 +5863,8 @@ export default function StockComponent({ onLoaded }) {
                             editingSupplier.$id,
                             newSupplier
                           );
-                          console.log("Fornecedor atualizado com sucesso!");
-                          // Optionally, use a custom notification system here
                         } else {
                           await createSupplier(newSupplier);
-                          console.log("Fornecedor criado com sucesso!");
-                          // Optionally, use a custom notification system here
                         }
                         setIsAddSupplierModalOpen(false);
                         setEditingSupplier(null);

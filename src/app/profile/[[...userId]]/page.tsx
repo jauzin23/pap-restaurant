@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { notification } from "antd";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -115,23 +114,6 @@ function ProfilePageContent({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropperRef = useRef<any>(null);
-
-  const showToast = (
-    message: string,
-    type: "success" | "error" | "info" = "success"
-  ) => {
-    notification[type]({
-      message:
-        type === "success"
-          ? "Sucesso"
-          : type === "error"
-          ? "Erro"
-          : "Informação",
-      description: message,
-      placement: "topRight",
-      duration: 3,
-    });
-  };
 
   const ProfileImage = ({
     src,
@@ -337,10 +319,6 @@ function ProfilePageContent({
       }, 3000);
     } catch (error) {
       console.error("Error updating profile:", error);
-      showToast(
-        "Erro ao atualizar perfil. Por favor, tente novamente.",
-        "error"
-      );
     } finally {
       setIsSaving(false);
     }
@@ -382,17 +360,14 @@ function ProfilePageContent({
       });
 
       if (response.ok) {
-        showToast("Utilizador eliminado com sucesso", "success");
         setTimeout(() => {
           router.push("/");
         }, 1500);
       } else {
         const error = await response.json();
-        showToast(error.error || "Erro ao eliminar utilizador", "error");
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      showToast("Erro ao eliminar utilizador", "error");
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
@@ -403,12 +378,10 @@ function ProfilePageContent({
     if (!profileUser) return;
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showToast("As passwords não coincidem", "error");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      showToast("A password deve ter pelo menos 6 caracteres", "error");
       return;
     }
 
@@ -433,7 +406,6 @@ function ProfilePageContent({
       );
 
       if (response.ok) {
-        showToast("Password resetada com sucesso", "success");
         setShowPasswordModal(false);
         setPasswordData({
           newPassword: "",
@@ -441,11 +413,9 @@ function ProfilePageContent({
         });
       } else {
         const error = await response.json();
-        showToast(error.error || "Erro ao alterar password", "error");
       }
     } catch (error) {
       console.error("Error changing password:", error);
-      showToast("Erro ao alterar password", "error");
     } finally {
       setChangingPassword(false);
     }
@@ -556,7 +526,6 @@ function ProfilePageContent({
 
   const removeBackground = async () => {
     if (!imagePreview && !profileUser?.profile_image) {
-      showToast("Por favor, selecione uma imagem primeiro", "error");
       return;
     }
 
@@ -650,8 +619,6 @@ function ProfilePageContent({
       setImagePreview(previewUrl);
       setCroppedImageBlob(blob);
       setBackgroundRemovalPreview(previewUrl);
-
-      showToast("Fundo removido com sucesso!", "success");
     } catch (error: any) {
       console.error("Error removing background:", error);
 
@@ -669,8 +636,6 @@ function ProfilePageContent({
       } else {
         errorMessage += "Por favor, tente novamente.";
       }
-
-      showToast(errorMessage, "error");
     } finally {
       setRemovingBackground(false);
     }
@@ -682,7 +647,6 @@ function ProfilePageContent({
       setCroppedImageBlob(originalImageBeforeRemoval.blob);
       setBackgroundRemovalPreview(null);
       setOriginalImageBeforeRemoval(null);
-      showToast("Fundo original restaurado", "info");
     }
   };
 
@@ -737,7 +701,6 @@ function ProfilePageContent({
       setProfileUser(updatedUser);
 
       resetImage();
-      showToast("Foto de perfil atualizada com sucesso!", "success");
       setSaveSuccess(true);
 
       setTimeout(() => {
@@ -745,10 +708,6 @@ function ProfilePageContent({
       }, 3000);
     } catch (error) {
       console.error("Error uploading profile image:", error);
-      showToast(
-        "Erro ao carregar imagem. Por favor, tente novamente.",
-        "error"
-      );
     } finally {
       setUploadingImage(false);
     }

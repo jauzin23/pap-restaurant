@@ -42,6 +42,41 @@ const RestLayoutIcon = ({ size = 18 }) => (
   </svg>
 );
 
+// Profile Image Component - moved outside to prevent re-creation
+const ProfileImage = ({ src, alt, size = 32, isCircular = false }) => {
+  const [hasError, setHasError] = useState(false);
+
+  const imageUrl = getImageUrl("imagens-perfil", src);
+
+  if (hasError || !imageUrl) {
+    return (
+      <div
+        className={`profile-placeholder ${isCircular ? "circular" : ""}`}
+        style={{
+          width: typeof size === "number" ? `${size}px` : size,
+          height: typeof size === "number" ? `${size}px` : size,
+        }}
+      >
+        <UserCircle
+          size={typeof size === "number" ? Math.floor(size * 0.65) : 24}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`profile-image ${isCircular ? "circular" : ""}`}
+      style={{
+        width: typeof size === "number" ? `${size}px` : size,
+        height: typeof size === "number" ? `${size}px` : size,
+      }}
+    >
+      <img src={imageUrl} alt={alt} onError={() => setHasError(true)} />
+    </div>
+  );
+};
+
 const Sidebar = ({
   activeNavItem,
   onNavClick,
@@ -51,66 +86,22 @@ const Sidebar = ({
   profileImg: propProfileImg,
   isOpen = false,
   onToggle,
+  isMobile = false,
 }) => {
   const router = useRouter();
 
   const menuItems = [
     { id: "Painel", label: "Painel", icon: House },
     { id: "Mesas", label: "Mesas", icon: RestLayoutIcon },
+    { id: "Pagamentos", label: "Pagamentos", icon: CreditCard },
     { id: "Ementa", label: "Ementa", icon: UtensilsCrossed },
     { id: "Stock", label: "Stock", icon: Package },
     { id: "Reservas", label: "Reservas", icon: Calendar },
     { id: "Presenças", label: "Presenças", icon: Clock },
-    { id: "Pagamentos", label: "Pagamentos", icon: CreditCard },
     { id: "Gamificação", label: "Gamificação", icon: Trophy },
     { id: "AI Insights", label: "AI Insights", icon: Brain },
     { id: "Staff", label: "Pessoal", icon: Users },
   ];
-
-  // Profile Image Component
-  const ProfileImage = ({
-    src,
-    alt,
-    size = 32,
-    isCircular = false,
-    isWorking = true,
-  }) => {
-    const [hasError, setHasError] = useState(false);
-    const API_BASE_URL =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-    const imageUrl = getImageUrl("imagens-perfil", src);
-
-    if (hasError || !imageUrl) {
-      return (
-        <div
-          className={`profile-placeholder ${isCircular ? "circular" : ""}`}
-          style={{
-            width: typeof size === "number" ? `${size}px` : size,
-            height: typeof size === "number" ? `${size}px` : size,
-          }}
-        >
-          <UserCircle
-            size={typeof size === "number" ? Math.floor(size * 0.65) : 24}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={`profile-image ${isCircular ? "circular" : ""} ${
-          !isWorking ? "not-working" : ""
-        }`}
-        style={{
-          width: typeof size === "number" ? `${size}px` : size,
-          height: typeof size === "number" ? `${size}px` : size,
-        }}
-      >
-        <img src={imageUrl} alt={alt} onError={() => setHasError(true)} />
-      </div>
-    );
-  };
 
   // Handle logout
   const handleLogout = async () => {
@@ -162,40 +153,42 @@ const Sidebar = ({
         />
       )}
 
-      {/* Mobile toggle arrow - outside sidebar so it's always visible */}
-      <button
-        className={`sidebar-toggle-arrow ${isOpen ? "sidebar-open" : ""}`}
-        onClick={onToggle}
-        aria-label="Toggle sidebar"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+      {/* Mobile toggle arrow - only show on mobile */}
+      {isMobile && (
+        <button
+          className={`sidebar-toggle-arrow ${isOpen ? "sidebar-open" : ""}`}
+          onClick={onToggle}
+          aria-label="Toggle sidebar"
         >
-          {isOpen ? (
-            // Left arrow when open
-            <path
-              d="M10 12L6 8L10 4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ) : (
-            // Right arrow when closed
-            <path
-              d="M6 12L10 8L6 4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-        </svg>
-      </button>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {isOpen ? (
+              // Left arrow when open
+              <path
+                d="M10 12L6 8L10 4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : (
+              // Right arrow when closed
+              <path
+                d="M6 12L10 8L6 4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+          </svg>
+        </button>
+      )}
 
       <aside className={`sidebar collapsed ${isOpen ? "mobile-open" : ""}`}>
         {/* Sidebar Brand */}
@@ -237,9 +230,7 @@ const Sidebar = ({
         <hr className="sidebar-divider" />
 
         {/* User Profile Section with Radix Dropdown */}
-        <div
-          className={`sidebar-topbar ${!user?.is_working ? "not-working" : ""}`}
-        >
+        <div className="sidebar-topbar">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="user-profile-btn" title={username}>
@@ -248,7 +239,6 @@ const Sidebar = ({
                   alt={username}
                   size={40}
                   isCircular={true}
-                  isWorking={user?.is_working || false}
                 />
               </button>
             </DropdownMenu.Trigger>
@@ -268,13 +258,15 @@ const Sidebar = ({
                   <span>Perfil</span>
                 </DropdownMenu.Item>
 
-                <DropdownMenu.Item
-                  className="user-dropdown-item"
-                  onSelect={() => router.push("/settings")}
-                >
-                  <Settings size={16} />
-                  <span>Definições</span>
-                </DropdownMenu.Item>
+                {isManager && (
+                  <DropdownMenu.Item
+                    className="user-dropdown-item"
+                    onSelect={() => router.push("/settings")}
+                  >
+                    <Settings size={16} />
+                    <span>Configurações</span>
+                  </DropdownMenu.Item>
+                )}
 
                 <DropdownMenu.Separator className="user-dropdown-divider" />
 

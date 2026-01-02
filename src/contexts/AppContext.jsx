@@ -1,15 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Client, Databases, Account } from "appwrite";
-
-// Initialize Appwrite
-const client = new Client()
-  .setEndpoint("https://appwrite.jauzin23.com/v1")
-  .setProject("689c99120038471811fa");
-
-const databases = new Databases(client);
-const account = new Account(client);
 
 const AppContext = createContext();
 
@@ -25,15 +16,35 @@ export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Verificar utilizador logado
+  // Check logged in user via custom API
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const currentUser = await account.get();
-        setUser(currentUser);
-        console.log("Utilizador logado:", currentUser.name);
+        const token = localStorage.getItem("token");
+        if (token) {
+          const response = await fetch(
+            `${
+              process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+            }/api/auth/me`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const currentUser = await response.json();
+            setUser(currentUser);
+          } else {
+            setUser(null);
+            localStorage.removeItem("token");
+          }
+        } else {
+          setUser(null);
+        }
       } catch (err) {
-        console.log("Nenhum utilizador logado");
+        console.error("Error checking user:", err);
         setUser(null);
       }
       setLoading(false);
@@ -43,16 +54,11 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const value = {
-    // Appwrite
-    client,
-    databases,
-    account,
-
-    // Estado
+    // State
     user,
     loading,
 
-    // Funções
+    // Functions
     setUser,
   };
 

@@ -419,12 +419,8 @@ export default function MenuComponent({ onLoaded }) {
   useEffect(() => {
     if (!socket || !connected) return;
 
-    console.log("🔌 MenuComponent: Setting up WebSocket listeners");
-
     // Menu item created
     const handleMenuCreated = (item) => {
-      console.log("🍕 Menu item created via WebSocket:", item);
-
       // Add new item to the list (optimistic update)
       setMenuItems((prev) => {
         // Check if item already exists (avoid duplicates)
@@ -470,8 +466,6 @@ export default function MenuComponent({ onLoaded }) {
 
     // Menu item updated
     const handleMenuUpdated = (item) => {
-      console.log("✏️ Menu item updated via WebSocket:", item);
-
       setMenuItems((prev) =>
         prev.map((m) => {
           // Match by $id or id
@@ -517,7 +511,6 @@ export default function MenuComponent({ onLoaded }) {
 
     // Menu item deleted
     const handleMenuDeleted = (data) => {
-      console.log("🗑️ Menu item deleted via WebSocket:", data);
       const itemId = data.id || data.$id;
 
       setMenuItems((prev) =>
@@ -541,8 +534,6 @@ export default function MenuComponent({ onLoaded }) {
 
     // Cleanup function
     return () => {
-      console.log("🔌 MenuComponent: Cleaning up WebSocket listeners");
-
       socket.off("menu:created", handleMenuCreated);
       socket.off("menu:updated", handleMenuUpdated);
       socket.off("menu:deleted", handleMenuDeleted);

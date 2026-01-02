@@ -14,7 +14,6 @@ const getAudioContext = () => {
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {
-      console.warn("Web Audio API not supported");
       return null;
     }
   }
@@ -67,7 +66,7 @@ export const playNotificationSound = (type = "default", volume = 0.15) => {
     oscillator.start(now);
     oscillator.stop(now + 0.15);
   } catch (error) {
-    console.warn("Error playing notification sound:", error);
+    // Silently handle sound playback errors
   }
 };
 
@@ -81,7 +80,7 @@ export const setNotificationSoundEnabled = (enabled) => {
   try {
     localStorage.setItem("mesa_notification_sound", enabled ? "1" : "0");
   } catch (e) {
-    console.warn("Could not save sound preference");
+    // Silently handle localStorage errors
   }
 };
 

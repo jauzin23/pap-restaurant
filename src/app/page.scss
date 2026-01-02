@@ -25,82 +25,81 @@
   .loading-spinner,
   .loading-text,
   .stagger-item {
-    opacity: 1 !important; // Ensure visibility as fallback
+    opacity: 1 !important;
   }
 
   .fade-in {
-    opacity: 1; // Default visible
+    opacity: 1;
     animation: fadeIn 0.5s ease-out forwards;
   }
 
   .fade-in-delayed {
-    opacity: 1; // Default visible, animation will enhance
+    opacity: 1;
     animation: fadeIn 0.5s ease-out 0.1s forwards;
   }
 
   .slide-in-up {
-    opacity: 1; // Default visible
-    transform: translateY(0); // Default position
+    opacity: 1;
+    transform: translateY(0);
     animation: slideInUp 0.4s ease-out forwards;
   }
 
   .slide-in-left {
-    opacity: 1; // Default visible
-    transform: translateX(0); // Default position
+    opacity: 1;
+    transform: translateX(0);
     animation: slideInLeft 0.4s ease-out forwards;
   }
 
   .scale-in {
-    opacity: 1; // Default visible
-    transform: scale(1); // Default scale
+    opacity: 1;
+    transform: scale(1);
     animation: scaleIn 0.4s ease-out forwards;
   }
 
   .nav-fade-in {
-    opacity: 1; // Default visible
-    transform: translateY(0); // Default position
+    opacity: 1;
+    transform: translateY(0);
     animation: navFadeIn 0.4s ease-out forwards;
   }
 
   .loading-fade-in {
-    opacity: 1; // Default visible
+    opacity: 1;
     animation: fadeIn 0.4s ease-out forwards;
   }
 
   .loading-scale-in {
-    opacity: 1; // Default visible
-    transform: scale(1); // Default scale
+    opacity: 1;
+    transform: scale(1);
     animation: loadingScaleIn 0.5s ease-out 0.2s forwards;
   }
 
   .loading-slide-up {
-    opacity: 1; // Default visible
-    transform: translateY(0); // Default position
+    opacity: 1;
+    transform: translateY(0);
     animation: slideInUp 0.6s ease-out 0.4s forwards;
   }
 
   .loading-logo {
-    opacity: 1; // Default visible
-    transform: scale(1); // Default scale
+    opacity: 1;
+    transform: scale(1);
     animation: logoScaleIn 0.5s ease-out 0.6s forwards;
   }
 
   .loading-spinner {
-    opacity: 1; // Default visible
-    transform: scale(1); // Default scale
+    opacity: 1;
+    transform: scale(1);
     animation: spinnerAppear 0.3s ease-out 0.8s forwards,
       spin 1s linear 0.8s infinite;
   }
 
   .loading-text {
-    opacity: 1; // Default visible
+    opacity: 1;
     animation: fadeIn 0.4s ease-out 1s forwards;
   }
 
-  // Staggered animations for children
   .stagger-item {
-    opacity: 1; // Default visible
-    transform: translateY(0); // Default position
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .stagger-item:nth-child(1) {
@@ -128,7 +127,6 @@
     animation: slideInUp 0.4s ease-out 0.66s forwards;
   }
 
-  // Enhanced hover effects
   .hover-lift {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -163,7 +161,6 @@
     transform: scale(0.98);
   }
 
-  // Accordion animation
   .accordion-content {
     max-height: 0;
     overflow: hidden;
@@ -273,7 +270,6 @@
     }
   }
 
-  // Loader spinner for profile image
   .profile-img-loading {
     display: flex;
     align-items: center;
@@ -300,9 +296,6 @@
     }
   }
 
-  // Page load animations - now handled by Framer Motion
-  // Keeping keyframes for potential custom use
-
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -323,7 +316,6 @@
     }
   }
 
-  // Enhanced hover effects for interactive elements
   .hover-lift {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -340,7 +332,7 @@
   .hover-glow:hover {
     box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
   }
-  // Accordion Styles
+
   .accordion-section {
     margin-bottom: 1.2rem;
   }
@@ -408,7 +400,7 @@
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #eee;
-    background-color: #f8fafc; // Light grayish-white background for transparent images
+    background-color: #f8fafc;
   }
 
   .device-info {
@@ -463,22 +455,21 @@
   }
 
   .dashboard-content {
+    position: relative;
     margin-left: 80px;
     transition: margin-left 0.3s ease;
-    height: 100% !important;
+    height: 100%;
     min-height: 100vh;
     background: transparent;
     width: calc(100% - 80px);
     display: flex;
     flex-direction: column;
-    position: relative;
 
     &.sidebar-collapsed {
       margin-left: 80px;
       width: calc(100% - 80px);
     }
 
-    // Tablet responsive - smaller sidebar
     @media (max-width: 1024px) {
       margin-left: 80px;
       width: calc(100% - 80px);
@@ -489,14 +480,46 @@
       }
     }
 
-    // Mobile responsive - full width, sidebar overlays
+    // Mobile - Fixed positioning approach
     @media (max-width: 768px) {
-      margin-left: 0;
-      width: 100%;
+      margin-left: 3.5rem;
+      width: calc(100% - 3.5rem);
+      position: relative;
+      left: 0;
 
       &.sidebar-collapsed {
-        margin-left: 0;
-        width: 100%;
+        margin-left: 3.5rem;
+        width: calc(100% - 3.5rem);
+      }
+    }
+
+    @media (max-width: 640px) {
+      margin-left: 3rem;
+      width: calc(100% - 3rem);
+
+      &.sidebar-collapsed {
+        margin-left: 3rem;
+        width: calc(100% - 3rem);
+      }
+    }
+
+    @media (max-width: 480px) {
+      margin-left: 2.75rem;
+      width: calc(100% - 2.75rem);
+
+      &.sidebar-collapsed {
+        margin-left: 2.75rem;
+        width: calc(100% - 2.75rem);
+      }
+    }
+
+    @media (max-width: 375px) {
+      margin-left: 2.5rem;
+      width: calc(100% - 2.5rem);
+
+      &.sidebar-collapsed {
+        margin-left: 2.5rem;
+        width: calc(100% - 2.5rem);
       }
     }
   }
@@ -504,6 +527,7 @@
   .main-content {
     position: relative;
     overflow-y: auto;
+    overflow-x: hidden;
     height: 100%;
     min-height: 100vh;
     box-sizing: border-box;
@@ -518,26 +542,24 @@
       width: 100%;
     }
 
-    // Extra spacing after welcome card
     .welcome-card {
       margin-bottom: 2rem;
     }
 
-    // Tablet responsive padding
     @media (max-width: 1024px) {
       padding: 1.25rem;
     }
 
-    // Mobile responsive padding
     @media (max-width: 768px) {
       padding: 1rem;
+      padding-right: 1rem;
     }
 
     @media (max-width: 480px) {
       padding: 0.75rem;
+      padding-right: 0.75rem;
     }
 
-    /* Custom scrollbar styling */
     &::-webkit-scrollbar {
       width: 8px;
     }
@@ -556,12 +578,10 @@
       }
     }
 
-    /* Firefox scrollbar */
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.05);
   }
 
-  // Additional responsive adjustments
   @media (max-width: 768px) {
     .dashboard {
       flex-direction: column;
@@ -579,7 +599,6 @@
     flex-wrap: wrap;
     line-height: 1.2;
 
-    // Don't set a default color - let inline styles control it
     > span {
       color: inherit;
     }
@@ -588,7 +607,6 @@
   .welcome-dot {
     margin-left: 2px;
     font-weight: 900;
-    /* Color set via inline styles for randomness */
   }
 
   .username-highlight {
@@ -859,7 +877,7 @@
     height: 44px;
     border-radius: 8px;
     object-fit: cover;
-    background-color: #f8fafc; // Light grayish-white background for transparent images
+    background-color: #f8fafc;
   }
 
   .device-info {
@@ -1103,8 +1121,6 @@
     gap: 6px;
   }
 
-  // Time tracker card styles already inherited from .card
-
   .time-circle {
     position: relative;
     width: 180px;
@@ -1212,14 +1228,12 @@
     background: #e5e5e5;
   }
 
-  // Tablet breakpoint
   @media (max-width: 1400px) {
     .dashboard-grid {
       grid-template-columns: 240px 1fr 300px;
     }
   }
 
-  // Small tablet breakpoint
   @media (max-width: 768px) {
     .dashboard-grid {
       grid-template-columns: 1fr;
@@ -1329,7 +1343,6 @@
     }
   }
 
-  // Mobile breakpoint
   @media (max-width: 480px) {
     .dashboard {
       padding: 0;
@@ -1760,9 +1773,7 @@
     }
   }
 
-  // Performance optimizations for mobile devices
   @media (max-width: 768px) {
-    // Reduce animations on mobile for better performance
     .fade-in,
     .fade-in-delayed,
     .slide-in-up,
@@ -1780,20 +1791,17 @@
       transition: none !important;
     }
 
-    // Simplify transforms
     .slide-in-up,
     .slide-in-left {
       transform: none !important;
     }
 
-    // Reduce motion for better performance
     * {
       animation-duration: 0.1s !important;
       transition-duration: 0.1s !important;
     }
   }
 
-  // Loading component styles
   .loading-component {
     position: absolute;
     top: 0;
@@ -1824,11 +1832,10 @@
     margin: 0;
   }
 
-  // Global loading overlay
   .global-loading {
     position: fixed;
     top: 0;
-    left: 80px; // Account for sidebar width
+    left: 80px;
     right: 0;
     bottom: 0;
     display: flex;
@@ -1846,7 +1853,7 @@
     padding: 0;
     border: none;
     outline: none;
-    transition: none; // No transition by default
+    transition: none;
 
     .spinner {
       width: 40px;
@@ -1866,18 +1873,33 @@
     &.visible {
       opacity: 1;
       pointer-events: auto;
-      transition: none; // Instant appearance
+      transition: none;
     }
 
     &.fading {
       opacity: 0;
       transform: scale(0.95);
       pointer-events: none;
-      transition: opacity 0.3s ease-out, transform 0.3s ease-out; // Smooth fade out
+      transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    }
+
+    @media (max-width: 768px) {
+      left: 3.5rem;
+    }
+
+    @media (max-width: 640px) {
+      left: 3rem;
+    }
+
+    @media (max-width: 480px) {
+      left: 2.75rem;
+    }
+
+    @media (max-width: 375px) {
+      left: 2.5rem;
     }
   }
 
-  // Further reduce animations on very small screens
   @media (max-width: 480px) {
     * {
       animation: none !important;

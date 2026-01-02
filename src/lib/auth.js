@@ -33,14 +33,12 @@ export const handleApiError = (error, response = null) => {
 
   // Check response status
   if (response && (response.status === 401 || response.status === 403)) {
-    console.log("Auth error detected in response status - logging out");
     handleTokenExpiration();
     return;
   }
 
   // Check error message
   if (isTokenError(error)) {
-    console.log("Token error detected - logging out");
     handleTokenExpiration();
   }
 };

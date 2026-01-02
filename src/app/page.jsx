@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense, lazy, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import { BackgroundBeams } from "./components/BackgroundBeams";
 import "./page.scss";
@@ -45,6 +46,15 @@ const NotificationInitializer = () => {
 const RestaurantDashboardContent = () => {
   const { socket, connected, reconnecting } = useWebSocketContext();
   const isMobile = useIsMobile();
+  const router = useRouter();
+
+  // Redirect to unsupported page if on mobile
+  useEffect(() => {
+    if (isMobile) {
+      router.push("/unsupported");
+    }
+  }, [isMobile, router]);
+
   // State declarations MUST come before any useEffect that uses them
   const [expandedSections, setExpandedSections] = useState({
     kitchen: false,
@@ -72,73 +82,6 @@ const RestaurantDashboardContent = () => {
   // Track if we've completed initial setup
   const isInitialSetupComplete = React.useRef(false);
 
-  // Random color for username - refreshed on every load
-  const [usernameColor, setUsernameColor] = useState("");
-
-  // Big list of vibrant colors for username
-  const USERNAME_COLORS = React.useMemo(
-    () => [
-      "#FF6B6B", // Coral Red
-      "#4ECDC4", // Turquoise
-      "#45B7D1", // Sky Blue
-      "#FFA07A", // Light Salmon
-      "#98D8C8", // Mint
-      "#F7DC6F", // Golden Yellow
-      "#BB8FCE", // Lavender
-      "#85C1E2", // Powder Blue
-      "#F8B739", // Amber
-      "#52B788", // Emerald Green
-      "#F06292", // Pink
-      "#7C4DFF", // Deep Purple
-      "#FF7043", // Deep Orange
-      "#26C6DA", // Cyan
-      "#9CCC65", // Light Green
-      "#AB47BC", // Purple
-      "#EC407A", // Hot Pink
-      "#5C6BC0", // Indigo
-      "#FFCA28", // Amber Yellow
-      "#66BB6A", // Green
-      "#EF5350", // Red
-      "#42A5F5", // Blue
-      "#FF6B35", // Orange (Mesa+ brand)
-      "#8E44AD", // Violet
-      "#3498DB", // Dodger Blue
-      "#E74C3C", // Alizarin
-      "#1ABC9C", // Turquoise
-      "#F39C12", // Orange
-      "#9B59B6", // Amethyst
-      "#2ECC71", // Nephritis
-      "#E67E22", // Carrot
-      "#16A085", // Green Sea
-      "#D35400", // Pumpkin
-      "#C0392B", // Pomegranate
-      "#27AE60", // Green
-      "#2980B9", // Belize Blue
-      "#8E44AD", // Wisteria
-      "#FF6348", // Tomato
-      "#FF4757", // Radical Red
-      "#5F27CD", // Purple
-      "#00D2D3", // Bright Cyan
-      "#FF9FF3", // Fuchsia Pink
-      "#54A0FF", // French Sky Blue
-      "#48DBFB", // Bright Turquoise
-      "#1DD1A1", // Caribbean Green
-      "#10AC84", // Green Darner Tail
-      "#FF9F43", // Orange Yellow
-      "#EE5A6F", // Watermelon
-      "#C44569", // Blush Pink
-      "#F8B739", // Saffron
-    ],
-    []
-  );
-
-  // Select random color on component mount
-  useEffect(() => {
-    const randomColor =
-      USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
-    setUsernameColor(randomColor);
-  }, [USERNAME_COLORS]);
-
   // Memoized onLoaded callback to prevent unnecessary re-renders
   const onLoaded = useCallback(() => setIsLoading(false), []);
 
@@ -151,12 +94,6 @@ const RestaurantDashboardContent = () => {
 
     // Check if nav item actually changed
     if (prevNavItemRef.current !== activeNavItem) {
-      console.log(
-        "Navigation changed from",
-        prevNavItemRef.current,
-        "to",
-        activeNavItem
-      );
       prevNavItemRef.current = activeNavItem;
       setIsLoading(true);
     }
@@ -167,8 +104,8 @@ const RestaurantDashboardContent = () => {
     if (isLoading) {
       setLoadingVisible(true);
     } else {
-      // Longer delay to cover component layout stabilization
-      const stabilizationTime = 2000; // 2 seconds to allow components to fully stabilize
+      // Shorter delay to allow component layout stabilization
+      const stabilizationTime = 1000; // 1 second to allow components to stabilize
       const timer = setTimeout(() => {
         setLoadingVisible(false);
       }, stabilizationTime);
@@ -208,7 +145,6 @@ const RestaurantDashboardContent = () => {
 
   // Function to handle navigation clicks
   const handleNavClick = (navItem) => {
-    console.log("Navigation clicked:", navItem);
     setActiveNavItem(navItem);
     // Reset scroll to top when changing tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -236,7 +172,7 @@ const RestaurantDashboardContent = () => {
 
   // Handle blur text animation completion
   const handleAnimationComplete = () => {
-    console.log("BlurText animation completed!");
+    // Animation completed
   };
 
   // Only fetch users when staff accordion is opened for the first time
@@ -415,6 +351,7 @@ const RestaurantDashboardContent = () => {
         username={username}
         userLabels={userLabels}
         profileImg={profileImg}
+        isMobile={isMobile}
       />
 
       {/* Global loading overlay - covers entire viewport */}
@@ -445,16 +382,13 @@ const RestaurantDashboardContent = () => {
                 ) : null
               }
             >
-              {(() => {
-                console.log("Active nav item:", activeNavItem);
-                console.log("Current view:", currentView);
-                console.log("User:", user ? "loaded" : "not loaded");
-                return null;
-              })()}
               {activeNavItem === "Ementa" ? (
                 <MenuComponent onLoaded={onLoaded} />
               ) : activeNavItem === "Stock" ? (
-                <StockComponent onLoaded={onLoaded} />
+                <StockComponent
+                  onLoaded={onLoaded}
+                  setGlobalLoading={setIsLoading}
+                />
               ) : activeNavItem === "Mesas" ? (
                 <TableLayoutManager user={user} onLoaded={onLoaded} />
               ) : activeNavItem === "Reservas" ? (

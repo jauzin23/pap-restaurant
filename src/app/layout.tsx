@@ -20,11 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt">
-      <body
-        className="antialiased bg-slate-950 font-sans"
-        suppressHydrationWarning={true}
-      >
-        <ConditionalBackground />
+      <body className="antialiased font-sans" suppressHydrationWarning={true}>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

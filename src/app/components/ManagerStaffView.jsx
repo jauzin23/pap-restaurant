@@ -161,27 +161,18 @@ const ManagerStaffView = ({ onLoaded }) => {
   // WebSocket real-time updates
   useEffect(() => {
     if (!socket || !connected) {
-      console.log("⚠️ ManagerStaffView: Socket not ready", {
-        socket: !!socket,
-        connected,
-      });
       return;
     }
 
-    console.log("🔌 ManagerStaffView: Setting up WebSocket listeners");
-
     const handleUserCreated = (user) => {
-      console.log("🆕 New user created:", user.name);
       loadStaffData();
     };
 
     const handleUserUpdated = (user) => {
-      console.log("📝 User updated:", user.name);
       loadStaffData();
     };
 
     const handlePresencaRegistada = (data) => {
-      console.log("⏰ Presença registada:", data);
       loadStaffData(); // Refetch to update is_working status
     };
 
@@ -190,7 +181,6 @@ const ManagerStaffView = ({ onLoaded }) => {
     socket.on("presenca:registada", handlePresencaRegistada);
 
     return () => {
-      console.log("🔌 ManagerStaffView: Cleaning up WebSocket listeners");
       socket.off("user:created", handleUserCreated);
       socket.off("user:updated", handleUserUpdated);
       socket.off("presenca:registada", handlePresencaRegistada);
@@ -475,7 +465,7 @@ const ManagerStaffView = ({ onLoaded }) => {
             icon={<MessageCircle size={14} />}
             onClick={(e) => {
               e.stopPropagation();
-              console.log(`Message to ${record.name}`);
+              // Message action
             }}
             style={{
               display: "flex",

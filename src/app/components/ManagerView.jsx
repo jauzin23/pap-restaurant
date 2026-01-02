@@ -29,7 +29,6 @@ import {
   X,
   ImageIcon,
 } from "lucide-react";
-import { Avatars } from "appwrite";
 import { useApp } from "@/contexts/AppContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import { useStatsWebSocket } from "@/hooks/useStatsWebSocket";
@@ -78,8 +77,6 @@ const ManagerView = ({
   user, // Add user prop for table management
   onLoaded,
 }) => {
-  const { client } = useApp();
-  const avatars = new Avatars(client);
   const { socket, connected } = useWebSocketContext();
 
   // Use WebSocket hook for real-time stats
@@ -585,12 +582,29 @@ const ManagerView = ({
   }) => {
     const [hasError, setHasError] = React.useState(false);
 
-    // Generate Appwrite avatar fallback
-    const getAppwriteAvatar = () => {
+    // Generate initials-based avatar fallback
+    const getInitialsAvatar = () => {
       if (!userName && !alt) return null;
       const name = userName || alt || "U";
-      const avatarSize = typeof size === "number" ? size : 36;
-      return avatars.getInitials(name, avatarSize, avatarSize);
+      const initials = name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+
+      // Generate a color based on the name
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = hash % 360;
+
+      return {
+        initials,
+        backgroundColor: `hsl(${hue}, 65%, 55%)`,
+        color: "white",
+      };
     };
 
     // Handle custom API URLs for profile images
@@ -605,26 +619,25 @@ const ManagerView = ({
     };
 
     const imageUrl = getImageUrl(src);
-    const fallbackAvatar = getAppwriteAvatar();
+    const initialsData = getInitialsAvatar();
 
     if (hasError || !imageUrl) {
-      // Use Appwrite generated avatar as fallback
-      if (fallbackAvatar) {
+      // Use initials-based avatar as fallback
+      if (initialsData) {
         return (
           <div
             className={`${className} ${
               isCircular ? "rounded-full" : "rounded-lg"
-            } overflow-hidden`}
+            } flex items-center justify-center font-semibold`}
             style={{
               width: typeof size === "number" ? `${size}px` : size,
               height: typeof size === "number" ? `${size}px` : size,
+              backgroundColor: initialsData.backgroundColor,
+              color: initialsData.color,
+              fontSize: typeof size === "number" ? `${size * 0.4}px` : "14px",
             }}
           >
-            <img
-              src={fallbackAvatar}
-              alt={alt}
-              className="w-full h-full object-cover"
-            />
+            {initialsData.initials}
           </div>
         );
       }
@@ -755,10 +768,6 @@ const ManagerView = ({
                           <UserCircle size={28} />
                         </div>
                       )}
-                      <span className="online-indicator">
-                        <span className="pulse-ring"></span>
-                        <span className="pulse-dot"></span>
-                      </span>
                     </div>
                     <div className="staff-details">
                       <div className="staff-info">
@@ -766,7 +775,6 @@ const ManagerView = ({
                         <span className="staff-role">{staff.role}</span>
                       </div>
                       <div className="work-time">
-                        <Clock size={14} />
                         {staff.clockInTime ? (
                           <WorkDuration clockInTime={staff.clockInTime} />
                         ) : (
@@ -1029,7 +1037,7 @@ const ManagerView = ({
                   value={selectedWeek}
                   onChange={setSelectedWeek}
                   style={{ maxWidth: 200, width: "100%" }}
-                  className="month-select"
+                  className="custom-select"
                   options={availableWeeks.map((week) => ({
                     value: week.offset,
                     label: week.display,
@@ -1174,7 +1182,7 @@ const ManagerView = ({
                 value={selectedMonth}
                 onChange={(value) => setSelectedMonth(value)}
                 style={{ maxWidth: 200, width: "100%" }}
-                className="month-select"
+                className="custom-select"
                 options={availableMonths.map((month) => ({
                   value: month.value,
                   label: month.label,

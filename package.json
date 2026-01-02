@@ -42,7 +42,6 @@
     "@react-three/fiber": "^9.3.0",
     "@zxing/browser": "^0.1.5",
     "antd": "^5.27.4",
-    "appwrite": "^18.2.0",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

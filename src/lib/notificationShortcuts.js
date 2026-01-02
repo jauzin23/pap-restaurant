@@ -17,7 +17,6 @@ export const initializeNotificationShortcuts = (notificationContext) => {
     if (event.key === "Escape" && event.ctrlKey) {
       event.preventDefault();
       notificationContext.clearAll();
-      console.log("⌨️ Cleared all notifications (Ctrl+Esc)");
     }
   };
 

@@ -35,16 +35,12 @@ export const useNotifications = () => {
 
   useEffect(() => {
     if (!context) {
-      console.log("⚠️ Notifications: Context not available");
       return;
     }
 
     if (!socket || !connected) {
-      console.log("⚠️ Notifications: WebSocket not connected");
       return;
     }
-
-    console.log("✅ Notifications: Listening to WebSocket events");
 
     const { addNotification } = context;
     const debouncer = debouncerRef.current;
@@ -52,7 +48,6 @@ export const useNotifications = () => {
     // ==================== ORDER EVENTS ====================
     const handleOrderCreated = (order) => {
       debouncer("order:created", () => {
-        console.log("🔔 New Order:", order);
         try {
           const template = getNotificationTemplate("order:created", order);
           addNotification(template);
@@ -65,7 +60,6 @@ export const useNotifications = () => {
     // ==================== TAKEAWAY EVENTS ====================
     const handleTakeawayCreated = (order) => {
       debouncer("takeaway:created", () => {
-        console.log("🔔 New Takeaway:", order);
         try {
           const template = getNotificationTemplate("takeaway:created", order);
           addNotification(template);
@@ -78,7 +72,6 @@ export const useNotifications = () => {
     // ==================== RESERVATION EVENTS ====================
     const handleReservationCreated = (reservation) => {
       debouncer("reservation:created", () => {
-        console.log("🔔 New Reservation:", reservation);
         try {
           const template = getNotificationTemplate(
             "reservation:created",
@@ -94,7 +87,6 @@ export const useNotifications = () => {
     // ==================== MENU EVENTS ====================
     const handleMenuCreated = (item) => {
       debouncer("menu:created", () => {
-        console.log("🔔 New Menu Item:", item);
         try {
           const template = getNotificationTemplate("menu:created", item);
           addNotification(template);
@@ -109,7 +101,6 @@ export const useNotifications = () => {
       // Use unique key per user to allow multiple users clocking in simultaneously
       const debounceKey = `presenca:${data.user_id || data.id}`;
       debouncer(debounceKey, () => {
-        console.log("🔔 Attendance Registered:", data);
         try {
           const template = getNotificationTemplate("presenca:registada", data);
           addNotification(template);
@@ -122,7 +113,6 @@ export const useNotifications = () => {
     // ==================== STOCK EVENTS (OPTIONAL) ====================
     const handleStockAlert = (alert) => {
       debouncer("stock:alert:created", () => {
-        console.log("🔔 Stock Alert:", alert);
         try {
           const template = getNotificationTemplate(
             "stock:alert:created",
@@ -137,7 +127,6 @@ export const useNotifications = () => {
 
     const handleStockInventoryUpdated = (inventory) => {
       debouncer(`stock:inventory:updated:${inventory.stock_item_id}`, () => {
-        console.log("🔔 Stock Inventory Updated:", inventory);
         try {
           const template = getNotificationTemplate(
             "stock:inventory:updated",
@@ -156,7 +145,6 @@ export const useNotifications = () => {
       const status = order.status || order.order_status;
       if (status === "preparing" || status === "ready") {
         debouncer(`order:updated:${order.id}`, () => {
-          console.log("🔔 Order Updated:", order);
           try {
             const template = getNotificationTemplate("order:updated", order);
             if (template) addNotification(template);
@@ -172,7 +160,6 @@ export const useNotifications = () => {
       const status = order.status || order.order_status;
       if (status === "ready") {
         debouncer(`takeaway:updated:${order.id}`, () => {
-          console.log("🔔 Takeaway Updated:", order);
           try {
             const template = getNotificationTemplate("takeaway:updated", order);
             if (template) addNotification(template);
@@ -189,7 +176,6 @@ export const useNotifications = () => {
     // ==================== PAYMENT EVENTS ====================
     const handlePaymentCreated = (payment) => {
       debouncer("payment:created", () => {
-        console.log("🔔 Payment Created:", payment);
         try {
           const template = getNotificationTemplate("payment:created", payment);
           addNotification(template);
@@ -206,7 +192,6 @@ export const useNotifications = () => {
         reservation.status === "cancelled"
       ) {
         debouncer(`reservation:updated:${reservation.id}`, () => {
-          console.log("🔔 Reservation Updated:", reservation);
           try {
             const template = getNotificationTemplate(
               "reservation:updated",
@@ -227,7 +212,6 @@ export const useNotifications = () => {
     const handleTableUpdated = (table) => {
       if (table.status || table.table_status) {
         debouncer(`table:updated:${table.id}`, () => {
-          console.log("🔔 Table Updated:", table);
           try {
             const template = getNotificationTemplate("table:updated", table);
             if (template) addNotification(template);
@@ -254,7 +238,6 @@ export const useNotifications = () => {
 
     // ==================== CLEANUP ====================
     return () => {
-      console.log("🔌 Notifications: Unsubscribing from WebSocket events");
       socket.off("order:created", handleOrderCreated);
       socket.off("order:updated", handleOrderUpdated);
       socket.off("takeaway:created", handleTakeawayCreated);

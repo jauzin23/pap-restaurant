@@ -263,6 +263,7 @@
   // Tab content transitions
   .tab-content-wrapper {
     animation: fadeSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    position: relative;
 
     &.transitioning {
       opacity: 0;
@@ -292,7 +293,6 @@
   }
 
   .warehouse-grid-container {
-    .loading-state,
     .empty-state {
       display: flex;
       flex-direction: column;
@@ -3675,7 +3675,7 @@ body > .modal-overlay {
   }
 
   .content-controls {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 
     .search-wrapper {
       position: relative;

@@ -10,6 +10,7 @@ import {
   MessageSquare,
   ArrowLeft,
   UtensilsCrossed,
+  AlertCircle,
   Loader2,
   CheckCircle,
   Search,
@@ -88,6 +89,15 @@ function PedidoPageContent({
   const [customerEmail, setCustomerEmail] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  // Custom alert modal state
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+
+  const showCustomAlert = (message: string) => {
+    setAlertMessage(message);
+    setShowAlertModal(true);
+  };
 
   const getAuthToken = () => {
     return localStorage.getItem("auth_token");
@@ -189,8 +199,8 @@ function PedidoPageContent({
       const existingTables = tablesResponse.documents || [];
 
       if (!existingTables || existingTables.length === 0) {
-        alert("Error: No tables found");
-        router.push("/ ");
+        showCustomAlert("Erro: Nenhuma mesa encontrada");
+        setTimeout(() => router.push("/ "), 2000);
         return;
       }
 
@@ -359,8 +369,8 @@ function PedidoPageContent({
 
     // Validate takeaway customer info
     if (isTakeaway) {
-      if (!customerName.trim() || !customerPhone.trim()) {
-        alert("Por favor, preencha o nome e telefone do cliente");
+      if (!customerName.trim()) {
+        showCustomAlert("Por favor, preencha o nome do cliente");
         return;
       }
     }
@@ -372,7 +382,7 @@ function PedidoPageContent({
         // Use the new takeaway API
         const takeawayOrder = {
           customer_name: customerName.trim(),
-          customer_phone: customerPhone.trim(),
+          customer_phone: customerPhone.trim() || null,
           customer_email: customerEmail.trim() || null,
           special_requests: specialRequests.trim() || null,
           items: orderItems.map((item) => ({
@@ -777,18 +787,17 @@ function PedidoPageContent({
                 />
               </div>
               <div className="form-group">
-                <label>Telefone *</label>
+                <label>Telefone</label>
                 <input
                   type="tel"
-                  placeholder="+351 912 345 678"
+                  placeholder="+351 912 345 678 "
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   autoComplete="off"
-                  required
                 />
               </div>
               <div className="form-group">
-                <label>Email (opcional)</label>
+                <label>Email</label>
                 <input
                   type="email"
                   placeholder="exemplo@email.com"
@@ -818,7 +827,9 @@ function PedidoPageContent({
               <button
                 onClick={() => {
                   if (!customerName || !customerPhone) {
-                    alert("Por favor preencha o nome e telefone do cliente");
+                    showCustomAlert(
+                      "Por favor preencha o nome e telefone do cliente"
+                    );
                     return;
                   }
                   setShowCustomerModal(false);
@@ -829,6 +840,30 @@ function PedidoPageContent({
                 Guardar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Alert Modal */}
+      {showAlertModal && (
+        <div
+          className="custom-alert-overlay"
+          onClick={() => setShowAlertModal(false)}
+        >
+          <div
+            className="custom-alert-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="alert-icon">
+              <AlertCircle size={48} />
+            </div>
+            <p className="alert-message">{alertMessage}</p>
+            <button
+              className="alert-ok-btn"
+              onClick={() => setShowAlertModal(false)}
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

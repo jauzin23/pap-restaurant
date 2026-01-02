@@ -206,7 +206,7 @@ const GamificationView = ({ user, onLoaded }) => {
           });
         }
       } catch (error) {
-        console.warn("Tooltip date parsing error:", error, label);
+        // Date parsing error
       }
 
       return (
@@ -249,10 +249,10 @@ const GamificationView = ({ user, onLoaded }) => {
                 <p className="stock-header-card__description">
                   Análise completa de pontos, rankings e desempenho da equipa
                 </p>
-                <div className="period-selector-header">
+                <div className="stock-header-card__actions">
                   <Select
-                    className="period-select"
-                    style={{ width: 250 }}
+                    className="custom-select"
+                    style={{ maxWidth: 200, width: "100%" }}
                     placeholder="Selecionar período..."
                     value={selectedPeriod || undefined}
                     onChange={setSelectedPeriod}
@@ -266,8 +266,6 @@ const GamificationView = ({ user, onLoaded }) => {
                     showSearch
                     optionFilterProp="label"
                   />
-                </div>
-                <div className="stock-header-card__actions">
                   {isManager && (
                     <button
                       onClick={() => setShowPointsConfig(true)}
@@ -428,7 +426,6 @@ const GamificationView = ({ user, onLoaded }) => {
                             month: "short",
                           });
                         } catch (error) {
-                          console.warn("Date parsing error:", error, value);
                           return value;
                         }
                       }}

@@ -48,7 +48,6 @@ export const useUserStatsWebSocket = (userId, dateFrom, dateTo) => {
 
     // Listener para updates - quando receber, fazer refetch
     const handleUserStatsUpdate = (data) => {
-      console.log("📊 User stats update notification received");
       // Se os dados vierem completos no evento, usar diretamente
       if (data && data.user_id === userId && data.orders) {
         setStats(data);

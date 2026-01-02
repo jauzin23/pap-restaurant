@@ -288,20 +288,6 @@ export default function PayOrdersComponent({ onLoaded }) {
       return matchesSearch && matchesTable;
     });
 
-    console.log("=== DEBUG GROUPING ===");
-    console.log("Total orders:", orders.length);
-    console.log("Filtered orders:", filtered.length);
-    console.log("Total tables:", tables.length);
-
-    if (filtered.length > 0) {
-      console.log("First order sample:", filtered[0]);
-      console.log("First order table_id:", filtered[0].table_id);
-    }
-
-    if (tables.length > 0) {
-      console.log("First table sample:", tables[0]);
-    }
-
     const groups = {};
     filtered.forEach((order) => {
       // Handle table_id being an array (multi-table orders) or single ID
@@ -344,12 +330,6 @@ export default function PayOrdersComponent({ onLoaded }) {
         const layoutName = tablesInfo[0]?.layout_name || "Sem Sala";
 
         const label = `${tableLabels} - ${layoutName}`;
-
-        console.log(`Order ${order.id} - creating group:`, {
-          tableKey,
-          label,
-          tableIds: sortedTableIds,
-        });
 
         if (!groups[tableKey]) {
           groups[tableKey] = {
@@ -888,18 +868,18 @@ export default function PayOrdersComponent({ onLoaded }) {
                     <div className="payment-section">
                       <h3>Desconto</h3>
                       <div className="discount-controls">
-                        <Select
-                          className="discount-type custom-select"
-                          value={discount.type}
-                          onChange={(value) =>
-                            setDiscount({ ...discount, type: value })
-                          }
-                          style={{ width: 150 }}
-                          options={[
-                            { value: "percentage", label: "Percentagem" },
-                            { value: "fixed", label: "Valor Fixo" },
-                          ]}
-                        />
+                        <div className="custom-select-wrapper">
+                          <select
+                            className="custom-discount-select"
+                            value={discount.type}
+                            onChange={(e) =>
+                              setDiscount({ ...discount, type: e.target.value })
+                            }
+                          >
+                            <option value="percentage">Percentagem</option>
+                            <option value="fixed">Valor Fixo</option>
+                          </select>
+                        </div>
 
                         <div className="input-group">
                           <span>

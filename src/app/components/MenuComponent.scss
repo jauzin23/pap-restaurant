@@ -1,6 +1,6 @@
 // MenuComponent.scss - Professional restaurant menu management styles
+@use "./toast-styles.scss";
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
-@import "./toast-styles.scss";
 
 .menu-component {
   position: relative;

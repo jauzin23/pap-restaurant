@@ -20,8 +20,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import "./AIInsightsComponent.scss";
-import ComponentRenderer from "../restaurant-analysis/ComponentRenderer";
-import "../restaurant-analysis/restaurant-analysis.scss";
+import ComponentRenderer from "./IA/ComponentRenderer";
+import "./IA/restaurant-analysis.scss";
 
 const AIInsightsComponent = ({ onLoaded }) => {
   const [months, setMonths] = useState([]);
@@ -45,12 +45,6 @@ const AIInsightsComponent = ({ onLoaded }) => {
   // Memoize WebSocket callbacks to prevent re-renders
   const handleInsightCreated = useCallback(
     (insight) => {
-      console.log(
-        "[AIInsightsComponent] WebSocket: Insight created event received:",
-        insight.id,
-        "at",
-        new Date().toISOString()
-      );
       // Refresh months and insights if we're viewing the relevant month
       if (selectedMonth && insight.data === selectedMonth) {
         fetchInsights(selectedMonth);
@@ -62,7 +56,6 @@ const AIInsightsComponent = ({ onLoaded }) => {
 
   const handleInsightUpdated = useCallback(
     (insight) => {
-      console.log("[AIInsightsComponent] Insight updated:", insight);
       // Update the insight in the current list
       setInsights((prev) =>
         prev.map((item) =>
@@ -79,12 +72,6 @@ const AIInsightsComponent = ({ onLoaded }) => {
 
   const handleInsightDeleted = useCallback(
     (data) => {
-      console.log(
-        "[AIInsightsComponent] Insight deleted:",
-        data.id,
-        "at",
-        new Date().toISOString()
-      );
       // Remove from insights list
       setInsights((prev) => prev.filter((item) => item.id !== data.id));
       // Clear selection if it was the deleted insight
@@ -98,11 +85,11 @@ const AIInsightsComponent = ({ onLoaded }) => {
   );
 
   const handleConnected = useCallback(() => {
-    console.log("[AIInsightsComponent] WebSocket connected successfully");
+    // WebSocket connected
   }, []);
 
   const handleDisconnected = useCallback((reason) => {
-    console.log("[AIInsightsComponent] WebSocket disconnected:", reason);
+    // WebSocket disconnected
   }, []);
 
   const handleError = useCallback((error) => {

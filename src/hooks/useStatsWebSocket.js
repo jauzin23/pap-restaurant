@@ -55,25 +55,21 @@ export const useStatsWebSocket = () => {
 
     // Live stats updates - refetch quando receber notificação
     const handleLiveUpdate = () => {
-      console.log("📊 Live stats notification - refetching...");
       fetchAllStats();
     };
 
     // Staff stats updates - refetch quando receber notificação
     const handleStaffUpdate = () => {
-      console.log("👥 Staff stats notification - refetching...");
       fetchAllStats();
     };
 
     // Top items updates - refetch quando receber notificação
     const handleTopItemsUpdate = () => {
-      console.log("🏆 Top items notification - refetching...");
       fetchAllStats();
     };
 
     // Kitchen stats updates - refetch quando receber notificação
     const handleKitchenUpdate = () => {
-      console.log("⏱️ Kitchen stats notification - refetching...");
       fetchAllStats();
     };
 

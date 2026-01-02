@@ -17,10 +17,11 @@ import {
   LogOut,
   Receipt,
   ShoppingBag,
+  LogIn,
+  Timer,
 } from "lucide-react";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import { getImageUrl as getImageUrlHelper } from "../../lib/api";
-import DashboardCards from "./DashboardCards";
 import "./StaffView.scss";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -35,6 +36,73 @@ const StaffView = ({
 }) => {
   const { socket, connected } = useWebSocketContext();
 
+  // Big list of vibrant colors for username
+  const USERNAME_COLORS = React.useMemo(
+    () => [
+      "#FF6B6B", // Coral Red
+      "#4ECDC4", // Turquoise
+      "#45B7D1", // Sky Blue
+      "#FFA07A", // Light Salmon
+      "#98D8C8", // Mint
+      "#F7DC6F", // Golden Yellow
+      "#BB8FCE", // Lavender
+      "#85C1E2", // Powder Blue
+      "#F8B739", // Amber
+      "#52B788", // Emerald Green
+      "#F06292", // Pink
+      "#7C4DFF", // Deep Purple
+      "#FF7043", // Deep Orange
+      "#26C6DA", // Cyan
+      "#9CCC65", // Light Green
+      "#AB47BC", // Purple
+      "#EC407A", // Hot Pink
+      "#5C6BC0", // Indigo
+      "#FFCA28", // Amber Yellow
+      "#66BB6A", // Green
+      "#EF5350", // Red
+      "#42A5F5", // Blue
+      "#FF6B35", // Orange (Mesa+ brand)
+      "#8E44AD", // Violet
+      "#3498DB", // Dodger Blue
+      "#E74C3C", // Alizarin
+      "#1ABC9C", // Turquoise
+      "#F39C12", // Orange
+      "#9B59B6", // Amethyst
+      "#2ECC71", // Nephritis
+      "#E67E22", // Carrot
+      "#16A085", // Green Sea
+      "#D35400", // Pumpkin
+      "#C0392B", // Pomegranate
+      "#27AE60", // Green
+      "#2980B9", // Belize Blue
+      "#8E44AD", // Wisteria
+      "#FF6348", // Tomato
+      "#FF4757", // Radical Red
+      "#5F27CD", // Purple
+      "#00D2D3", // Bright Cyan
+      "#FF9FF3", // Fuchsia Pink
+      "#54A0FF", // French Sky Blue
+      "#48DBFB", // Bright Turquoise
+      "#1DD1A1", // Caribbean Green
+      "#10AC84", // Green Darner Tail
+      "#FF9F43", // Orange Yellow
+      "#EE5A6F", // Watermelon
+      "#C44569", // Blush Pink
+      "#F8B739", // Saffron
+    ],
+    []
+  );
+
+  // Random color for username - refreshed on every load
+  const [usernameColor, setUsernameColor] = useState("");
+
+  // Select random color on component mount
+  useEffect(() => {
+    const randomColor =
+      USERNAME_COLORS[Math.floor(Math.random() * USERNAME_COLORS.length)];
+    setUsernameColor(randomColor);
+  }, [USERNAME_COLORS]);
+
   // Mock data for staff view
   const [staffStats, setStaffStats] = useState({
     activeOrders: 12,
@@ -47,6 +115,8 @@ const StaffView = ({
 
   const [recentActivity, setRecentActivity] = useState([]);
 
+  const [activeOrders, setActiveOrders] = useState([]);
+
   const [currentShift, setCurrentShift] = useState({
     startTime: null,
     duration: "00:00:00",
@@ -55,6 +125,26 @@ const StaffView = ({
   });
 
   const [loading, setLoading] = useState(true);
+
+  // Helper function to get initials
+  const getInitials = (name) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
+  // Helper function to format time
+  const formatTime = (timestamp) => {
+    if (!timestamp) return "--:--";
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString("pt-PT", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   // Fetch staff attendance data
   const fetchStaffData = React.useCallback(async () => {
@@ -138,6 +228,28 @@ const StaffView = ({
     }
   }, []);
 
+  // Fetch active orders for staff view
+  const fetchActiveOrders = React.useCallback(async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/stats/active-orders-staff`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setActiveOrders(data.activeOrders || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active orders:", error);
+    }
+  }, []);
+
   // Fetch current user's shift data
   const fetchCurrentUserShift = React.useCallback(async () => {
     if (!user?.id) return;
@@ -212,7 +324,11 @@ const StaffView = ({
   // Simulate real-time updates
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([fetchStaffData(), fetchLatestOrders()]);
+      await Promise.all([
+        fetchStaffData(),
+        fetchLatestOrders(),
+        fetchActiveOrders(),
+      ]);
       await fetchCurrentUserShift();
       setLoading(false);
       if (onLoaded) onLoaded();
@@ -237,7 +353,13 @@ const StaffView = ({
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, [fetchStaffData, fetchLatestOrders, fetchCurrentUserShift, onLoaded]);
+  }, [
+    fetchStaffData,
+    fetchLatestOrders,
+    fetchActiveOrders,
+    fetchCurrentUserShift,
+    onLoaded,
+  ]);
 
   // Update shift duration in real-time
   useEffect(() => {
@@ -267,6 +389,33 @@ const StaffView = ({
 
     return () => clearInterval(interval);
   }, [currentShift.startTime, currentShift.isWorking]);
+
+  // WebSocket listeners for real-time active orders updates
+  useEffect(() => {
+    if (!socket || !connected) return;
+
+    const handleOrderEvent = () => {
+      fetchActiveOrders();
+    };
+
+    socket.on("order:created", handleOrderEvent);
+    socket.on("order:updated", handleOrderEvent);
+    socket.on("order:paid", handleOrderEvent);
+    socket.on("order:deleted", handleOrderEvent);
+    socket.on("takeaway:created", handleOrderEvent);
+    socket.on("takeaway:updated", handleOrderEvent);
+    socket.on("takeaway:completed", handleOrderEvent);
+
+    return () => {
+      socket.off("order:created", handleOrderEvent);
+      socket.off("order:updated", handleOrderEvent);
+      socket.off("order:paid", handleOrderEvent);
+      socket.off("order:deleted", handleOrderEvent);
+      socket.off("takeaway:created", handleOrderEvent);
+      socket.off("takeaway:updated", handleOrderEvent);
+      socket.off("takeaway:completed", handleOrderEvent);
+    };
+  }, [socket, connected, fetchActiveOrders]);
 
   // Work Duration Component
   const WorkDuration = ({ clockInTime }) => {
@@ -301,6 +450,11 @@ const StaffView = ({
     return <span className="work-duration">{duration}</span>;
   };
 
+  // Determine greeting based on current time
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : "Boa tarde";
+  const firstName = username?.split(" ")[0] || username;
+
   return (
     <div className="staff-view">
       {loading && (
@@ -311,13 +465,13 @@ const StaffView = ({
       {/* Section Header */}
       <div className="manager-section-header">
         <div className="header-title-group">
-          <h1>Painel do Funcionário</h1>
+          <h1>
+            {greeting},{" "}
+            <span style={{ color: usernameColor }}>{firstName}</span>.
+          </h1>
           <p>Gestão diária e acompanhamento de tarefas</p>
         </div>
       </div>
-
-      {/* Quick Stats Dashboard */}
-      <DashboardCards showAllMetrics={false} />
 
       {/* Main Content Grid */}
       <div className="staff-content-grid">
@@ -344,7 +498,7 @@ const StaffView = ({
                           hour: "2-digit",
                           minute: "2-digit",
                         }
-                      )}`
+                      )} H`
                     : "Fora de turno"}
                 </span>
                 <span className={`status ${currentShift.status}`}>
@@ -360,7 +514,7 @@ const StaffView = ({
                   <Calendar size={16} />
                   <span>
                     {currentShift.isWorking
-                      ? `Trabalhando desde ${currentShift.startTime?.toLocaleDateString(
+                      ? `A trabalhar desde ${currentShift.startTime?.toLocaleDateString(
                           "pt-PT"
                         )}`
                       : "Sem registo de entrada"}
@@ -409,10 +563,6 @@ const StaffView = ({
                               <UserCircle size={28} />
                             </div>
                           )}
-                          <span className="online-indicator">
-                            <span className="pulse-ring"></span>
-                            <span className="pulse-dot"></span>
-                          </span>
                         </div>
                         <div className="staff-details">
                           <div className="staff-info">
@@ -420,7 +570,6 @@ const StaffView = ({
                             <span className="staff-role">{staff.role}</span>
                           </div>
                           <div className="work-time">
-                            <Clock size={14} />
                             {staff.clockInTime ? (
                               <WorkDuration clockInTime={staff.clockInTime} />
                             ) : (
@@ -436,9 +585,149 @@ const StaffView = ({
           </div>
         </div>
 
-        {/* Row 2 - Quick Tasks & Recent Activity */}
-        <div className="team-column">
-          {/* Quick Tasks */}
+        {/* Row 2 - Active Orders & Recent Activity */}
+        <div className="orders-row">
+          {/* Active Orders */}
+          <div className="card chart-card active-orders-card">
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <ShoppingBag size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Pedidos Ativos</h3>
+                <p>
+                  {activeOrders.length}{" "}
+                  {activeOrders.length === 1 ? "pedido" : "pedidos"} em
+                  andamento
+                </p>
+              </div>
+            </div>
+
+            <div className="active-orders-list">
+              {activeOrders.length === 0 ? (
+                <div className="empty-state">
+                  <ShoppingBag size={48} color="#94a3b8" />
+                  <p>Nenhum pedido ativo no momento</p>
+                </div>
+              ) : (
+                activeOrders.map((order, index) => {
+                  const timeDiff = Math.floor(
+                    (new Date() - new Date(order.created_at)) / 60000
+                  );
+                  const timeText =
+                    timeDiff < 1
+                      ? "Agora"
+                      : timeDiff < 60
+                      ? `${timeDiff} min`
+                      : `${Math.floor(timeDiff / 60)}h ${timeDiff % 60}m`;
+
+                  return (
+                    <div key={order.id || index} className="active-order-card">
+                      <div className="order-icon-wrapper">
+                        {order.type === "takeaway" ? (
+                          <ShoppingBag size={20} color="#10b981" />
+                        ) : (
+                          <Coffee size={20} color="#4facfe" />
+                        )}
+                      </div>
+
+                      <div className="order-info-section">
+                        <div className="order-label-text">
+                          {order.type === "takeaway"
+                            ? `Takeaway - ${order.customer_name}`
+                            : order.layout_names
+                            ? `${order.layout_names} - Mesa ${order.table_numbers}`
+                            : `Mesa ${order.table_numbers}`}
+                        </div>
+                        <div className="order-meta-text">
+                          {timeText} • {order.items_count}{" "}
+                          {order.items_count === 1 ? "item" : "items"} •{" "}
+                          <span
+                            className={`status-badge status-${order.status}`}
+                          >
+                            {order.status === "pendente" && "Pendente"}
+                            {order.status === "aceite" && "Aceite"}
+                            {order.status === "preparando" && "A Preparar"}
+                            {order.status === "pronto" && "Pronto"}
+                            {order.status === "entregue" && "Entregue"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="order-total-amount">
+                        {order.total_amount.toFixed(2)}€
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Recent Activity - styled like Latest Orders */}
+          <div className="card chart-card">
+            <div className="card-header-modern">
+              <div className="card-icon-wrapper">
+                <Receipt size={20} />
+              </div>
+              <div className="card-header-text">
+                <h3>Últimos Pedidos</h3>
+                <p>Pedidos de hoje (presenciais e takeaway)</p>
+              </div>
+            </div>
+            <div className="active-orders-list">
+              {recentActivity.length === 0 ? (
+                <div className="empty-state">
+                  <Receipt size={48} color="#94a3b8" />
+                  <p>Nenhum pedido concluído hoje</p>
+                </div>
+              ) : (
+                recentActivity.map((order) => {
+                  const timeText = order.completed_at
+                    ? new Date(order.completed_at).toLocaleString("pt-PT", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Agora";
+
+                  return (
+                    <div key={order.id} className="active-order-card">
+                      <div className="order-icon-wrapper">
+                        {order.type === "takeaway" ? (
+                          <ShoppingBag size={20} color="#10b981" />
+                        ) : (
+                          <Coffee size={20} color="#4facfe" />
+                        )}
+                      </div>
+
+                      <div className="order-info-section">
+                        <div className="order-label-text">
+                          {order.type === "takeaway"
+                            ? `Takeaway - ${order.customer_name}`
+                            : `Mesa ${order.table_number}`}
+                        </div>
+                        <div className="order-meta-text">
+                          {timeText} • {order.items_count}{" "}
+                          {order.items_count === 1 ? "item" : "items"} •{" "}
+                          {order.staff?.name || "Staff"}
+                        </div>
+                      </div>
+
+                      <div className="order-total-amount">
+                        {order.total_price?.toFixed(2) || "0.00"}€
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3 - Quick Tasks */}
+        <div className="tasks-row">
           <div className="card chart-card">
             <div className="card-header-modern">
               <div className="card-icon-wrapper">
@@ -480,116 +769,6 @@ const StaffView = ({
               </button>
             </div>
           </div>
-
-          {/* Recent Activity - styled like Latest Orders */}
-          {recentActivity.length > 0 && (
-            <div className="card chart-card">
-              <div className="card-header-modern">
-                <div className="card-icon-wrapper">
-                  <Receipt size={20} />
-                </div>
-                <div className="card-header-text">
-                  <h3>Últimos Pedidos</h3>
-                  <p>Pedidos de hoje (presenciais e takeaway)</p>
-                </div>
-              </div>
-              <div className="orders-list-container">
-                {recentActivity.map((order) => (
-                  <div
-                    key={order.id}
-                    style={{
-                      padding: "1rem",
-                      marginBottom: "0.75rem",
-                      background: "rgba(0, 0, 0, 0.02)",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      border: "1px solid rgba(0, 0, 0, 0.05)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(0, 0, 0, 0.02)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            marginBottom: "0.25rem",
-                          }}
-                        >
-                          {order.type === "takeaway" ? (
-                            <ShoppingBag size={16} color="#10b981" />
-                          ) : (
-                            <Coffee size={16} color="#4facfe" />
-                          )}
-                          <span style={{ fontWeight: 600, fontSize: "14px" }}>
-                            {order.type === "takeaway"
-                              ? order.customer_name
-                              : `Mesa ${order.table_number}`}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#64748b",
-                            marginLeft: "24px",
-                          }}
-                        >
-                          {order.items_count} items •{" "}
-                          {order.staff?.name || "Staff"}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          textAlign: "right",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "0.25rem",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontWeight: 700,
-                            fontSize: "16px",
-                            color: "#1e293b",
-                          }}
-                        >
-                          {order.total_price?.toFixed(2) || "0.00"}€
-                        </span>
-                        <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-                          {order.completed_at
-                            ? new Date(order.completed_at).toLocaleString(
-                                "pt-PT",
-                                {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )
-                            : "Agora"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

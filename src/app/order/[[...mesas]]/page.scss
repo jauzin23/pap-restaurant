@@ -129,6 +129,29 @@
         flex: 1;
         transition: all 0.4s ease;
 
+        /* Custom scrollbar */
+        &::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        &::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.05);
+          border-radius: 3px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 3px;
+
+          &:hover {
+            background: rgba(0, 0, 0, 0.4);
+          }
+        }
+
+        /* Firefox scrollbar */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05);
+
         .filter-bar {
           display: flex;
           gap: 12px;
@@ -932,7 +955,7 @@
         margin-top: 8px;
 
         button {
-          padding: 12px 20px;
+          padding: 8px 12px;
           border: none;
           border-radius: 1.5rem;
           font-size: 14px;
@@ -951,7 +974,6 @@
 
             &:hover {
               background: #e5e7eb;
-              transform: translateY(-2px);
             }
           }
 
@@ -959,13 +981,9 @@
             background: white;
             color: #1f2937;
             border: 1px solid #d1d5db;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
             &:hover {
-              background: white;
-              border-color: #1f2937;
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-              transform: translateY(-2px);
+              background: #e5e7eb;
             }
           }
         }
@@ -1033,6 +1051,150 @@
             gap: 12px;
           }
         }
+      }
+    }
+  }
+}
+
+// Custom Alert Modal Styles
+.custom-alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+
+  .custom-alert-modal {
+    background: #ffffff;
+    border-radius: 1.5rem;
+    padding: 2rem;
+    max-width: 400px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    animation: slideInUp 0.3s ease-out;
+    border: 1px solid #d1d5db;
+
+    .alert-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      color: #f59e0b;
+      animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+      svg {
+        filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.2));
+      }
+    }
+
+    .alert-message {
+      font-family: "Nunito", sans-serif;
+      font-size: clamp(1rem, 2vw, 1.125rem);
+      font-weight: 600;
+      color: #2d3748;
+      text-align: center;
+      line-height: 1.5;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+
+    .alert-ok-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 32px;
+      background: linear-gradient(135deg, #2d3748, #1a202c);
+      color: white;
+      border: none;
+      border-radius: 1.5rem;
+      font-family: "Nunito", sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 120px;
+
+      &:hover {
+        background: linear-gradient(135deg, #1a202c, #0d1117);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+}
+
+// Animations for alert modal
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+// Responsive for alert modal
+@media (max-width: 480px) {
+  .custom-alert-overlay {
+    padding: 16px;
+
+    .custom-alert-modal {
+      padding: 1.5rem;
+      gap: 1.25rem;
+
+      .alert-icon {
+        width: 64px;
+        height: 64px;
+
+        svg {
+          width: 36px;
+          height: 36px;
+        }
+      }
+
+      .alert-message {
+        font-size: 0.9375rem;
+      }
+
+      .alert-ok-btn {
+        padding: 10px 28px;
+        font-size: 0.9375rem;
       }
     }
   }

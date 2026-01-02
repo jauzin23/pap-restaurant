@@ -28,7 +28,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn("[AIInsightsWebSocket] No auth token available");
       return;
     }
 
@@ -36,8 +35,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
     if (socketRef.current) {
       socketRef.current.disconnect();
     }
-
-    console.log("[AIInsightsWebSocket] Connecting to", SOCKET_URL);
 
     const socket = io(SOCKET_URL, {
       auth: { token },
@@ -56,14 +53,12 @@ export function useAIInsightsWebSocket(callbacks = {}) {
 
     // Connection events
     const connectListener = () => {
-      console.log("[AIInsightsWebSocket] ✅ Connected:", socket.id);
       onConnected?.();
     };
     socket.on("connect", connectListener);
     listenersRef.current.connect = () => socket.off("connect", connectListener);
 
     const disconnectListener = (reason) => {
-      console.log("[AIInsightsWebSocket] ❌ Disconnected:", reason);
       onDisconnected?.(reason);
     };
     socket.on("disconnect", disconnectListener);
@@ -80,7 +75,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
 
     // AI Insights events
     const insightGeneratedListener = (insight) => {
-      console.log("[AIInsightsWebSocket] 🧠 Insight generated:", insight.id);
       onInsightCreated?.(insight);
     };
     socket.on("insight:generated", insightGeneratedListener);
@@ -88,7 +82,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
       socket.off("insight:generated", insightGeneratedListener);
 
     const insightUpdatedListener = (insight) => {
-      console.log("[AIInsightsWebSocket] 🔄 Insight updated:", insight.id);
       onInsightUpdated?.(insight);
     };
     socket.on("insight:updated", insightUpdatedListener);
@@ -96,7 +89,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
       socket.off("insight:updated", insightUpdatedListener);
 
     const insightDeletedListener = (data) => {
-      console.log("[AIInsightsWebSocket] 🗑️ Insight deleted:", data.id);
       onInsightDeleted?.(data);
     };
     socket.on("insight:deleted", insightDeletedListener);
@@ -123,7 +115,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
     listenersRef.current = {};
 
     if (socketRef.current) {
-      console.log("[AIInsightsWebSocket] Disconnecting...");
       socketRef.current.disconnect();
       socketRef.current = null;
     }
@@ -137,8 +128,6 @@ export function useAIInsightsWebSocket(callbacks = {}) {
   const emit = useCallback((event, data) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit(event, data);
-    } else {
-      console.warn("[AIInsightsWebSocket] Cannot emit - socket not connected");
     }
   }, []);
 

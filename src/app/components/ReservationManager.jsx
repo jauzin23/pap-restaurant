@@ -63,13 +63,75 @@ const getNextStatus = (currentStatus) => {
 function QRScanZXingComponent({ onScan, freeze }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
+  const [cameraError, setCameraError] = useState("");
+  const [hasPermission, setHasPermission] = useState(false);
 
   useEffect(() => {
     let codeReader;
     let active = true;
 
+    const requestCameraPermission = async () => {
+      try {
+        // First check if we already have permission
+        if (navigator.permissions) {
+          const permissionStatus = await navigator.permissions.query({
+            name: "camera",
+          });
+          if (permissionStatus.state === "denied") {
+            setCameraError(
+              "Acesso à câmera foi negado. Permita o acesso à câmera nas configurações do navegador e recarregue a página."
+            );
+            return false;
+          }
+        }
+
+        // Request permission by trying to access camera
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true, // Use default camera
+        });
+
+        // Stop the test stream immediately
+        stream.getTracks().forEach((track) => track.stop());
+        setHasPermission(true);
+        return true;
+      } catch (error) {
+        console.error("Camera permission error:", error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        if (err.name === "TypeError") {
+          setCameraError(
+            "Este navegador não suporta acesso à câmera. Use um navegador moderno como Chrome, Firefox ou Edge."
+          );
+        } else if (err.name === "NotAllowedError") {
+          setCameraError(
+            "Acesso à câmera foi negado. Clique em 'Permitir' quando solicitado ou permita o acesso nas configurações do navegador."
+          );
+        } else if (err.name === "NotFoundError") {
+          setCameraError(
+            "Nenhuma câmera encontrada. Verifique se o dispositivo tem uma câmera conectada."
+          );
+        } else if (err.name === "NotReadableError") {
+          setCameraError(
+            "A câmera está sendo usada por outro aplicativo. Feche outros aplicativos que usam a câmera."
+          );
+        } else {
+          setCameraError(
+            "Erro ao acessar a câmera. Verifique as permissões do navegador."
+          );
+        }
+        return false;
+      }
+    };
+
     const startScan = async () => {
       if (videoRef.current && !freeze) {
+        // Request camera permission if not already granted
+        if (!hasPermission) {
+          const permissionGranted = await requestCameraPermission();
+          if (!permissionGranted) {
+            return;
+          }
+        }
+
         try {
           codeReader = new BrowserQRCodeReader();
           const controls = await codeReader.decodeFromVideoDevice(
@@ -88,6 +150,9 @@ function QRScanZXingComponent({ onScan, freeze }) {
           controlsRef.current = controls;
         } catch (error) {
           console.error("QR Scanner error:", error);
+          setCameraError(
+            "Erro ao iniciar o scanner QR. Tente recarregar a página."
+          );
         }
       }
     };
@@ -103,7 +168,7 @@ function QRScanZXingComponent({ onScan, freeze }) {
         codeReader.reset();
       }
     };
-  }, [onScan, freeze]);
+  }, [onScan, freeze, hasPermission]);
 
   return (
     <div
@@ -114,29 +179,80 @@ function QRScanZXingComponent({ onScan, freeze }) {
         position: "relative",
       }}
     >
-      <video
-        ref={videoRef}
-        style={{ width: "100%", borderRadius: "1.5rem", background: "#000" }}
-      />
-      {freeze && (
+      {cameraError ? (
         <div
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
             width: "100%",
-            height: "100%",
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            fontSize: "1.5rem",
-            zIndex: 2,
+            padding: "2rem",
+            textAlign: "center",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "1.5rem",
+            color: "#dc2626",
           }}
         >
-          Verificando QR...
+          <div
+            style={{
+              fontSize: "1.2rem",
+              fontWeight: "bold",
+              marginBottom: "1rem",
+            }}
+          >
+            ❌ Erro na Câmera
+          </div>
+          <div style={{ fontSize: "1rem", lineHeight: "1.5" }}>
+            {cameraError}
+          </div>
+          <button
+            onClick={() => {
+              setCameraError("");
+              setHasPermission(false);
+            }}
+            style={{
+              marginTop: "1rem",
+              padding: "0.5rem 1rem",
+              background: "#dc2626",
+              color: "white",
+              border: "none",
+              borderRadius: "0.5rem",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            Tentar Novamente
+          </button>
         </div>
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            style={{
+              width: "100%",
+              borderRadius: "1.5rem",
+              background: "#000",
+            }}
+          />
+          {freeze && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: "1.5rem",
+                zIndex: 2,
+              }}
+            >
+              Verificando QR...
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -227,11 +343,6 @@ const ReservationManager = ({ onLoaded }) => {
     try {
       const allTablesResponse = await tablesApi.list();
       const tablesList = allTablesResponse.documents || [];
-      console.log(
-        "📋 Tables loaded:",
-        tablesList.length,
-        tablesList.slice(0, 2)
-      );
       setTables(tablesList);
     } catch (error) {
       console.error("Erro ao carregar mesas:", error);
@@ -241,11 +352,14 @@ const ReservationManager = ({ onLoaded }) => {
   const fetchLayouts = async () => {
     try {
       const dbLayouts = await tableLayouts.list();
-      console.log("🏢 Layouts loaded:", dbLayouts.length, dbLayouts);
       setLayouts(dbLayouts || []);
     } catch (error) {
       console.error("Erro ao carregar layouts:", error);
     }
+  };
+
+  const showToast = (message, type = "info") => {
+    // Implementation of toast notification
   };
 
   useEffect(() => {
@@ -277,30 +391,25 @@ const ReservationManager = ({ onLoaded }) => {
     const handleReservationDeleted = () => fetchReservations();
 
     const handleTableCreated = (table) => {
-      console.log("🆕 Table created via WebSocket:", table);
       setTables((prev) => [...prev, table]);
     };
 
     const handleTableUpdated = (table) => {
-      console.log("✏️ Table updated via WebSocket:", table);
       setTables((prev) =>
         prev.map((t) => (t.id === table.id ? { ...t, ...table } : t))
       );
     };
 
     const handleTableDeleted = ({ id }) => {
-      console.log("🗑️ Table deleted via WebSocket:", id);
       setTables((prev) => prev.filter((t) => t.id !== id));
       setSelectedTableIds((prev) => prev.filter((tableId) => tableId !== id));
     };
 
     const handleLayoutCreated = (layout) => {
-      console.log("🆕 Layout created via WebSocket:", layout);
       setLayouts((prev) => [...prev, layout]);
     };
 
     const handleLayoutUpdated = (layout) => {
-      console.log("✏️ Layout updated via WebSocket:", layout);
       setLayouts((prev) =>
         prev.map((l) => (l.id === layout.id ? { ...l, ...layout } : l))
       );
@@ -308,7 +417,6 @@ const ReservationManager = ({ onLoaded }) => {
     };
 
     const handleLayoutDeleted = ({ id }) => {
-      console.log("🗑️ Layout deleted via WebSocket:", id);
       setLayouts((prev) => prev.filter((l) => l.id !== id));
       if (
         layouts[selectedLayoutIndex] &&
@@ -345,13 +453,14 @@ const ReservationManager = ({ onLoaded }) => {
 
   const handleSubmit = async () => {
     try {
-      if (!formData.customer_name || !formData.customer_phone) {
-        showToast("Nome e telefone são obrigatórios", "error");
+      if (!formData.customer_name) {
+        showToast("Nome é obrigatório", "error");
         return;
       }
 
       const payload = {
         ...formData,
+        customer_phone: formData.customer_phone || null,
         table_ids: selectedTableIds.length > 0 ? selectedTableIds : undefined,
       };
 
@@ -390,8 +499,24 @@ const ReservationManager = ({ onLoaded }) => {
 
   const handleStatusChange = async (id, status) => {
     if (status === "completed") {
-      setQrModal({ open: true, reservationId: id });
-      return;
+      // Find the reservation to check if it has a QR token
+      const reservation = reservations.find((r) => r.id === id);
+      if (reservation && reservation.qr_code_token) {
+        setQrModal({ open: true, reservationId: id });
+        return;
+      } else {
+        // If no QR token, complete directly via verify-qr endpoint
+        try {
+          await apiRequest(`/reservations/${id}/verify-qr`, {
+            method: "POST",
+            body: JSON.stringify({}),
+          });
+          fetchReservations();
+        } catch (error) {
+          // Error handling without toast
+        }
+        return;
+      }
     }
     try {
       await apiRequest(`/reservations/${id}`, {
@@ -776,7 +901,7 @@ const ReservationManager = ({ onLoaded }) => {
                   </div>
 
                   <div className="reservation-form-group">
-                    <label>Telefone *</label>
+                    <label>Telefone</label>
                     <input
                       type="tel"
                       className="reservation-form-input"
@@ -787,7 +912,7 @@ const ReservationManager = ({ onLoaded }) => {
                           customer_phone: e.target.value,
                         })
                       }
-                      placeholder="Número de telefone"
+                      placeholder="Número de telefone (opcional)"
                     />
                   </div>
 
@@ -1101,9 +1226,8 @@ const ReservationManager = ({ onLoaded }) => {
                     borderRadius: "1.5rem",
                     padding: "10px 24px",
                     fontWeight: 600,
-                    border: "none",
-                    cursor: "pointer",
                     border: "1px solid #d1d5db",
+                    cursor: "pointer",
                   }}
                   onClick={() =>
                     setQrModal({ open: false, reservationId: null })

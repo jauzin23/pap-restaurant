@@ -72,17 +72,22 @@ const TableComponent = ({
 
   const getRowStyle = (row) => {
     for (const highlight of highlightRows) {
-      // Simple condition evaluation (you might want to make this more sophisticated)
-      if (
-        highlight.condition &&
-        eval(
-          highlight.condition.replace(
-            /risco\.variant/g,
-            `"${row.risco?.variant}"`
+      try {
+        // Simple condition evaluation (you might want to make this more sophisticated)
+        if (
+          highlight.condition &&
+          eval(
+            highlight.condition
+              .replace(/risco\.variant/g, `"${row.risco?.variant || ''}"`)
+              .replace(/acao/g, `"${row.acao || ''}"`)
+              .replace(/row\./g, 'row.')
           )
-        )
-      ) {
-        return { backgroundColor: highlight.color };
+        ) {
+          return { backgroundColor: highlight.color };
+        }
+      } catch (error) {
+        console.warn('Error evaluating highlight condition:', highlight.condition, error);
+        // Continue to next highlight rule
       }
     }
     return {};

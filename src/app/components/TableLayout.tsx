@@ -36,6 +36,8 @@ import {
   ShoppingBag,
   Clock,
   Check,
+  Camera,
+  ArrowLeft,
 } from "lucide-react";
 import {
   tableLayouts,
@@ -418,6 +420,10 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   });
   const [qrError, setQrError] = useState("");
   const [qrLoading, setQrLoading] = useState(false);
+  const [showQrScan, setShowQrScan] = useState(false);
+  const [currentTakeawayId, setCurrentTakeawayId] = useState<string | null>(
+    null
+  );
   const [tableAnimations, setTableAnimations] = useState<
     Record<string, "entering" | "moving" | "exiting" | null>
   >({});
@@ -549,15 +555,10 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         );
         setTakeawayOrders(takeawayData);
       } catch (takeawayError) {
-        console.log("Takeaway API not available yet:", takeawayError);
         setTakeawayOrders([]);
       }
 
-      console.log("=== LOADING TABLES AND ORDERS ===");
       const layout = layouts[currentLayoutIndex];
-      console.log("Current layout when loading:", layout?.id);
-      console.log("All tables fetched:", allTablesData.length);
-      console.log("All orders fetched:", ordersData.length);
 
       // Calculate table statuses with layout ID
       if (layout) {
@@ -584,27 +585,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       const currentLayout = layouts.find((l) => l.id === layoutId);
       const layoutName = currentLayout?.name;
 
-      console.log("=== DEBUG TABLE FILTERING ===");
-      console.log(
-        "Looking for layout ID:",
-        layoutId,
-        "Layout Name:",
-        layoutName
-      );
-
-      // Check each table's layout_name
-      allTablesData.forEach((table, index) => {
-        if (index < 3) {
-          console.log(`Table ${index} RAW DATA:`, table);
-          console.log(`Table ${index} PROCESSED:`, {
-            id: table.$id || table.id,
-            tableNumber: table.tableNumber,
-            layout_name: table.layout_name,
-            matches: table.layout_name === layoutName,
-          });
-        }
-      });
-
       // Filter tables by layout_name instead of layout_id
       const currentLayoutTables = allTablesData.filter(
         (table) => table.layout_name === layoutName
@@ -621,22 +601,11 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         }
       });
 
-      console.log("Filtering for layout name:", layoutName);
-      console.log("Tables in current layout:", currentLayoutTables.length);
-      console.log("Total tables in system:", allTablesData.length);
-
       // Only filter out paid/cancelled orders - delivered orders should still occupy tables
       const activeOrders = ordersData.filter((order) => {
         const status = order.status || "pendente";
         return status !== "pago" && status !== "paid" && status !== "cancelado";
       });
-
-      console.log(
-        "Total orders:",
-        ordersData.length,
-        "Active orders:",
-        activeOrders.length
-      );
 
       // Group orders by their table combinations
       const orderGroups: Record<string, any[]> = {};
@@ -717,23 +686,13 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         }
       });
 
-      console.log("Final calculated table statuses:", statuses);
-
-      console.log("Calculated table statuses:", statuses);
-      console.log("Orders data count:", ordersData.length);
-      console.log("Multi-table groups:", multiTableGroups.length);
       setTableStatuses(statuses);
     },
-    []
+    [layouts]
   );
   useEffect(() => {
     const layout = layouts[currentLayoutIndex];
     if (layout && allTables.length > 0) {
-      console.log("=== RECALCULATING TABLE STATUSES ===");
-      console.log("Layout ID:", layout.id);
-      console.log("Orders count:", ordersData.length);
-      console.log("Tables count:", allTables.length);
-
       calculateTableStatuses(allTables, ordersData, layout.id);
     }
   }, [
@@ -811,12 +770,12 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   // Handle QR scan for takeaway delivery
   const handleQrScan = async (scanned: string) => {
     setQrError("");
-    if (!qrModal.takeawayId) return;
+    if (!currentTakeawayId) return;
     setQrLoading(true);
     try {
       const token = getAuthToken();
       const response = await fetch(
-        `${API_BASE_URL}/takeaway/${qrModal.takeawayId}/verify-qr`,
+        `${API_BASE_URL}/takeaway/${currentTakeawayId}/verify-qr`,
         {
           method: "POST",
           headers: {
@@ -829,25 +788,23 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
       if (response.ok) {
         const result = await response.json();
-        // Show success state
-        setQrModal((prev) => ({ ...prev, success: true }));
-        setQrLoading(false);
 
-        // Update local state
+        // Update the order status locally to "entregue"
         setTakeawayOrders((prev) =>
-          prev.filter((o) => (o.id || o.$id) !== qrModal.takeawayId)
+          prev.map((o) =>
+            (o.id || o.$id) === currentTakeawayId
+              ? { ...o, status: "entregue" }
+              : o
+          )
         );
 
-        // Close modals after 2 seconds
-        setTimeout(() => {
-          setQrModal({ open: false, takeawayId: null, success: false });
-          // Close takeaway modal if no orders left
-          if (takeawayOrders.length <= 1) {
-            setShowTakeawayModal(false);
-          }
-          // Refetch to ensure sync
-          loadAllTablesAndOrders();
-        }, 2000);
+        // Go back to orders list
+        setShowQrScan(false);
+        setCurrentTakeawayId(null);
+        setQrError("");
+
+        // Refetch to ensure sync
+        loadAllTablesAndOrders();
       } else {
         const errorData = await response.json().catch(() => ({}));
         setQrError(
@@ -915,23 +872,18 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   useEffect(() => {
     if (!socket || !connected) return;
 
-    console.log("🔌 TableLayout: Setting up WebSocket listeners");
-
     // Subscribe to layout-specific events if in view mode
     const layout = layouts[currentLayoutIndex];
     if (layout?.id && mode === "view") {
-      console.log(`📡 Subscribing to layout: ${layout.id}`);
       (socket as Socket).emit("subscribe:layout", layout.id);
     }
 
     // Order events - refresh table statuses
     const handleOrderCreated = (order: any) => {
-      console.log("📦 Order created via WebSocket:", order);
       loadAllTablesAndOrders();
     };
 
     const handleOrderUpdated = (order: any) => {
-      console.log("📝 Order updated via WebSocket:", order);
       loadAllTablesAndOrders();
 
       // Update selectedTableOrders if modal is open and this order belongs to the selected table
@@ -951,7 +903,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     };
 
     const handleOrderDeleted = (data: any) => {
-      console.log("🗑️ Order deleted via WebSocket:", data);
       loadAllTablesAndOrders();
 
       // Update selectedTableOrders if modal is open
@@ -965,11 +916,8 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
     // Table events - refresh layouts
     const handleTableCreated = (table: any) => {
-      console.log("🪑 Table created via WebSocket:", table);
-
       // Ignore updates in edit mode
       if (mode === "edit") {
-        console.log("⚠️ Ignoring table creation in edit mode");
         return;
       }
 
@@ -983,7 +931,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
         );
 
         if (tableExists) {
-          console.log(`⚠️ Table ${table.id} already exists, skipping creation`);
           return;
         }
 
@@ -1020,11 +967,8 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     };
 
     const handleTableUpdated = (table: any) => {
-      console.log("✏️ Table updated via WebSocket:", table);
-
       // Ignore updates in edit mode to prevent conflicts with local dragging
       if (mode === "edit") {
-        console.log("⚠️ Ignoring table update in edit mode");
         return;
       }
 
@@ -1077,11 +1021,8 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     };
 
     const handleTableDeleted = (data: any) => {
-      console.log("🗑️ Table deleted via WebSocket:", data);
-
       // Ignore updates in edit mode
       if (mode === "edit") {
-        console.log("⚠️ Ignoring table deletion in edit mode");
         return;
       }
 
@@ -1121,30 +1062,25 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
     // Layout events
     const handleLayoutCreated = (layout: any) => {
-      console.log("🏢 Layout created via WebSocket:", layout);
       loadLayouts();
     };
 
     const handleLayoutUpdated = (layout: any) => {
-      console.log("🏢 Layout updated via WebSocket:", layout);
       if (layout.id === layouts[currentLayoutIndex]?.id) {
         loadLayouts();
       }
     };
 
     const handleLayoutDeleted = (data: any) => {
-      console.log("🗑️ Layout deleted via WebSocket:", data);
       loadLayouts();
     };
 
     // Takeaway events
     const handleTakeawayCreated = (order: any) => {
-      console.log("🛍️ Takeaway created via WebSocket:", order);
       setTakeawayOrders((prev) => [order, ...prev]);
     };
 
     const handleTakeawayUpdated = (order: any) => {
-      console.log("✏️ Takeaway updated via WebSocket:", order);
       setTakeawayOrders((prev) =>
         prev.map((o) =>
           (o.id || o.$id) === (order.id || order.$id) ? { ...o, ...order } : o
@@ -1153,7 +1089,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     };
 
     const handleTakeawayDeleted = (data: any) => {
-      console.log("🗑️ Takeaway deleted via WebSocket:", data);
       const deletedId = data.id || data.$id;
       setTakeawayOrders((prev) =>
         prev.filter((o) => (o.id || o.$id) !== deletedId)
@@ -1161,7 +1096,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     };
 
     const handleTakeawayCompleted = (data: any) => {
-      console.log("✅ Takeaway completed via WebSocket:", data);
       const completedId = data.id || data.$id;
       setTakeawayOrders((prev) =>
         prev.filter((o) => (o.id || o.$id) !== completedId)
@@ -1173,8 +1107,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     (socket as Socket).on("order:updated", handleOrderUpdated);
     (socket as Socket).on("order:deleted", handleOrderDeleted);
     (socket as Socket).on("order:paid", (data) => {
-      console.log("💸 Order paid event received via WebSocket", data);
-
       // Remove paid orders from ordersData immediately
       const paidOrderIds = data.order_item_ids || [];
       setOrdersData((prev) =>
@@ -1197,11 +1129,8 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
     // Cleanup function
     return () => {
-      console.log("🔌 TableLayout: Cleaning up WebSocket listeners");
-
       // Unsubscribe from layout
       if (layout?.id && mode === "view") {
-        console.log(`📡 Unsubscribing from layout: ${layout.id}`);
         (socket as Socket).emit("unsubscribe:layout", layout.id);
       }
 
@@ -1478,10 +1407,33 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
     }
   };
 
+  // Global touchmove handler for aggressive scroll prevention (persistent ref)
+  const globalTouchMoveHandlerRef = useRef<((e: TouchEvent) => void) | null>(
+    null
+  );
+
   const handleTableTouchStart = (e: React.TouchEvent, tableId: string) => {
     if (mode !== "edit" || !currentLayout) return;
     e.stopPropagation();
-
+    e.preventDefault(); // Prevent scrolling when starting to drag
+    // Remove any previous handler first
+    if (globalTouchMoveHandlerRef.current) {
+      document.removeEventListener(
+        "touchmove",
+        globalTouchMoveHandlerRef.current
+      );
+      window.removeEventListener(
+        "touchmove",
+        globalTouchMoveHandlerRef.current
+      );
+    }
+    // Add global touchmove preventDefault immediately
+    const handler = (ev: TouchEvent) => {
+      ev.preventDefault();
+    };
+    globalTouchMoveHandlerRef.current = handler;
+    document.addEventListener("touchmove", handler, { passive: false });
+    window.addEventListener("touchmove", handler, { passive: false });
     // Use optimized drag start
     startDrag(e, tableId, canvasRef);
     setIsDragging(true);
@@ -1499,6 +1451,7 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (!isDragging) return;
+      e.preventDefault(); // Prevent scrolling during drag
       // Use optimized move handler
       handleMove(e, canvasRef);
     },
@@ -1507,6 +1460,18 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging) return;
+    // Remove global touchmove handler
+    if (globalTouchMoveHandlerRef.current) {
+      document.removeEventListener(
+        "touchmove",
+        globalTouchMoveHandlerRef.current
+      );
+      window.removeEventListener(
+        "touchmove",
+        globalTouchMoveHandlerRef.current
+      );
+      globalTouchMoveHandlerRef.current = null;
+    }
     // Use optimized end drag
     endDrag();
     setIsDragging(false);
@@ -1514,23 +1479,47 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging) return;
+    // Remove global touchmove handler
+    if (globalTouchMoveHandlerRef.current) {
+      document.removeEventListener(
+        "touchmove",
+        globalTouchMoveHandlerRef.current
+      );
+      window.removeEventListener(
+        "touchmove",
+        globalTouchMoveHandlerRef.current
+      );
+      globalTouchMoveHandlerRef.current = null;
+    }
     // Use optimized end drag
     endDrag();
     setIsDragging(false);
   }, [isDragging, endDrag]);
 
   useEffect(() => {
+    let globalTouchMoveHandler: ((e: TouchEvent) => void) | null = null;
     if (isDragging) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
       window.addEventListener("touchmove", handleTouchMove);
       window.addEventListener("touchend", handleTouchEnd);
 
+      // Add global touchmove preventDefault ONLY during drag
+      globalTouchMoveHandler = (e: TouchEvent) => {
+        e.preventDefault();
+      };
+      document.addEventListener("touchmove", globalTouchMoveHandler, {
+        passive: false,
+      });
+
       return () => {
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
         window.removeEventListener("touchmove", handleTouchMove);
         window.removeEventListener("touchend", handleTouchEnd);
+        if (globalTouchMoveHandler) {
+          document.removeEventListener("touchmove", globalTouchMoveHandler);
+        }
       };
     }
   }, [
@@ -1574,7 +1563,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       // This prevents "table number already exists" errors when recreating tables
       for (const existingTableId of existingTableIds) {
         if (!currentTableIds.includes(existingTableId)) {
-          console.log(`Deleting removed table: ${existingTableId}`);
           await tables.delete(existingTableId);
         }
       }
@@ -1585,9 +1573,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
           !table.id.startsWith("temp_") &&
           existingTableIds.includes(table.id)
         ) {
-          console.log(
-            `Updating existing table: ${table.id} (number ${table.number})`
-          );
           const tableData = {
             table_number: table.number,
             x: table.x,
@@ -1608,7 +1593,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
       // STEP 3: Create new tables (with temporary IDs) LAST
       for (const table of currentLayout.tables) {
         if (table.id.startsWith("temp_")) {
-          console.log(`Creating new table: number ${table.number}`);
           const tableData = {
             layout_id: currentLayout.id,
             table_number: table.number,
@@ -1626,8 +1610,6 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
           await tables.create(tableData);
         }
       }
-
-      console.log("Layout saved successfully");
 
       // Reload the layout from the database to get the real IDs
       await loadLayouts();
@@ -2418,7 +2400,23 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
               </div>
             )}
 
-            <div className="layout-canvas-wrapper" ref={wrapperRef}>
+            <div
+              className={`layout-canvas-wrapper${
+                isDragging ? " dragging-active" : ""
+              }`}
+              ref={wrapperRef}
+              onMouseDown={(e) => {
+                // Only deselect if clicking directly on the wrapper (not a child)
+                if (e.target === e.currentTarget) {
+                  setSelectedTable(null);
+                }
+              }}
+              onTouchStart={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedTable(null);
+                }
+              }}
+            >
               <div
                 ref={canvasRef}
                 className="layout-canvas"
@@ -2479,26 +2477,69 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
             ? createPortal(
                 <div
                   className="table-layout-manager-modals modal-overlay takeaway-modal-overlay"
-                  onClick={() => setShowTakeawayModal(false)}
+                  onClick={() => {
+                    if (showQrScan) {
+                      setShowQrScan(false);
+                      setCurrentTakeawayId(null);
+                      setQrError("");
+                    } else {
+                      setShowTakeawayModal(false);
+                    }
+                  }}
                 >
                   <div
                     className="modal-content takeaway-orders-modal"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="modal-header">
-                      <h3>
-                        <ShoppingBag size={20} />
-                        Pedidos Takeaway ({takeawayOrders.length})
-                      </h3>
-                      <button
-                        className="modal-close"
-                        onClick={() => setShowTakeawayModal(false)}
-                      >
-                        <X size={20} />
-                      </button>
+                      {showQrScan ? (
+                        <>
+                          <h3>
+                            <Camera size={20} />
+                            Verificar QR Code - Entrega Takeaway
+                          </h3>
+                          <button
+                            className="modal-close"
+                            onClick={() => {
+                              setShowQrScan(false);
+                              setCurrentTakeawayId(null);
+                              setQrError("");
+                            }}
+                          >
+                            <ArrowLeft size={20} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <h3>
+                            <ShoppingBag size={20} />
+                            Pedidos Takeaway ({takeawayOrders.length})
+                          </h3>
+                          <button
+                            className="modal-close"
+                            onClick={() => setShowTakeawayModal(false)}
+                          >
+                            <X size={20} />
+                          </button>
+                        </>
+                      )}
                     </div>
                     <div className="modal-body takeaway-orders-list">
-                      {takeawayOrders.length === 0 ? (
+                      {showQrScan ? (
+                        <div className="qr-scan-modal-body">
+                          <QRScanZXingComponent
+                            onScan={handleQrScan}
+                            freeze={qrLoading}
+                          />
+                          {qrError && (
+                            <div className="qr-scan-error">{qrError}</div>
+                          )}
+                          <div className="qr-scan-instructions">
+                            Aponte a câmera para o QR code enviado por email ao
+                            cliente.
+                          </div>
+                        </div>
+                      ) : takeawayOrders.length === 0 ? (
                         <div className="takeaway-empty-state">
                           <ShoppingBag size={48} strokeWidth={1.5} />
                           <h4>Sem pedidos takeaway</h4>
@@ -2630,15 +2671,62 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                                     <Check size={14} />
                                     Marcar como Pronto
                                   </button>
-                                ) : (
+                                ) : order.qr_code_token ? (
                                   <button
                                     className="action-btn complete-btn"
                                     onClick={() => {
-                                      setQrModal({
-                                        open: true,
-                                        takeawayId: order.id || order.$id,
-                                        success: false,
-                                      });
+                                      setCurrentTakeawayId(
+                                        order.id || order.$id
+                                      );
+                                      setShowQrScan(true);
+                                    }}
+                                  >
+                                    <Check size={14} />
+                                    Marcar como Entregue
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="action-btn complete-btn"
+                                    onClick={async () => {
+                                      // Direct completion without QR verification
+                                      try {
+                                        const token = getAuthToken();
+                                        const response = await fetch(
+                                          `${API_BASE_URL}/takeaway/${
+                                            order.id || order.$id
+                                          }/complete`,
+                                          {
+                                            method: "PUT",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                              Authorization: `Bearer ${token}`,
+                                            },
+                                          }
+                                        );
+
+                                        if (response.ok) {
+                                          const result = await response.json();
+                                          // Update local state
+                                          setTakeawayOrders((prev) =>
+                                            prev.map((o) =>
+                                              (o.id || o.$id) ===
+                                              (order.id || order.$id)
+                                                ? { ...o, status: "entregue" }
+                                                : o
+                                            )
+                                          );
+                                        } else {
+                                          console.error(
+                                            "Failed to complete order"
+                                          );
+                                        }
+                                      } catch (error) {
+                                        console.error(
+                                          "Error completing order:",
+                                          error
+                                        );
+                                      }
                                     }}
                                   >
                                     <Check size={14} />
@@ -2651,38 +2739,26 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                         })
                       )}
                     </div>
-                    <div className="modal-footer">
-                      <button
-                        className="footer-button primary"
-                        onClick={() => {
-                          setShowTakeawayModal(false);
-                          setIsCreatingOrder(true);
-                          router.push("/order/takeaway");
-                        }}
-                      >
-                        <Plus size={16} />
-                        Novo Pedido Takeaway
-                      </button>
-                    </div>
+                    {!showQrScan && (
+                      <div className="modal-footer">
+                        <button
+                          className="footer-button primary"
+                          onClick={() => {
+                            setShowTakeawayModal(false);
+                            setIsCreatingOrder(true);
+                            router.push("/order/takeaway");
+                          }}
+                        >
+                          <Plus size={16} />
+                          Novo Pedido Takeaway
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>,
                 document.body
               )
             : null}
-          {/* QR Scan Modal for Takeaway Delivery */}
-          {qrModal.open && (
-            <QRScanModal
-              open={qrModal.open}
-              onClose={() => {
-                setQrModal({ open: false, takeawayId: null, success: false });
-                setQrError("");
-              }}
-              onScan={handleQrScan}
-              errorText={qrError}
-              loading={qrLoading}
-              success={qrModal.success}
-            />
-          )}
           {/* Order Details Modal - Rendered via Portal to bypass stacking context */}
           {showOrderModal &&
           typeof window !== "undefined" &&
@@ -2707,6 +2783,19 @@ const TableLayoutManager: React.FC<TableLayoutManagerProps> = ({
                     );
                   }}
                   setIsCreatingOrder={setIsCreatingOrder}
+                  tableNumbers={
+                    selectedTableOrders.length > 0 &&
+                    selectedTableOrders[0].table_id
+                      ? selectedTableOrders[0].table_id
+                          .map((tableId: string) => {
+                            const table = currentLayout?.tables.find(
+                              (t) => t.id === tableId
+                            );
+                            return table ? table.number : null;
+                          })
+                          .filter(Boolean)
+                      : []
+                  }
                 />,
                 document.body
               )
@@ -2726,6 +2815,7 @@ interface OrderDetailsModalProps {
   onOrderUpdate: (orderId: string, updates: any) => void;
   onOrderDelete: (orderId: string) => void;
   setIsCreatingOrder: (loading: boolean) => void;
+  tableNumbers: number[];
 }
 
 const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
@@ -2736,12 +2826,12 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onOrderUpdate,
   onOrderDelete,
   setIsCreatingOrder,
+  tableNumbers,
 }) => {
   const router = useRouter();
   const { socket, connected } = useWebSocketContext();
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<string>("");
-  const [editingStatus, setEditingStatus] = useState<string>("pendente");
   const [editingPrice, setEditingPrice] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
   const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState<
@@ -2767,14 +2857,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   useEffect(() => {
     if (!socket || !connected) return;
 
-    console.log(
-      "🔌 OrderModal: Setting up WebSocket listeners, orders count:",
-      orders.length
-    );
-
     const handleOrderUpdate = (order: any) => {
-      console.log("🔄 OrderModal: Order updated received:", order);
-
       const updatedOrderId = order.$id || order.id;
 
       // Check if this update affects any of the orders in this modal
@@ -2782,23 +2865,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         (o) => (o.$id || o.id) === updatedOrderId
       );
 
-      console.log(
-        "OrderModal: Affected order found:",
-        !!affectedOrder,
-        "Updated order ID:",
-        updatedOrderId
-      );
-
       if (affectedOrder) {
-        console.log("✅ OrderModal: Updating order in modal");
         // Update the specific order with all the new data
         onOrderUpdate(updatedOrderId, { ...affectedOrder, ...order });
       }
     };
 
     const handleOrderDelete = (data: any) => {
-      console.log("🗑️ OrderModal: Order deleted received:", data);
-
       const deletedOrderId = data.id || data.$id;
 
       // Check if the deleted order is in this modal
@@ -2807,7 +2880,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       );
 
       if (affectedOrder) {
-        console.log("✅ OrderModal: Removing order from modal");
         onOrderDelete(deletedOrderId);
         // If no orders left, close modal
         if (orders.length === 1) {
@@ -2817,8 +2889,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     };
 
     const handleOrderCreate = (order: any) => {
-      console.log("➕ OrderModal: New order created received:", order);
-
       // Check if this new order belongs to any of the tables in this modal
       const orderTableIds = order.table_id || [];
       const modalTableIds = orders.flatMap((o) => o.table_id || []);
@@ -2829,7 +2899,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       );
 
       if (hasMatchingTable) {
-        console.log("✅ OrderModal: New order matches table, refreshing");
         // Refresh to get the new order
         onRefresh();
       }
@@ -2840,11 +2909,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     (socket as Socket).on("order:deleted", handleOrderDelete);
     (socket as Socket).on("order:created", handleOrderCreate);
 
-    console.log("✅ OrderModal: WebSocket listeners registered");
-
     // Cleanup
     return () => {
-      console.log("🧹 OrderModal: Cleaning up WebSocket listeners");
       (socket as Socket).off("order:updated", handleOrderUpdate);
       (socket as Socket).off("order:deleted", handleOrderDelete);
       (socket as Socket).off("order:created", handleOrderCreate);
@@ -2885,7 +2951,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     const orderId = order.$id || order.id;
     setEditingOrderId(orderId);
     setEditingNotes(order.notas || "");
-    setEditingStatus(order.status || "pendente");
     setEditingPrice(order.price || 0);
   };
 
@@ -2893,7 +2958,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const cancelEditing = () => {
     setEditingOrderId(null);
     setEditingNotes("");
-    setEditingStatus("pendente");
     setEditingPrice(0);
   };
 
@@ -2912,7 +2976,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         },
         body: JSON.stringify({
           notas: editingNotes,
-          status: editingStatus,
           price: editingPrice,
         }),
       });
@@ -2925,7 +2988,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           ...order,
           ...updatedOrder,
           notas: editingNotes,
-          status: editingStatus,
           price: editingPrice,
         });
 
@@ -2991,14 +3053,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     }
   };
 
-  const statusOptions = [
-    { value: "pendente", label: "Pendente" },
-    { value: "aceite", label: "Aceite" },
-    { value: "pronto", label: "Pronto" },
-    { value: "a ser entregue", label: "A ser entregue" },
-    { value: "entregue", label: "Entregue" },
-  ];
-
   // Get next status in workflow
   const getNextStatus = (currentStatus: string): string | null => {
     const workflow = [
@@ -3041,10 +3095,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         const currentUser = await auth.get();
         userId = currentUser?.$id || currentUser?.id;
       } catch (authError) {
-        console.warn(
-          "Could not get current user, continuing without userId:",
-          authError
-        );
         userId = null;
       }
       const currentTimestamp = new Date().toISOString();
@@ -3101,7 +3151,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     } catch (error) {
       console.error("Error updating order status:", error);
     } finally {
-      console.log("🔄 Clearing loading state for order:", orderId);
       setIsSaving(false);
       setUpdatingStatusOrderId(null);
     }
@@ -3201,7 +3250,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       <div className="clean-order-modal" onClick={(e) => e.stopPropagation()}>
         {/* Simple Header */}
         <div className="clean-modal-header">
-          <h2>Pedidos da Mesa</h2>
+          <h2>
+            Pedidos da Mesa
+            {tableNumbers.length > 0 ? `: ${tableNumbers.join(", ")}` : ""}
+          </h2>
           <button className="clean-close-btn" onClick={onClose}>
             <X size={24} />
           </button>
@@ -3216,16 +3268,17 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           ) : (
             <div className="orders-table-wrapper">
               <table className="orders-table">
-                <thead>
-                  <tr>
-                    <th>Imagem</th>
-                    <th>Item</th>
-                    <th>Tempo</th>
-                    <th>Preço</th>
-                    <th>Estado</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
+                {editingOrderId === null && (
+                  <thead>
+                    <tr>
+                      <th>Imagem</th>
+                      <th>Item</th>
+                      <th>Tempo</th>
+                      <th>Preço</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                )}
                 <tbody>
                   {sortedOrders.map((order) => {
                     const menuItem = getMenuItem(order.menu_item_id);
@@ -3262,21 +3315,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                               </div>
 
                               <div className="edit-row">
-                                <div className="edit-group">
-                                  <label>Estado</label>
-                                  <select
-                                    value={editingStatus}
-                                    onChange={(e) =>
-                                      setEditingStatus(e.target.value)
-                                    }
-                                  >
-                                    {statusOptions.map((opt) => (
-                                      <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
                                 <div className="edit-group">
                                   <label>
                                     Preço
@@ -3701,13 +3739,75 @@ interface QRScanZXingComponentProps {
 function QRScanZXingComponent({ onScan, freeze }: QRScanZXingComponentProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<any>(null);
+  const [cameraError, setCameraError] = useState<string>("");
+  const [hasPermission, setHasPermission] = useState<boolean>(false);
 
   useEffect(() => {
     let codeReader: BrowserQRCodeReader | undefined;
     let active = true;
 
+    const requestCameraPermission = async () => {
+      try {
+        // First check if we already have permission
+        if (navigator.permissions) {
+          const permissionStatus = await navigator.permissions.query({
+            name: "camera",
+          });
+          if (permissionStatus.state === "denied") {
+            setCameraError(
+              "Acesso à câmera foi negado. Permita o acesso à câmera nas configurações do navegador e recarregue a página."
+            );
+            return false;
+          }
+        }
+
+        // Request permission by trying to access camera
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true, // Use default camera
+        });
+
+        // Stop the test stream immediately
+        stream.getTracks().forEach((track) => track.stop());
+        setHasPermission(true);
+        return true;
+      } catch (error) {
+        console.error("Camera permission error:", error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        if (err.name === "TypeError") {
+          setCameraError(
+            "Este navegador não suporta acesso à câmera. Use um navegador moderno como Chrome, Firefox ou Edge."
+          );
+        } else if (err.name === "NotAllowedError") {
+          setCameraError(
+            "Acesso à câmera foi negado. Clique em 'Permitir' quando solicitado ou permita o acesso nas configurações do navegador."
+          );
+        } else if (err.name === "NotFoundError") {
+          setCameraError(
+            "Nenhuma câmera encontrada. Verifique se o dispositivo tem uma câmera conectada."
+          );
+        } else if (err.name === "NotReadableError") {
+          setCameraError(
+            "A câmera está a ser utilizada por outro aplicativo. Feche outros aplicativos que estejam a usar a câmera."
+          );
+        } else {
+          setCameraError(
+            "Erro ao acessar a câmera. Verifique as permissões do navegador."
+          );
+        }
+        return false;
+      }
+    };
+
     const startScan = async () => {
       if (videoRef.current && !freeze) {
+        // Request camera permission
+        if (!hasPermission) {
+          const permissionGranted = await requestCameraPermission();
+          if (!permissionGranted) {
+            return;
+          }
+        }
+
         try {
           codeReader = new BrowserQRCodeReader();
           const controls = await codeReader.decodeFromVideoDevice(
@@ -3726,6 +3826,9 @@ function QRScanZXingComponent({ onScan, freeze }: QRScanZXingComponentProps) {
           controlsRef.current = controls;
         } catch (error) {
           console.error("QR Scanner error:", error);
+          setCameraError(
+            "Erro ao iniciar o scanner QR. Tente recarregar a página."
+          );
         }
       }
     };
@@ -3739,13 +3842,57 @@ function QRScanZXingComponent({ onScan, freeze }: QRScanZXingComponentProps) {
       }
       // Note: BrowserQRCodeReader doesn't have a reset method
     };
-  }, [onScan, freeze]);
+  }, [onScan, freeze, hasPermission]);
 
   return (
     <div className="qr-scan-video-container">
-      <video ref={videoRef} className="qr-scan-video" />
-      {freeze && (
-        <div className="qr-scan-freeze-overlay">Verificando QR...</div>
+      {cameraError ? (
+        <div
+          style={{
+            width: "100%",
+            padding: "2rem",
+            textAlign: "center",
+            color: "#dc2626",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "1.2rem",
+              fontWeight: "bold",
+              marginBottom: "1rem",
+            }}
+          >
+            ❌ Erro na Câmera
+          </div>
+          <div style={{ fontSize: "1rem", lineHeight: "1.5" }}>
+            {cameraError}
+          </div>
+          <button
+            onClick={() => {
+              setCameraError("");
+              setHasPermission(false);
+            }}
+            style={{
+              marginTop: "1rem",
+              padding: "0.5rem 1rem",
+              background: "#dc2626",
+              color: "white",
+              border: "none",
+              borderRadius: "0.5rem",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      ) : (
+        <>
+          <video ref={videoRef} className="qr-scan-video" />
+          {freeze && (
+            <div className="qr-scan-freeze-overlay">Verificando QR...</div>
+          )}
+        </>
       )}
     </div>
   );
@@ -3878,8 +4025,8 @@ const TableComponent = React.memo<TableComponentProps>(
                     table.status === "occupied" && table.groupColor
                       ? table.groupColor
                       : table.status === "occupied"
-                      ? "#ef4444"
-                      : "#cbd5e0",
+                      ? "#d1d5db"
+                      : "#d1d5db",
                 }
               : undefined
           }

@@ -96,7 +96,6 @@ export const notifyReconnection = () => {
 };
 
 export const notifyInsightGenerated = (insight) => {
-  console.log("[NOTIFICATION] Insight generated:", insight);
   const monthNames = [
     "Janeiro",
     "Fevereiro",
@@ -122,7 +121,6 @@ export const notifyInsightGenerated = (insight) => {
 };
 
 export const notifyInsightDeleted = (insightId) => {
-  console.log("[NOTIFICATION] Insight deleted:", insightId);
   toast.error("Insight removido", {
     description: `Análise #${insightId} foi eliminada`,
     duration: 3000,

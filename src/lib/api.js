@@ -26,7 +26,6 @@ const removeAuthToken = () => {
 
 // Handle token expiration - simple logout and redirect
 const handleTokenExpiration = () => {
-  console.log("Token expired, logging out...");
   removeAuthToken();
   if (typeof window !== "undefined") {
     // Small delay to prevent redirect loops
@@ -127,15 +126,7 @@ const apiRequest = async (endpoint, options = {}) => {
       },
     };
 
-    console.log("API Request:", {
-      url,
-      method: config.method,
-      hasBody: !!config.body,
-      hasAuth: !!config.headers.Authorization,
-    });
-
     const response = await fetch(url, config);
-    console.log("API Response status:", response.status);
 
     return response;
   };
@@ -149,9 +140,6 @@ const apiRequest = async (endpoint, options = {}) => {
       (response.status === 401 || response.status === 403) &&
       options.auth !== false
     ) {
-      console.log(
-        "Token expired or invalid - removing token and redirecting to login"
-      );
       handleTokenExpiration();
       throw new Error("Session expired. Please login again.");
     }
@@ -170,9 +158,6 @@ const apiRequest = async (endpoint, options = {}) => {
           errorData.error.includes("invalid token") ||
           errorData.error.includes("expired"))
       ) {
-        console.log(
-          "Token error detected in response - removing token and redirecting"
-        );
         handleTokenExpiration();
         throw new Error("Session expired. Please login again.");
       }
@@ -181,10 +166,6 @@ const apiRequest = async (endpoint, options = {}) => {
     }
 
     const responseData = await response.json();
-    console.log(
-      "API Success response:",
-      endpoint.includes("login") ? "LOGIN_SUCCESS" : responseData
-    );
     return responseData;
   } catch (error) {
     console.error("API Request failed:", error);
@@ -221,7 +202,7 @@ export const auth = {
     try {
       await apiRequest("/auth/logout", { method: "POST" });
     } catch (error) {
-      console.warn("Logout request failed:", error);
+      // Silently handle logout errors
     } finally {
       removeAuthToken();
     }

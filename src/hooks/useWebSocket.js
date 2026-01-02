@@ -17,7 +17,6 @@ export const useWebSocket = () => {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn("⚠️ No auth token - WebSocket not initialized");
       return null;
     }
 
@@ -39,7 +38,6 @@ export const useWebSocket = () => {
 
     // Connection established
     newSocket.on("connect", () => {
-      console.log("✅ WebSocket connected");
       if (mountedRef.current) {
         setConnected(true);
         setReconnecting(false);
@@ -49,7 +47,6 @@ export const useWebSocket = () => {
 
     // Connection lost
     newSocket.on("disconnect", (reason) => {
-      console.log("❌ WebSocket disconnected:", reason);
       if (mountedRef.current) {
         setConnected(false);
 
@@ -75,7 +72,6 @@ export const useWebSocket = () => {
 
     // Reconnecting
     newSocket.io.on("reconnect_attempt", (attempt) => {
-      console.log(`🔄 WebSocket reconnecting... (attempt ${attempt})`);
       if (mountedRef.current) {
         setReconnecting(true);
         setReconnectAttempt(attempt);
@@ -84,7 +80,6 @@ export const useWebSocket = () => {
 
     // Reconnected
     newSocket.io.on("reconnect", (attempt) => {
-      console.log(`✅ WebSocket reconnected after ${attempt} attempts`);
       if (mountedRef.current) {
         setConnected(true);
         setReconnecting(false);
@@ -100,7 +95,6 @@ export const useWebSocket = () => {
         // Manual retry after a delay
         reconnectTimeoutRef.current = setTimeout(() => {
           if (mountedRef.current && socketRef.current) {
-            console.log("🔄 Manual reconnection attempt...");
             socketRef.current.connect();
           }
         }, 5000);
@@ -132,7 +126,6 @@ export const useWebSocket = () => {
       }
 
       if (socketRef.current) {
-        console.log("🔌 WebSocket disconnecting...");
         socketRef.current.removeAllListeners();
         socketRef.current.close();
         socketRef.current = null;
